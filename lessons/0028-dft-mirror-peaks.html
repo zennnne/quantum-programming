@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0028 — DFT ญาติฝั่งคลาสสิก: ทำไมสัญญาณจริงได้ peak คู่</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+<script defer src="../assets/wave.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 07 · บทที่ 0028 (ครึ่งแรกของ “DFT ญาติฝั่งคลาสสิก”)</div>
+  <h1>DFT ญาติฝั่งคลาสสิก — ทำไมสัญญาณจริงได้ peak คู่</h1>
+  <p class="lead">บท <a href="0027-qft-hidden-frequency.html">0027</a> เราใส่ QFT แล้วได้ <b>peak เดียว</b>สวยๆ ทุกครั้ง ·
+    แต่สไลด์เตือนว่านั่น “เลือกตัวอย่างมาแล้ว” · บทนี้ไปดู <b>DFT</b> ฝั่งคลาสสิกซึ่งทำคณิตเดียวกันเป๊ะ
+    แล้วจะเจอของแปลก: sine wave ความถี่ 8 กลับได้ peak <b>สองอัน</b> ที่ 8 <b>และ 248</b> · ไขปริศนานี้ได้
+    ก็จะรู้ว่าต้องอ่านผล QFT ยังไงไม่ให้หลงค่ะ</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b> — จับหลัก 4 อย่าง:
+    ① <b>QFT = DFT บน quantum register</b> · FFT = วิธีคำนวณ DFT แบบเร็ว = คู่แข่งตัวจริงของ QFT
+    ② DFT พาสัญญาณไป <b>frequency space</b>: magnitude = ความถี่นั้นแรงแค่ไหน · phase = เหลื่อม (offset) กันแค่ไหน
+    ③ สัญญาณ<b>จริง</b> ได้ peak คู่ที่ <b>f กับ N − f</b> · สัญญาณ<b>เชิงซ้อน</b> ได้ peak เดียว
+    ④ ใน QFT: เข้ารหัสใน<b>เฟส</b> = เชิงซ้อน → peak เดียว · เข้ารหัสใน <b>magnitude</b> = จริง → peak คู่ (เรื่องสอบ)
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · QFT, DFT, FFT และ DFT ทำงานยังไง</h2></div>
+
+  <h3>ตัวย่อสามตัวที่หน้าตาคล้ายกัน</h3>
+  <p>ถ้าเคยเห็น <b>graphic equalizer</b> ในเครื่องเสียง (แท่งไฟเต้นแยกเสียงเบส/เสียงแหลม) นั่นแหละคือไอเดียของ DFT:
+    เอาสัญญาณมา แล้วบอกว่า<b>มีความถี่ไหนอยู่ข้างในบ้าง แรงแค่ไหน</b> (p8) · สไลด์บอกว่ากลไกคณิตข้างใน DFT
+    <b>เหมือนของ QFT แทบทุกประการ</b> เราเลยสร้าง intuition กับ DFT ที่จับต้องง่ายกว่าก่อน</p>
+
+  <table class="cmp">
+    <thead><tr><th>ตัวย่อ</th><th>คืออะไร (p9–12)</th><th>ทำงานกับ</th></tr></thead>
+    <tbody>
+      <tr><td data-label="ตัวย่อ"><b>DFT</b> (Discrete Fourier Transform, การแปลงฟูเรียร์แบบไม่ต่อเนื่อง)</td>
+        <td data-label="คืออะไร">การแปลงแบบคลาสสิก ดึงข้อมูลความถี่ออกจากสัญญาณ</td>
+        <td data-label="ทำงานกับ">ลิสต์ตัวเลขธรรมดา (sample)</td></tr>
+      <tr><td data-label="ตัวย่อ"><b>FFT</b> (Fast Fourier Transform)</td>
+        <td data-label="คืออะไร"><b>อัลกอริทึม</b>ตัวหนึ่งที่คำนวณ DFT · ผลเหมือน DFT เป๊ะแต่เร็วกว่ามาก · เร็วที่สุดที่รู้จัก</td>
+        <td data-label="ทำงานกับ">ลิสต์ตัวเลขธรรมดา → <b>ตัวที่ QFT ต้องเอาชนะ</b></td></tr>
+      <tr><td data-label="ตัวย่อ"><b>QFT</b></td>
+        <td data-label="คืออะไร">การแปลง<b>แบบเดียวกับ DFT</b></td>
+        <td data-label="ทำงานกับ">สัญญาณที่เก็บอยู่<b>ใน quantum register</b></td></tr>
+    </tbody>
+  </table>
+  <p class="meta">ข้อจำกัดร่วมของ FFT กับ QFT: ความยาวสัญญาณต้องเป็น<b>กำลังของ 2</b> (16, 256, …) — ฝั่ง QPU ก็ตรงตัวอยู่แล้ว
+    เพราะ register n qubit มี 2ⁿ ค่า</p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">บท 0029 จะเทียบ “ความเร็ว” ของ QFT กับอีกตัวหนึ่ง — ตามสไลด์ เราควรเทียบกับตัวไหน?</div>
+    <button class="opt">DFT</button>
+    <button class="opt">FFT</button>
+    <button class="opt">QFT</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ DFT เป็นแค่ “นิยามว่าต้องได้ผลอะไร” ส่วน FFT คือวิธีคำนวณที่เร็วที่สุดที่ใช้จริง — จะชนะต้องชนะตัวนี้</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ DFT คือ “ผลลัพธ์ที่ต้องการ” ยังไม่ใช่วิธีคำนวณ · ตัวที่คำนวณได้เร็วที่สุดและใช้จริงคือ FFT (p12)</div>
+  </div>
+
+  <h3>DFT กินอะไร: sample ที่เป็นจำนวนเชิงซ้อน</h3>
+  <p>DFT ทำงานกับ <b>sample แบบไม่ต่อเนื่อง</b> (จุดที่เก็บค่ามาเป็นระยะ เช่นเสียงดนตรีหรือรูปภาพดิจิทัล) ·
+    ปกติเรามองสัญญาณเป็นจำนวนจริง แต่ DFT รับ<b>จำนวนเชิงซ้อน</b>ได้ด้วย — ซึ่งสำคัญมากกับเรา
+    เพราะ state ของ register ก็คือลิสต์ของจำนวนเชิงซ้อน (p22)</p>
+
+  <div class="box mathref">
+    <b>refresher: จำนวนเชิงซ้อน = วงกลม 1 วง</b> (p22) — ทุกครั้งที่เจอคำว่า complex number ให้นึกถึง<b>วงใน circle notation</b>:
+    ขนาดวง = magnitude · ทิศเข็ม = phase · ถ้าวางเข็มบนระนาบ ระยะที่เข็มยื่นไปทางแนวนอน = <b>ส่วนจริง</b>
+    แนวตั้ง = <b>ส่วนจินตภาพ</b> · จำนวนจริงล้วนคือเข็มที่ชี้ได้แค่ 2 ทาง (บวก / ลบ) — <b>ส่วนจินตภาพ = 0</b>
+  </div>
+
+  <p>ตัวอย่างในสไลด์ (p23–25): sine wave ความถี่เดียว (ถ้าเป็นเสียงคือ <b>pure tone, เสียงบริสุทธิ์</b>) เก็บมา <b>256 sample</b> ·
+    แต่ละ sample เก็บเป็น complex float <b>16 byte</b> (ส่วนจริง 8 + ส่วนจินตภาพ 8) → buffer <b>256 × 16 = 4,096 byte</b> ·
+    ถึงส่วนจินตภาพจะเป็น 0 หมด ก็ต้องเผื่อที่ไว้ เพราะ <b>output ของ DFT เป็นจำนวนเชิงซ้อน 256 ค่า</b></p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ถ้าเก็บ sample <b>2,048 จุด</b> แบบเดียวกับสไลด์ ต้องใช้ buffer กี่ byte?</div>
+    <button class="opt">16,384 byte</button>
+    <button class="opt">65,536 byte</button>
+    <button class="opt">32,768 byte</button>
+    <button class="opt">20,480 byte</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ 2,048 × 16 = 32,768 · อย่าลืมว่า 16 byte มาจากส่วนจริง 8 + ส่วนจินตภาพ 8</div>
+    <div class="fb no" data-for="no">ลองใหม่ค่ะ — 1 sample = 16 byte (จริง 8 + จินตภาพ 8) · ถ้าได้ 16,384 แปลว่าลืมเผื่อส่วนจินตภาพ</div>
+  </div>
+
+  <h3>DFT คายอะไรออกมา: frequency space</h3>
+  <p>output ช่องที่ j ของ DFT (j = 0 … 255) คือ<b>ความถี่ j</b> = “สั่นครบ j รอบตลอดช่วงที่เก็บ” · ในแต่ละช่อง (p25):</p>
+  <div class="twocol">
+    <div class="c"><b>magnitude</b> ของช่อง j<br>ความถี่ j มีอยู่ในสัญญาณ<b>มากแค่ไหน</b> (ความสูงของ peak)</div>
+    <div class="c"><b>phase</b> ของช่อง j<br>คลื่นความถี่ j <b>เหลื่อม (offset)</b> ไปแค่ไหน</div>
+  </div>
+  <p>เราเรียกโลกฝั่งขวานี้ว่า <b>frequency space (ปริภูมิความถี่)</b> (p27) · ลองดูของจริง: sine ที่สั่น 8 รอบใน 1 วินาที</p>
+
+  <div class="wide">
+    <div class="wave" data-sig="sin:8" data-mark="8,248" data-unit=" Hz"
+         data-cap="วาดตาม Figure 7-10 (p26): sine 8 Hz, 256 sample → DFT → magnitude · สังเกตว่ามี peak <b>สองอัน</b>"></div>
+  </div>
+
+  <div class="box warn">
+    <b>⚠️ รูปในสไลด์ p24/p26/p27 นับได้แค่ 6 รอบ</b> — หนูเปิดรูปจริง (p24) นับยอดคลื่นได้ 6 ยอดจริงๆ
+    แต่ข้อความบอก “สั่นครบ 8 รอบ = 8 Hz” และ peak ติดป้าย 8 / 248 · รูปด้านบนหนูวาดให้ครบ 8 รอบตามข้อความ ·
+    <b>ตอบตามตัวเลขในสไลด์ตอนสอบ (8 Hz, peak 8 กับ 248)</b> แค่รู้ไว้ว่ารูปวาดไม่ตรงเฉยๆ
+  </div>
+
+  <p><b>peak มีความกว้าง</b> (p27): สไลด์ชี้ว่ารอบฐาน peak มีค่าเล็กๆ ไม่เป็นศูนย์ เพราะ output มีจำนวน bit จำกัด
+    peak จึงแหลมเป็นเส้นเดียวไม่ได้เสมอไป — <b>QFT ก็เป็นแบบนี้ได้</b> (ค่าเล็กๆ รั่วไปช่องข้างๆ) ·
+    รูปบนแหลมเป๊ะเพราะ 8 รอบลงช่องพอดี ลองดูกรณี 8.4 รอบซึ่งไม่ลงช่องพอดี:</p>
+  <div class="wave" data-sig="sin:8.4" data-show="freq" data-mark="8"
+       data-cap="สั่น 8.4 รอบ → peak หลักอยู่ที่ 8 แต่รั่วไปช่อง 5–12 ด้วย (ฝั่ง 248 ก็เช่นกัน)"></div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · peak สะท้อน: สัญญาณจริง vs สัญญาณเชิงซ้อน</h2></div>
+
+  <h3>248 มาจากไหน?</h3>
+  <p>peak ที่ 248 เรียกว่า <b>mirror-image peak (peak สะท้อน)</b> (p28) · เกิดกับ DFT ของ<b>สัญญาณจริงทุกตัว</b>
+    (ทุก sample เป็นจำนวนจริง ซึ่งสัญญาณในชีวิตจริงเกือบทั้งหมดเป็นแบบนี้): peak ที่ f จะมีคู่ที่ <b>N − f</b> เสมอ
+    (256 − 8 = 248) · ครึ่งหลังของผลลัพธ์จึงเป็นแค่ภาพสะท้อนของครึ่งแรก <b>ใช้ได้จริงแค่ 256 / 2 = 128 ช่องแรก</b></p>
+
+  <div class="wide">
+    <div class="wave" data-sig="sin:12" data-dots="0" data-mark="12,244" data-half="1"
+         data-cap="สั่น 12 รอบ → peak 12 กับ 244"></div>
+    <div class="wave" data-sig="sin:28" data-dots="0" data-mark="28,228" data-half="1"
+         data-cap="สั่น 28 รอบ → peak ขยับเข้ากลางทั้งคู่ เท่าๆ กัน (แนวเดียวกับ Figure 7-11 p28 ซึ่งไม่ได้บอกเลขความถี่)"></div>
+  </div>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">sine จริง 256 sample สั่น <b>20 รอบ</b> → DFT ได้ peak ที่ตำแหน่งไหนบ้าง?</div>
+    <button class="opt">20 กับ 256</button>
+    <button class="opt">20 กับ 108</button>
+    <button class="opt">20 กับ 148</button>
+    <button class="opt">20 กับ 236</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ N − f = 256 − 20 = 236 · ช่องมีแค่ 0–255 ดังนั้น “256” ไม่มีอยู่จริง</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ คู่สะท้อนคือ N − f = 256 − 20 · (108 = 128 − 20 คือสะท้อนรอบผิดจุด)</div>
+  </div>
+
+  <h3>ทำไมถึงเป็นคู่? — ล้อหมุนสองล้อ</h3>
+  <p>สไลด์บอกแค่ “มันเป็นแบบนั้น” หนูขอเติม “ทำไม” ให้ค่ะ</p>
+
+  <div class="analogy">
+    <div class="cell"><b>สัญญาณเชิงซ้อน = เข็มที่หมุนวน</b>
+      <small>เข็มยาวคงที่ หมุนทวนเข็มนาฬิกา f รอบ · มีทิศการหมุนชัดเจน → DFT บอกได้เลยว่า “f รอบ ทวนเข็ม” = <b>peak เดียวที่ f</b></small></div>
+    <div class="arrow">≠</div>
+    <div class="cell"><b>สัญญาณจริง = เงาบนผนัง</b>
+      <small>เห็นแค่ส่วนจริง (แนวนอน) แกว่งไปกลับ · ดูจากเงาไม่รู้ว่าเข็มหมุนทวนหรือตามเข็ม ·
+        จริงๆ แล้วมันคือ<b>สองเข็มหมุนสวนกัน</b>ครึ่งๆ</small></div>
+  </div>
+
+  <div class="box mathref">
+    <b>คณิตเบื้องหลัง (ดูผ่านๆ ได้)</b> — เข็มทวนเข็ม + เข็มตามเข็มที่ยาวเท่ากัน: ส่วนแนวตั้งหักล้างกันหมด
+    เหลือแต่แนวนอนแกว่งไปมา = <code class="code">cos θ = ½(ทวนเข็ม θ) + ½(ตามเข็ม θ)</code> ·
+    DFT จึงเจอ <b>สองความถี่</b>: +f กับ −f · แล้ว −f ไปโผล่ช่อง N − f เพราะ<b>ถอยหลัง f ช่อง = เดินหน้า N − f ช่อง</b>
+    (เหมือนนาฬิกา: ถอย 1 ชั่วโมง = เดิน 11 ชั่วโมง)
+  </div>
+
+  <p>ยืนยันด้วยตา: สัญญาณเชิงซ้อน (เส้นทึบ = ส่วนจริง · เส้นประ = ส่วนจินตภาพ) <b>ไม่มีภาพสะท้อน</b> (p29) ทั้ง 256 ช่องมีความหมายหมด</p>
+  <div class="wide">
+    <div class="wave" data-sig="spin:8" data-dots="0" data-mark="8"
+         data-cap="เข็มหมุน<b>ทวน</b>เข็ม 8 รอบ → peak เดียวที่ 8"></div>
+    <div class="wave" data-sig="spin:-8" data-dots="0" data-mark="248"
+         data-cap="เข็มหมุน<b>ตาม</b>เข็ม 8 รอบ → peak เดียวที่ 248 (= −8)"></div>
+  </div>
+
+  <h3>กลับมาที่ QFT: เข้ารหัสไว้ตรงไหน?</h3>
+  <p>ในบท 0027 สัญญาณอยู่ใน <b>relative phase</b> (magnitude เท่ากันหมด เข็มหมุนวน) = <b>สัญญาณเชิงซ้อน</b>
+    → ไม่มีความซ้ำซ้อนแบบสมมาตร → QFT ได้ peak เดียว (p29) · และนี่คือคำตอบของคำถามท้ายบท 0027:
+    <b>ถ้าเข็มหมุนตามเข็มนาฬิกา ความถี่ f จะอ่านได้ 2ⁿ − f</b></p>
+  <div class="wide">
+    <p class="meta" style="margin:.5rem 0 0;"><b>เข้ารหัสในเฟส</b> — เข็มหมุนทวนเข็ม 1 รอบ (ทีละ 22.5°) → หลัง QFT ได้ |1⟩ แน่นอน</p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-phase="0,22.5,45,67.5,90,112.5,135,157.5,180,202.5,225,247.5,270,292.5,315,337.5"></div>
+    <p class="meta" style="margin:.5rem 0 0;"><b>เข้ารหัสในเฟส</b> — หมุน<b>ตาม</b>เข็ม 1 รอบ (ทีละ −22.5°) → หลัง QFT ได้ |15⟩ แน่นอน</p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-phase="0,337.5,315,292.5,270,247.5,225,202.5,180,157.5,135,112.5,90,67.5,45,22.5"></div>
+  </div>
+
+  <p>แต่ถ้าเข้ารหัสสัญญาณไว้ใน <b>magnitude</b> แทน (p30, Figure 7-12) — ขนาดวงแกว่งตาม cos 1 รอบ
+    และเข็มชี้ได้แค่ขึ้น (+) หรือลง (−):</p>
+  <div class="wide">
+    <p class="meta" style="margin:.5rem 0 0;"><b>Figure 7-12</b> — สัญญาณใน magnitude (ขนาดวงเทียบกับวง |0⟩ · |4⟩ และ |12⟩ ว่าง)</p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="1,0.854,0.5,0.146,0,0.146,0.5,0.854,1,0.854,0.5,0.146,0,0.146,0.5,0.854"
+         data-phase="0,0,0,0,0,180,180,180,180,180,180,180,0,0,0,0"></div>
+    <p class="meta" style="margin:.5rem 0 0;"><b>Figure 7-13</b> — หลัง QFT: |1⟩ กับ |15⟩ อย่างละครึ่ง เข็มชี้ขึ้นทั้งคู่ = <b>peak สะท้อนแบบ DFT เป๊ะ</b> (p31)</p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1" data-sub=",50%,,,,,,,,,,,,,,50%"></div>
+  </div>
+
+  <div class="box warn">
+    <b>⚠️ กับดัก (p30): “เข็มพลิกไปมาแล้ว = เชิงซ้อน” ผิด!</b> — เฟส 180° คือ<b>เครื่องหมายลบ</b>เท่านั้น
+    ถ้าเข็มมีแค่ 0° กับ 180° ทุกค่าเป็น<b>จำนวนจริง</b> (บวกหรือลบ) → นับเป็นสัญญาณจริง → ได้ peak คู่
+  </div>
+
+  <div class="box aha">
+    <b>บทสรุปที่ต้องจำ (p31)</b> — ก่อนตีความผล QFT ต้องถามก่อนว่า input เข้ารหัสไว้ใน<b>เฟส</b>หรือ <b>magnitude</b>:
+    เข็มหมุนวน (เชิงซ้อน) → <b>peak เดียว</b> · ขนาดวงแกว่ง / เข็มมีแค่ขึ้นลง (จริง) → <b>peak คู่ f กับ 2ⁿ − f</b>
+  </div>
+
+  <p class="meta">แถม (หนูจำลองเช็คเอง ไม่ได้อยู่ในสไลด์): ถ้าเปลี่ยน cos เป็น sin ใน Figure 7-12 จะได้ |1⟩ กับ |15⟩ ขนาดเท่าเดิม
+    แต่เข็มชี้ −90° กับ +90° แทน 0° — นี่แหละ “phase บอก offset” จากส่วนที่ 1 (sin คือ cos ที่เหลื่อมไปหนึ่งในสี่รอบ)</p>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">register 4 qubit เข้ารหัส cos ที่สั่น <b>3 รอบ</b>ไว้ใน magnitude แล้ว QFT → READ จะได้อะไร?</div>
+    <button class="opt">3 หรือ 13 อย่างละ 50%</button>
+    <button class="opt">3 อย่างเดียวทุกรอบ 100%</button>
+    <button class="opt">3 หรือ 29 อย่างละ 50%</button>
+    <button class="opt">13 อย่างเดียวทุกรอบ 100%</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ เข้ารหัสใน magnitude = สัญญาณจริง → peak คู่ 3 กับ 16 − 3 = 13 ขนาดเท่ากัน</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ magnitude = สัญญาณจริง → peak คู่ · และคู่สะท้อนคือ 2ⁿ − f โดย 2ⁿ = 16 (ไม่ใช่ 32)</div>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">register 4 qubit magnitude เท่ากันหมด เข็มหมุน<b>ตามเข็มนาฬิกาทีละ 90°</b> (|1⟩ = −90°, |2⟩ = −180°, …) → QFT แล้ว READ ได้?</div>
+    <button class="opt">ได้ 4 ทุกครั้ง</button>
+    <button class="opt">4 หรือ 12 ครึ่งๆ</button>
+    <button class="opt">ได้ 12 ทุกครั้ง</button>
+    <button class="opt">ได้ 0 ทุกครั้ง</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ 90° × 16 วง = 4 รอบ ตามเข็ม → เชิงซ้อน peak เดียวที่ 16 − 4 = 12</div>
+    <div class="fb no" data-for="no">ลองนับใหม่ค่ะ: 16 วง × 90° = 4 รอบ · เข็มหมุนวน = เชิงซ้อน → peak <b>เดียว</b> · หมุนตามเข็ม → อยู่ที่ 2ⁿ − f</div>
+  </div>
+
+  <details class="recall">
+    <summary>ทดสอบความจำ — ปิดจอแล้วตอบก่อนเปิดดู</summary>
+    <ol>
+      <li>QFT, DFT, FFT ต่างกันยังไง? ตัวไหนคือคู่แข่งของ QFT?
+        <br><b>DFT = การแปลงคลาสสิก · FFT = อัลกอริทึมเร็วของ DFT (คู่แข่ง) · QFT = DFT บน quantum register</b></li>
+      <li>output ของ DFT แต่ละช่องบอกอะไร 2 อย่าง?
+        <br><b>magnitude = ความถี่นั้นแรงแค่ไหน · phase = offset</b></li>
+      <li>sine จริง 256 sample สั่น 8 รอบ → peak ที่ไหน? ใช้ได้กี่ช่อง?
+        <br><b>8 กับ 248 · ใช้ได้ครึ่งแรก 128 ช่อง</b></li>
+      <li>ทำไมสัญญาณจริงถึงได้ peak คู่?
+        <br><b>จริง = สองเข็มหมุนสวนกัน (+f และ −f) · −f โผล่ที่ N − f</b></li>
+      <li>QFT: เข้ารหัสในเฟส vs magnitude ได้ผลต่างกันยังไง?
+        <br><b>เฟส (เชิงซ้อน) → peak เดียว · magnitude (จริง) → peak คู่ f กับ 2ⁿ − f</b></li>
+      <li>เข็มมีแค่ 0° กับ 180° นับเป็นสัญญาณแบบไหน?
+        <br><b>จริง — 180° คือเครื่องหมายลบ</b></li>
+    </ol>
+  </details>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>สรุปบทนี้</h2></div>
+  <ul>
+    <li><b>QFT</b> ทำการแปลงเดียวกับ <b>DFT</b> แต่ทำบน quantum register · <b>FFT</b> คือวิธีคำนวณ DFT ที่เร็วที่สุด = ตัวที่ QFT ต้องชนะ · ยาวต้องเป็นกำลัง 2</li>
+    <li>DFT รับ sample เชิงซ้อน (วงกลม 1 วง) · 256 sample × 16 byte = 4,096 byte · output เชิงซ้อน 256 ค่า</li>
+    <li><b>frequency space</b>: ช่อง j = ความถี่ j · magnitude = ความแรง · phase = offset · peak มีความกว้างได้ (QFT ก็เช่นกัน)</li>
+    <li>สัญญาณ<b>จริง</b> → peak คู่ <b>f กับ N − f</b> ใช้ได้แค่ครึ่งแรก · สัญญาณ<b>เชิงซ้อน</b> → peak เดียว</li>
+    <li>QFT: เข้ารหัสใน<b>เฟส</b> → peak เดียว (หมุนตามเข็มได้ 2ⁿ − f) · ใน <b>magnitude</b> → peak คู่ (Figure 7-13: |1⟩ &amp; |15⟩)</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b> — <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia — บทที่ 7 หัวข้อ
+      <i>The Discrete Fourier Transform</i> และ <i>Real and Complex DFT Inputs</i> (Figure 7-9 ถึง 7-13) ·
+      ถ้าอยากเห็นภาพ “เข็มหมุน” ของ Fourier transform แบบเคลื่อนไหว ดู
+      <a href="https://www.youtube.com/watch?v=spUNpyF58BY">3Blue1Brown — But what is the Fourier Transform?</a> ·
+      สไลด์ <code class="code">QuantumProg_Lec07.pdf</code> หน้า 8–12, 22–31</p>
+    <p><b>บทถัดไป</b> — <a href="0028b-harmonics-square-wave-qft.html">0028b</a>: สัญญาณผสม, DC bias และ square wave → ฮาร์มอนิก (p17–21, 32–39)</p>
+    <p><b>บทที่เกี่ยวข้อง</b> —
+      <a href="midterm/0003-amplitude-and-phase.html">0003 · amplitude และ phase</a> ·
+      <a href="0027-qft-hidden-frequency.html">0027 · QFT อ่านความถี่ในเฟส</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> — จุดที่คนงงบ่อยในบทนี้:
+      ① ภาพ “สองเข็มหมุนสวนกัน” ยังไม่เห็นภาพ (หนูไล่ตัวเลขทีละวงให้ได้) ② ทำไมถอยหลัง f ช่องถึงเท่ากับเดินหน้า N − f
+      ③ ถ้าเข็มมีทั้งหมุนวน<b>และ</b>ขนาดวงแกว่งพร้อมกันจะได้อะไร
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

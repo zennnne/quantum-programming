@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="th">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quantum Programming — บทเรียนทั้งเทอม</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  body { padding-top: 2rem; }
+  .lec { border:1px solid var(--rule); border-radius:12px; background:#fff; margin:.8rem 0; overflow:hidden; }
+  .lec summary { list-style:none; cursor:pointer; padding:.9rem 1.1rem; display:flex; align-items:baseline; gap:.7rem; }
+  .lec summary::-webkit-details-marker { display:none; }
+  .lec summary::after { content:"▸"; margin-left:auto; color:var(--accent); transition:transform .15s; }
+  .lec[open] summary::after { transform:rotate(90deg); }
+  .lec .no { font-weight:800; color:#fff; background:var(--accent); border-radius:6px; padding:.05rem .5rem; font-size:.85rem; white-space:nowrap; }
+  .lec .name { font-weight:700; line-height:1.4; }
+  .lec .cnt { color:var(--ink-soft); font-size:.8rem; white-space:nowrap; }
+  .lec ol { margin:0; padding:0 0 .4rem; list-style:none; border-top:1px solid var(--rule); }
+  .lec li a { display:block; padding:.65rem 1.1rem; text-decoration:none; color:var(--ink); line-height:1.45; border-bottom:1px solid var(--rule); }
+  .lec li:last-child a { border-bottom:0; }
+  .lec li a:active, .lec li a:hover { background:var(--accent-dim); }
+  .lec li small { display:block; color:var(--accent); font-weight:700; font-size:.75rem; }
+  .part { margin-top:2rem; font-size:.85rem; letter-spacing:.05em; color:var(--ink-soft); text-transform:uppercase; }
+  .tools { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:.6rem; margin:1rem 0; }
+  .tools a { display:block; border:1px solid var(--rule); border-radius:10px; background:#fff; padding:.7rem .9rem; text-decoration:none; color:var(--accent); font-weight:700; font-size:.95rem; }
+</style>
+<div class="wrap">
+
+  <p class="kicker">Quantum Programming · ทั้งเทอม</p>
+  <h1>บทเรียนแยกตามสไลด์</h1>
+  <p class="lead">กดที่ Lec เพื่อกางรายชื่อบท แล้วแตะบทที่อยากอ่านได้เลยค่ะ</p>
+
+  <div class="tools">
+    <a href="reference/glossary.html">🔤 Glossary</a>
+    <a href="reference/circuit-cheatsheet.html">📋 Cheat Sheet วงจร</a>
+    <a href="exam/index.html">📝 อ่านสอบกลางภาค</a>
+  </div>
+
+  <p class="part">ก่อนกลางภาค</p>
+
+  <details class="lec">
+    <summary><span class="no">Lec 01</span><span class="name">Quantum Computer คืออะไร</span><span class="cnt">1 บท</span></summary>
+    <ol>
+      <li><a href="lessons/midterm/0001-what-is-a-quantum-computer.html"><small>บท 0001</small>Quantum Computer คืออะไรกันแน่</a></li>
+    </ol>
+  </details>
+
+  <details class="lec">
+    <summary><span class="no">Lec 02</span><span class="name">One Qubit · QPU instructions</span><span class="cnt">6 บท</span></summary>
+    <ol>
+      <li><a href="lessons/midterm/0002-one-qubit.html"><small>บท 0002</small>One Qubit: qubit คืออะไร &amp; superposition ที่แท้จริง</a></li>
+      <li><a href="lessons/midterm/0003-amplitude-and-phase.html"><small>บท 0003</small>Amplitude &amp; Phase: ทำไม qubit เหนือกว่าเหรียญสุ่ม</a></li>
+      <li><a href="lessons/midterm/0004-qpu-instructions-not-write-read.html"><small>บท 0004</small>QPU เป็นเครื่องรันคำสั่ง: NOT, WRITE, READ &amp; reversibility</a></li>
+      <li><a href="lessons/midterm/0005-hadamard.html"><small>บท 0005</small>HAD (Hadamard): ประตูสู่ superposition</a></li>
+      <li><a href="lessons/midterm/0006-qrng-phase-rotations.html"><small>บท 0006</small>QRNG และ PHASE / ROTX / ROTY บน Bloch sphere</a></li>
+      <li><a href="lessons/midterm/0007-combining-gates-rnot-spy-hunter.html"><small>บท 0007</small>รวม gate, no-cloning, RNOT และ Quantum Spy Hunter</a></li>
+    </ol>
+  </details>
+
+  <details class="lec">
+    <summary><span class="no">Lec 03</span><span class="name">Multi-qubit · Entanglement</span><span class="cnt">6 บท</span></summary>
+    <ol>
+      <li><a href="lessons/midterm/0008-multi-qubit-registers.html"><small>บท 0008</small>อ่าน วาด และปฏิบัติกับ register หลาย qubit</a></li>
+      <li><a href="lessons/midterm/0008b-practice-multi-qubit.html"><small>บท 0008b · โจทย์</small>ซ้อมมือ register หลาย qubit</a></li>
+      <li><a href="lessons/midterm/0009-cnot-and-entanglement.html"><small>บท 0009</small>CNOT กับ entanglement (Bell pair + Bell's theorem)</a></li>
+      <li><a href="lessons/midterm/0010-cphase-cz-phase-kickback.html"><small>บท 0010</small>CPHASE, CZ และ phase kickback</a></li>
+      <li><a href="lessons/midterm/0011-multi-control-gates-swap-test.html"><small>บท 0011</small>CCNOT, SWAP, CSWAP และ SWAP test</a></li>
+      <li><a href="lessons/midterm/0012-building-conditional-ops-remote-randomness.html"><small>บท 0012</small>สร้าง conditional operation เอง + remote-controlled randomness</a></li>
+    </ol>
+  </details>
+
+  <details class="lec">
+    <summary><span class="no">Lec 04</span><span class="name">Quantum Teleportation</span><span class="cnt">5 บท</span></summary>
+    <ol>
+      <li><a href="lessons/midterm/0013-what-teleportation-is.html"><small>บท 0013</small>quantum teleportation คืออะไร (และไม่ใช่อะไร)</a></li>
+      <li><a href="lessons/midterm/0014-reading-the-teleportation-circuit.html"><small>บท 0014</small>อ่านวงจร teleportation ให้ขาด</a></li>
+      <li><a href="lessons/midterm/0015-teleportation-walkthrough.html"><small>บท 0015</small>เดินโปรแกรม teleportation ทีละ step</a></li>
+      <li><a href="lessons/midterm/0016-running-on-ibm-qx-and-qpu-primitives.html"><small>บท 0016</small>รัน teleportation จริงบน IBM QX + QPU primitives</a></li>
+      <li><a href="lessons/midterm/extra-teleportation-circuit-drill.html"><small>พิเศษ · โจทย์</small>อ่านวงจร Teleportation 3 ข้อ (ระดับหิน)</a></li>
+    </ol>
+  </details>
+
+  <details class="lec">
+    <summary><span class="no">Lec 05</span><span class="name">Quantum Arithmetic &amp; Logic</span><span class="cnt">7 บท</span></summary>
+    <ol>
+      <li><a href="lessons/midterm/0017-quantum-arithmetic-must-be-rethought.html"><small>บท 0017</small>เลขคณิตควอนตัมต้องคิดใหม่ทั้งหมด</a></li>
+      <li><a href="lessons/midterm/0018-increment-decrement.html"><small>บท 0018</small>increment / decrement: เลขคณิตตัวแรกบน QPU</a></li>
+      <li><a href="lessons/midterm/0019-adding-two-quantum-integers-and-negative-numbers.html"><small>บท 0019</small>บวกควอนตัมสองตัว (a += b) และเลขติดลบ</a></li>
+      <li><a href="lessons/midterm/0020-quantum-conditional-execution-and-phase-encoding.html"><small>บท 0020</small>เงื่อนไขแบบควอนตัม และการเก็บคำตอบไว้ในเฟส</a></li>
+      <li><a href="lessons/midterm/0021-scratch-qubit-and-abs.html"><small>บท 0021</small>scratch qubit: ที่พักของข้อมูลที่กำลังจะหาย</a></li>
+      <li><a href="lessons/midterm/0021b-uncomputing.html"><small>บท 0021b</small>Uncomputing: ยืม scratch มาแล้วต้องคืนให้เนียน</a></li>
+      <li><a href="lessons/midterm/0022-toffoli-is-quantum-nand.html"><small>บท 0022</small>Toffoli คือ NAND ของโลกควอนตัม</a></li>
+    </ol>
+  </details>
+
+  <p class="part">หลังกลางภาค</p>
+
+  <details class="lec">
+    <summary><span class="no">Lec 06</span><span class="name">Amplitude Amplification</span><span class="cnt">4 บท</span></summary>
+    <ol>
+      <li><a href="lessons/0023-flip-and-mirror.html"><small>บท 0023</small>เฟสซ่อนคำตอบ → flip + mirror ทำให้อ่านได้</a></li>
+      <li><a href="lessons/0024-how-many-aa-iterations.html"><small>บท 0024</small>วน AA กี่รอบดี?</a></li>
+      <li><a href="lessons/0025-many-marked-values-and-using-aa.html"><small>บท 0025</small>mark หลายค่า และ AA เอาไปใช้ทำอะไร</a></li>
+      <li><a href="lessons/0026-inside-the-mirror.html"><small>บท 0026</small>ข้างใน mirror: สะท้อนรอบค่าเฉลี่ย</a></li>
+    </ol>
+  </details>
+
+  <details class="lec">
+    <summary><span class="no">Lec 07</span><span class="name">Quantum Fourier Transform (QFT)</span><span class="cnt">5 บท</span></summary>
+    <ol>
+      <li><a href="lessons/0027-qft-hidden-frequency.html"><small>บท 0027</small>QFT: อ่าน “ความถี่” ที่ซ่อนอยู่ในเฟส</a></li>
+      <li><a href="lessons/0028-dft-mirror-peaks.html"><small>บท 0028</small>DFT ญาติฝั่งคลาสสิก: ทำไมสัญญาณจริงได้ peak คู่</a></li>
+      <li><a href="lessons/0028b-harmonics-square-wave-qft.html"><small>บท 0028b</small>ฮาร์มอนิกและ square wave ใน QPU</a></li>
+      <li><a href="lessons/0029-qft-fast-but-how-to-use-invqft.html"><small>บท 0029</small>QFT เร็ว แต่ใช้ยังไง? → invQFT</a></li>
+      <li><a href="lessons/0030-inside-the-invqft-circuit.html"><small>บท 0030</small>ข้างในวงจร invQFT</a></li>
+    </ol>
+  </details>
+
+  <p class="part">เสริม</p>
+  <details class="lec">
+    <summary><span class="no">Extra</span><span class="name">นอกสไลด์</span><span class="cnt">1 บท</span></summary>
+    <ol>
+      <li><a href="lessons/midterm/extra-majorana-topological-qubit.html"><small>พิเศษ</small>Majorana Qubit: breakthrough ที่โลกยังไม่ยอมเชื่อ</a></li>
+    </ol>
+  </details>
+
+</div>
+</html>

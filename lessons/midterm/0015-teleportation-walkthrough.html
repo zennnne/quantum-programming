@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="th">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บทที่ 0015 — เดินโปรแกรม teleportation ทีละ step</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/lesson-bits.css">
+<script defer src="../../assets/quiz.js"></script>
+<script defer src="../../assets/circuit.js"></script>
+<script defer src="../../assets/circles.js"></script>
+
+<div class="wrap">
+  <p class="kicker">Quantum Programming · Lec 04 · บทที่ 0015</p>
+  <h1>★ เดินโปรแกรม teleportation ทีละ step</h1>
+  <p class="lead">บท <a href="0014-reading-the-teleportation-circuit.html">0014</a> สอน “ภาษา” สองภาษาไว้แล้ว —
+  <b>วงจร 5 กล่อง</b> กับ <b>ผัง 8 วง</b> · บทนี้คือการเอาสองภาษานั้นมาใช้พร้อมกัน:
+  เลื่อนเส้นประสีแดงไปทีละ step แล้วดูว่า<b>ผัง 8 วงเปลี่ยนหน้าตายังไง</b>
+  จนเห็นกับตาว่า payload ของ Alice ไปโผล่ที่ Bob ได้จริงค่ะ</p>
+
+  <div class="box why">
+    <span class="tag">ทำไมบทนี้คือหัวใจของ Lec 04</span>
+    <p>สไลด์ <b>ครึ่งบท</b> (หน้า 27–43) เป็นเรื่องนี้เรื่องเดียว — เพราะนี่คือจุดที่ teleportation
+    เลิกเป็น “เรื่องเล่า” แล้วกลายเป็น<b>สิ่งที่ตรวจสอบได้ทีละบรรทัด</b> ·
+    ถ้าพี่ Zen เดินผัง 8 วงตามได้ครบทั้ง 6 ภาพ ก็แปลว่าเข้าใจ teleportation จริง ไม่ใช่ท่องจำค่ะ</p>
+    <p style="margin-bottom:0;">บทนี้จับ <b>3 อย่าง</b>: ① Alice ค่อยๆ “ผูก” payload เข้ากับ Bob ยังไง (Step 1→3.2)
+    ② <b>READ = เลือกคอลัมน์มา 1 คอลัมน์</b> ③ ทำไม 2 บิตถึงบอก Bob ได้พอดีว่าต้องแก้อะไร (Step 4–5)</p>
+  </div>
+
+  <p>ตลอดบทนี้ ผัง 8 วงจะใช้ผังมาตรฐานเดิมของบท 0014 เป๊ะ —
+  <b>แถวบน = bob 0 · แถวล่าง = bob 1</b> · <b>สองคอลัมน์ซ้าย = ep 0 · สองคอลัมน์ขวา = ep 1</b> ·
+  <b>คอลัมน์สลับกัน = alice 0/1</b> (น้ำหนักบิต alice = 1, ep = 2, bob = 4)</p>
+
+  <div class="wide">
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 0" data-labels="0,1,2,3"
+         data-mag="1,0,0,0" data-sub="000,001,010,011"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 1" data-labels="4,5,6,7"
+         data-mag="0,0,0,0" data-sub="100,101,110,111"></div>
+    <div class="cap"><b>จุดตั้งต้น</b> (สไลด์หน้า 22) — ทุก qubit เป็น |0⟩ → วง |0⟩ เต็มวง เข็มชี้ขึ้น
+      อีก 7 วงว่าง · ตัวเลขใต้วงคือบิตเรียง <b>bob · ep · alice</b></div>
+  </div>
+
+  <!-- ============================ PART 1 ============================ -->
+  <div class="part">
+    <div class="n">ส่วนที่ 1</div>
+    <h2>ฝั่ง Alice — Step 1 → 3.2 (ผูก payload เข้ากับ Bob)</h2>
+  </div>
+
+  <h2>1.1 Step 1 — สร้างคู่ entangled</h2>
+  <p>งานแรกของ teleportation คือปู<b>สายเชื่อม</b>ไว้ก่อน · HAD แล้วตามด้วย CNOT บน ep กับ bob
+  = สูตรสร้าง <b>Bell pair</b> ตัวเดิมจากบท <a href="0009-cnot-and-entanglement.html">0009</a> เป๊ะๆ ค่ะ</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="3" data-names="alice,ep,bob" data-wire-labels="0x1,0x1,0x1"
+         data-groups="0-1:entangle"
+         data-ops="H:1; CNOT:1,2"
+         data-cap="Step 1 — <code>ep.had(); bob.cnot(ep);</code>"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 0" data-labels="0,1,2,3"
+         data-mag="0.5,0,0,0" data-sub="000,,,"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 1" data-labels="4,5,6,7"
+         data-mag="0,0,0.5,0" data-sub=",,110,"></div>
+    <div class="cap">หลัง Step 1 (สไลด์หน้า 27) — เหลือ <b>|0⟩ กับ |6⟩ ครึ่งวงเท่ากัน เข็มชี้ขึ้นทั้งคู่</b>
+      · |0⟩ = ep 0, bob 0 · |6⟩ = ep 1, bob 1 → <b>ep กับ bob เท่ากันเสมอ</b> แต่จะได้ 0 หรือ 1 สุ่ม 50/50</div>
+  </div>
+
+  <div class="box aha">
+    <span class="tag">อ่านผังให้เป็นนิสัย</span>
+    <p style="margin-bottom:0;">“ทำไมถึงรู้ว่า entangled?” — เพราะมีแค่วงที่ <b>ep = bob</b> เท่านั้นที่ไม่ว่าง ·
+    วงที่ ep ≠ bob (|2⟩ |3⟩ |4⟩ |5⟩) ว่างหมด แปลว่ากรณีที่ทั้งสองไม่ตรงกัน<b>เกิดไม่ได้เลย</b>
+    นี่คือหน้าตาของ entanglement ในผัง circle notation ค่ะ</p>
+  </div>
+
+  <h2>1.2 Step 2 — เตรียม payload</h2>
+  <p>ทีนี้ Alice ค่อยปั้นของที่จะส่ง · ในตัวอย่างของบทนี้ payload ถูกปั้นด้วย
+  <b>HAD → PHASE(45°) → HAD</b> บนสาย alice (ในงานจริง payload จะมาจากไหนก็ได้ —
+  จะ write ค่าลงไป หรือรับมาจากการคำนวณส่วนอื่นของ QPU ก็ได้ทั้งนั้น)</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="3" data-names="alice,ep,bob" data-wire-labels="0x1,0x1,0x1"
+         data-groups="0-2:prep payload:45°"
+         data-ops="H:0; P:0; H:0"
+         data-cap="Step 2 — <code>alice.had(); alice.phase(45); alice.had();</code>"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 0" data-labels="0,1,2,3"
+         data-mag="0.427,0.073,0,0" data-phase="0,-90,0,0" data-sub="42.7%,7.3%,,"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 1" data-labels="4,5,6,7"
+         data-mag="0,0,0.427,0.073" data-phase="0,0,0,-90" data-sub=",,42.7%,7.3%"></div>
+    <div class="cap">หลัง Step 2 (สไลด์หน้า 28–30) — <b>4 วงมีค่า</b> · วงที่ alice = 0 (|0⟩ |6⟩) ใหญ่ เข็มชี้ขึ้น
+      = มุมอ้างอิง · วงที่ alice = 1 (|1⟩ |7⟩) เล็ก <b>เข็มชี้ 3 นาฬิกา = หมุนตามเข็ม 90° → phase −90°</b></div>
+  </div>
+
+  <p>อ่านเฉพาะ qubit alice ออกมา จะได้ payload = <b>85.4% |0⟩ + 14.6% |1⟩ ที่ relative phase −90°</b>
+  (เพราะ 42.7% + 42.7% = 85.4% และ 7.3% + 7.3% = 14.6%) — นี่คือ “ของ” ที่เราจะตามดูไปจนจบบทค่ะ</p>
+
+  <div class="box mathref">
+    <span class="tag">เช็กตัวเลขเองได้</span>
+    <p style="margin-bottom:0;">HAD → PHASE(45°) → HAD บน |0⟩ ให้ amplitude
+    <span class="frac"><span class="num">1 + e<sup>i45°</sup></span><span class="den">2</span></span> บน |0⟩ และ
+    <span class="frac"><span class="num">1 − e<sup>i45°</sup></span><span class="den">2</span></span> บน |1⟩ →
+    ขนาดยกกำลังสอง = 0.854 และ 0.146 พอดี · ส่วนต่างมุมของสองก้อนนี้ = <b>−90°</b>
+    (สังเกตว่า<b>ครึ่งหนึ่งของ 45° ไม่ใช่คำตอบ</b> — ต้องคิดเป็นการบวกเวกเตอร์เชิงซ้อน)</p>
+  </div>
+
+  <h2>1.3 Step 3.1 — เชื่อม payload เข้ากับคู่ entangled</h2>
+  <p>ตอนนี้ในเครื่องมี “ของ” (alice) กับ “สาย” (ep–bob) แต่<b>ยังไม่ต่อกัน</b> ·
+  Alice ต่อมันด้วย CNOT ตัวเดียว โดยให้ <b>alice เป็น control · ep เป็น target</b></p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="3" data-names="alice,ep,bob" data-wire-labels="0x1,0x1,0x1"
+         data-groups="0-0:send (3.1)"
+         data-ops="CNOT:0,1"
+         data-cap="Step 3.1 — <code>ep.cnot(alice);</code> · ● อยู่ที่ alice, ⊕ อยู่ที่ ep"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 0" data-labels="0,1,2,3"
+         data-mag="0.427,0,0,0.073" data-phase="0,0,0,-90" data-hl="1,3" data-sub="42.7%,ว่าง,,7.3%"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 1" data-labels="4,5,6,7"
+         data-mag="0,0.073,0.427,0" data-phase="0,-90,0,0" data-hl="1,3" data-sub=",7.3%,42.7%,ว่าง"></div>
+    <div class="cap">หลัง Step 3.1 (สไลด์หน้า 31–32) — CNOT <b>สลับวงในคู่ที่ alice = 1</b>:
+      วงที่ไฮไลต์ส้ม |1⟩↔|3⟩ และ |5⟩↔|7⟩ · ของที่เคยอยู่ |1⟩ ย้ายไป |3⟩ · ที่เคยอยู่ |7⟩ ย้ายไป |5⟩</div>
+  </div>
+
+  <p>ทำไมสลับแบบนี้? เพราะ CNOT “พลิก ep เมื่อ alice = 1” → วงที่ alice = 1 จะย้ายไปวงที่ค่า ep ตรงข้าม
+  (ต่างกัน 2 ในเลขวง) ส่วนวงที่ alice = 0 อยู่นิ่ง · ผลลัพธ์คือ<b>วงที่รอดมีแต่วงที่ XOR ทั้งสามบิต = 0</b>
+  (|0⟩ = 000, |3⟩ = 011, |5⟩ = 101, |6⟩ = 110) — กติกาข้อเดียวกับที่พี่ Zen เจอในควิซบท 0014 ค่ะ</p>
+
+  <div class="box aha">
+    <span class="tag">ประโยคทองของ Step 3.1</span>
+    <p style="margin-bottom:0;">เดิม “ep = bob เสมอ” (สองตัวพัวพันกัน) · ตอนนี้กลายเป็น
+    <b>“alice ⊕ ep ⊕ bob = 0 เสมอ”</b> = พัวพันกันครบทั้งสามตัว ·
+    แปลว่า payload ของ Alice <b>ผูกเข้ากับ qubit ของ Bob ทางอ้อมแล้ว</b> ทั้งที่ยังไม่มีอะไรวิ่งไปหา Bob เลย</p>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">สมมติก่อนทำ Step 3.1 มีของอยู่ที่วง <b>|5⟩</b> (bob 1, ep 0, alice 1) ·
+      หลัง <code class="code">ep.cnot(alice);</code> ของก้อนนี้จะไปอยู่วงไหน?</div>
+    <button class="opt">ไปอยู่ที่วง |1⟩</button>
+    <button class="opt">ไปอยู่ที่วง |4⟩</button>
+    <button class="opt">ไปอยู่ที่วง |7⟩</button>
+    <button class="opt">อยู่ที่วง |5⟩ เดิม</button>
+    <div class="fb ok" data-for="ok">ถูกต้องค่ะ! alice = 1 → CNOT พลิกบิต ep จาก 0 เป็น 1 ·
+      ep มีน้ำหนัก 2 → 5 + 2 = <b>7</b> · สังเกตว่า bob กับ alice ไม่ขยับเลย</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — CNOT ตัวนี้แตะแค่ <b>ep</b> ตัวเดียว (alice เป็นแค่ control)
+      · alice = 1 จึงพลิก ep 0→1 = บวกน้ำหนักของ ep เข้าไป <b>2</b> → 5 → 7 ·
+      ถ้าตอบ |1⟩ แปลว่าไปพลิก bob (น้ำหนัก 4) แทน ค่ะ</div>
+  </div>
+
+  <h2>1.4 Step 3.2 — HAD ปิดท้ายฝั่ง Alice</h2>
+  <p>จังหวะสุดท้ายก่อนวัด Alice ทำ <b>HAD บน alice</b> · หลัง HAD วงทั้ง 8 มีค่าหมด
+  ซึ่งดูเหมือนยุ่งขึ้น แต่ที่จริงคือจังหวะที่ทุกอย่างเข้าที่ค่ะ</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="3" data-names="alice,ep,bob" data-wire-labels="0x1,0x1,0x1"
+         data-groups="0-0:send (3.2)"
+         data-ops="H:0"
+         data-cap="Step 3.2 — <code>alice.had();</code>"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 0" data-labels="0,1,2,3"
+         data-mag="0.2135,0.2135,0.0365,0.0365" data-phase="0,0,-90,90"
+         data-sub="0°,0°,−90°,+90°"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 1" data-labels="4,5,6,7"
+         data-mag="0.0365,0.0365,0.2135,0.2135" data-phase="-90,90,0,0"
+         data-sub="−90°,+90°,0°,0°"></div>
+    <div class="cap">หลัง Step 3.2 (สไลด์หน้า 33–35) — ทั้ง 8 วงมีค่า · วงใหญ่ 4 วง (|0⟩ |1⟩ |6⟩ |7⟩) เท่ากันหมด
+      ที่ 21.35% · วงเล็ก 4 วงเท่ากันหมดที่ 3.65% · <b>เข็มของวงเล็กชี้คนละทางกันเป็นคู่ ๆ (−90° กับ +90°)</b></div>
+  </div>
+
+  <p><b>เคล็ดลับการอ่าน: อ่านเป็นคอลัมน์</b> — หนึ่งคอลัมน์คือ (alice, ep) หนึ่งค่า
+  โดยวงบน = bob 0 และวงล่าง = bob 1 · เพราะฉะนั้น<b>หนึ่งคอลัมน์ = สถานะหนึ่งแบบของ qubit ของ Bob</b>
+  และเมื่อดูทั้ง 4 คอลัมน์ จะพบว่าทุกคอลัมน์คือ payload เดิมของ Alice ที่ถูกดัดแปลงต่างกันแค่นั้นเองค่ะ</p>
+
+  <table class="cmp">
+    <tr><th>คอลัมน์</th><th>alice, ep</th><th>คู่วง (บน/ล่าง)</th><th>Bob ได้ payload แบบไหน</th><th>ต้องแก้ด้วยอะไร</th></tr>
+    <tr><td>ที่ 1</td><td>0, 0</td><td>|0⟩ / |4⟩</td><td>ตรงเป๊ะตามที่ Alice เตรียม</td><td>ไม่ต้องแก้</td></tr>
+    <tr><td>ที่ 2</td><td>1, 0</td><td>|1⟩ / |5⟩</td><td>ถูกต้อง แต่โดน PHASE(180°)</td><td>PHASE(180°)</td></tr>
+    <tr><td>ที่ 3</td><td>0, 1</td><td>|2⟩ / |6⟩</td><td>ถูกต้อง แต่โดน NOT (0↔1 สลับ)</td><td>NOT</td></tr>
+    <tr><td>ที่ 4</td><td>1, 1</td><td>|3⟩ / |7⟩</td><td>โดนทั้ง PHASE(180°) และ NOT</td><td>NOT แล้ว PHASE(180°)</td></tr>
+  </table>
+
+  <div class="box aha">
+    <span class="tag">กฎที่ต้องจำให้ได้ (เรื่องสอบ)</span>
+    <p style="margin-bottom:0;"><b>บิตจาก ep คุม NOT · บิตจาก alice คุม PHASE(180°)</b> —
+    ตรงกับลูกศรประฟ้าสองเส้นในวงจรหน้า 15 เป๊ะ (ep → ⊕ · alice → φ) ·
+    ตารางข้างบนนี้คือ<b>ที่มา</b>ของลูกศรสองเส้นนั้นค่ะ</p>
+  </div>
+
+  <p>แล้วทำไม<b>ต้อง</b>มี HAD ตัวนี้ด้วย? สไลด์หน้า 35 ตอบสั้นๆ ว่า —
+  ถ้า Alice ไม่ทำ HAD ก่อน เธอจะ<b>ทำลายข้อมูล magnitude กับ phase ทิ้งไปตอน READ</b> ·
+  HAD คือตัวที่แปลงข้อมูลใน payload ให้ไปฝากไว้ในความสัมพันธ์ระหว่างคอลัมน์ก่อน แล้วค่อยวัดค่ะ</p>
+
+  <!-- ============================ PART 2 ============================ -->
+  <div class="part">
+    <div class="n">ส่วนที่ 2</div>
+    <h2>จุดพลิก — READ แล้วส่งไม้ต่อให้ Bob (Step 3.3 → 5)</h2>
+  </div>
+
+  <h2>2.1 Step 3.3 — Alice READ ทั้งสองตัว</h2>
+  <p>Alice วัด qubit ของเธอสองตัว: payload (alice) และครึ่งของเธอในคู่ entangled (ep)</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="3" data-names="alice,ep,bob" data-wire-labels="0x1,0x1,0x1"
+         data-groups="0-0:send (3.3)"
+         data-ops="READ:0 + READ:1"
+         data-cap="Step 3.3 — <code>bit_p = alice.read(); bit_n = ep.read();</code>"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 0" data-labels="0,1,2,3"
+         data-mag="0,0,0,0.146" data-phase="0,0,0,90" data-hl="3" data-sub="ว่าง,ว่าง,ว่าง,14.6% ที่ +90°"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 1" data-labels="4,5,6,7"
+         data-mag="0,0,0,0.854" data-phase="0,0,0,0" data-hl="3" data-sub="ว่าง,ว่าง,ว่าง,85.4% ที่ 0°"></div>
+    <div class="cap">หลัง Step 3.3 (สไลด์หน้า 36–37) — รูปในสไลด์วาดกรณีที่สุ่มได้
+      <b>bit_p = 1, bit_n = 1 → คอลัมน์ที่ 4</b> · วงนอกคอลัมน์นั้นกลายเป็นศูนย์หมด
+      แล้วสองวงที่เหลือถูก <b>normalize ใหม่</b> จนกลับมาเป็น 14.6% / 85.4%</div>
+  </div>
+
+  <div class="box aha">
+    <span class="tag">ประโยคทองของทั้งบท</span>
+    <p style="margin-bottom:0;"><b>READ ของ Alice = การเลือกคอลัมน์มา 1 คอลัมน์</b> ·
+    ได้คอลัมน์ไหนเป็นเรื่องสุ่มล้วน (โอกาสเท่ากันคอลัมน์ละ 25%) และ<b>สั่งไม่ได้</b> —
+    นี่คือเหตุผลที่ teleportation ยัง<b>ไม่</b>ละเมิด no-signaling ของบท
+    <a href="0012-building-conditional-ops-remote-randomness.html">0012</a> ค่ะ</p>
+  </div>
+
+  <p>สังเกตว่าคอลัมน์ที่ 4 คือกรณี “โดนทั้ง NOT และ PHASE(180°)” →
+  ของใหญ่ที่เคยอยู่ bob = 0 ถูกสลับไปอยู่ bob = 1 (|7⟩ เต็มวง) และวงเล็ก |3⟩ เข็มพลิกไปที่ +90°
+  แทนที่จะเป็น −90° เดิม · <b>payload ยังอยู่ครบ แค่ถูกดัดแปลงไป 2 ชั้น</b></p>
+
+  <p>และราคาที่จ่ายคือ: qubit สองตัวของ Alice <b>ถูกทำลายถาวร</b> — ในวงจรคือเส้นสายที่กลายเป็นเส้นจาง
+  หลัง detector · นี่คือหน้าตาของ <b>no-cloning</b> ในวงจร ไม่ใช่ผลข้างเคียงที่น่ารำคาญ
+  แต่เป็นสิ่งที่โปรโตคอล<b>ต้องการ</b>ค่ะ</p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">รอบนี้ Alice อ่านได้ <code class="code">bit_p = 0</code> (จาก alice) และ
+      <code class="code">bit_n = 1</code> (จาก ep) · Bob ต้องทำอะไรกับ qubit ของเขา?</div>
+    <button class="opt">ทำ PHASE อย่างเดียว</button>
+    <button class="opt">ทำ NOT อย่างเดียวพอ</button>
+    <button class="opt">ทำทั้ง NOT และ PHASE</button>
+    <button class="opt">ไม่ต้องแก้อะไรเลย</button>
+    <div class="fb ok" data-for="ok">ถูกต้องค่ะ! bit_n (จาก ep) = 1 → ทำ <b>NOT</b> ·
+      bit_p (จาก alice) = 0 → ไม่ต้อง PHASE · ตรงกับคอลัมน์ที่ 3 (alice 0, ep 1) ในตารางส่วนที่ 1 พอดี</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — ยึดกฎ <b>ep คุม NOT · alice คุม PHASE</b> ·
+      ที่นี่ ep = 1 (ทำ NOT) และ alice = 0 (ไม่ทำ PHASE) → <b>NOT อย่างเดียว</b> ·
+      ระวังอย่าสลับสองบิตนี้กันนะคะ เป็นจุดที่พลาดกันบ่อยที่สุดของบท</div>
+  </div>
+
+  <h2>2.2 Step 4 — Bob รับ 2 บิตแล้วแก้</h2>
+  <p>Alice ยกหูโทรศัพท์ (ช่องทางคลาสสิก) ส่ง 2 บิตให้ Bob · Bob เอาสองบิตนั้นมาเปิดตารางในส่วนที่ 1
+  แล้วทำ inverse operation ตามนั้น จบเลย</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="3" data-names="alice,ep,bob" data-wire-labels="0x1,0x1,0x1"
+         data-groups="0-1:receive:180°"
+         data-ops="CC:1,2 + X:2; CC:0,2 + P:2"
+         data-cap="Step 4 — <code>if (bit_n) {bob.not();} if (bit_p) {bob.phase(180);}</code>"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 0" data-labels="0,1,2,3"
+         data-mag="0,0,0,0.854" data-phase="0,0,0,0" data-hl="3" data-sub="ว่าง,ว่าง,ว่าง,85.4% ที่ 0°"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 1" data-labels="4,5,6,7"
+         data-mag="0,0,0,0.146" data-phase="0,0,0,-90" data-hl="3" data-sub="ว่าง,ว่าง,ว่าง,14.6% ที่ −90°"></div>
+    <div class="cap">หลัง Step 4 (สไลด์หน้า 38–39) — สองวงเดิม<b>สลับขนาดกัน</b> และเข็มกลับที่:
+      bob = 0 เต็มวงเข็มขึ้น · bob = 1 วงเล็กที่ −90° → อ่าน qubit ของ Bob ได้
+      <b>85.4% |0⟩ + 14.6% |1⟩ ที่ phase −90° = payload เดิมของ Alice เป๊ะ</b> ✓</div>
+  </div>
+
+  <p>ลองเทียบผังนี้กับผังหลัง Step 2 ดูนะคะ — <b>รูปทรงเหมือนกันเป๊ะ</b> ต่างแค่ตอนนี้มันอยู่คนละคอลัมน์
+  (เพราะ alice กับ ep ถูกวัดค่าไปแล้ว) และที่สำคัญ<b>มันอยู่บนสายของ Bob แล้ว</b> ·
+  นี่คือช่วงเวลาที่ payload “ย้ายบ้าน” สำเร็จค่ะ</p>
+
+  <div class="box warn">
+    <span class="tag">⚠️ สไลด์เขียนผิด · จุดที่ 8 ของคอร์ส</span>
+    <p><b>หน้า 38</b> เขียนว่า Bob แก้ด้วย “<b>HAD</b> และ/หรือ PHASE(180)” — <b>ผิดค่ะ</b>
+    ของจริงคือ <b>NOT</b> และ/หรือ PHASE(180) · หน้า 39 ของสไลด์เอง กับโค้ดในรูป
+    (<code class="code">bob.not()</code>) ก็เขียนว่า NOT ทั้งคู่</p>
+    <p style="margin-bottom:0;"><b>หน้า 39</b> ยังเขียนกำกวมอีกจุด: “ถ้า<b>บิตแรก</b>เป็น 1 → NOT ·
+    <b>บิตที่สอง</b> → PHASE(180)” โดยไม่บอกว่าบิตไหนคือบิตแรก — และโค้ดอ่าน
+    <code class="code">bit_p</code> ก่อน <code class="code">bit_n</code> ด้วย
+    เพราะฉะนั้น “บิตแรก” ในประโยคนั้น <b>≠ bit_p</b> · <b>ให้ยึดโค้ดเสมอ</b>:
+    <code class="code">bit_n</code> (ep) คุม NOT · <code class="code">bit_p</code> (alice) คุม PHASE(180)</p>
+  </div>
+
+  <h2>2.3 Step 5 — verify (prep แบบย้อนกลับ)</h2>
+  <p>ถ้าใช้งานจริง โปรโตคอลจบไปแล้วตั้งแต่ Step 4 — Bob เอา qubit ไปใช้ต่อได้เลย ·
+  แต่ถ้าอยาก<b>ตรวจว่าฮาร์ดแวร์ทำถูกจริงไหม</b> ต้องยอมทำลาย qubit นั้นทิ้งเพื่อดูค่ะ</p>
+
+  <p>วิธีที่ง่ายที่สุดคือให้ Bob รันขั้นตอน prep payload <b>ย้อนกลับ</b> — เดิม Alice ทำ
+  HAD → φ(+45°) → HAD บน |0⟩ · Bob ก็ทำ HAD → φ(<b>−45°</b>) → HAD แล้ววัด ·
+  ถ้าของที่ Bob ถืออยู่คือ payload จริง ผลต้อง<b>ย้อนกลับไปเป็น |0⟩ เป๊ะ</b> → อ่านได้ 0 เสมอ</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="3" data-names="alice,ep,bob" data-wire-labels="0x1,0x1,0x1"
+         data-groups="0-3:verify:−45°"
+         data-ops="H:2; P:2; H:2; READ:2"
+         data-cap="Step 5 — <code>bob.had(); bob.phase(-45); bob.had(); check = bob.read();</code>"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 0" data-labels="0,1,2,3"
+         data-mag="0,0,0,1" data-phase="0,0,0,0" data-hl="3" data-sub="ว่าง,ว่าง,ว่าง,100%"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 1" data-labels="4,5,6,7"
+         data-mag="0,0,0,0" data-sub="ว่าง,ว่าง,ว่าง,ว่าง"></div>
+    <div class="cap">หลัง Step 5 (สไลด์หน้า 40–43) — เหลือวงเดียวคือ <b>|3⟩ เต็มวงพอดี เข็มชี้ขึ้น</b>
+      → bob เป็น |0⟩ แน่นอน 100% → <code class="code">check</code> ต้องได้ <b>0 เสมอ</b> = teleport สำเร็จ
+      · (ยังอยู่คอลัมน์ 4 เพราะ alice กับ ep ถูกตรึงค่าไว้ตั้งแต่ Step 3.3 แล้ว)</div>
+  </div>
+
+  <div class="box why">
+    <span class="tag">ทำไมต้อง verify แบบนี้ ไม่ใช่ “เปิดดู”</span>
+    <p style="margin-bottom:0;">เพราะ <b>READ ครั้งเดียวบอกสถานะ qubit ไม่ได้</b> — อ่าน payload ตรงๆ
+    ก็ได้แค่ 0 หรือ 1 หนึ่งค่า ซึ่งบอกอะไรเรื่อง 85.4/14.6 กับ phase −90° ไม่ได้เลย ·
+    แต่พอทำ prep ย้อนกลับก่อน คำตอบที่ถูกต้องจะกลายเป็น “<b>0 เท่านั้น</b>” ซึ่ง<b>ตรวจได้</b>
+    ถ้าเจอ 1 เมื่อไรแปลว่าพัง · ในงานจริงควรแทรกรอบ verify สลับกับรอบ teleport จริงเป็นระยะๆ ค่ะ</p>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">ถ้า Bob <b>ข้าม Step 4</b> (ไม่แก้ตาม 2 บิตเลย) แล้วรัน Step 5 ต่อทันที ·
+      ค่า <code class="code">check</code> ที่ได้จะเป็นยังไง?</div>
+    <button class="opt">ได้ 0 บ้าง 1 บ้าง</button>
+    <button class="opt">ได้ 0 ทุกครั้งเสมอ</button>
+    <button class="opt">ได้ 1 ทุกครั้งเสมอ</button>
+    <button class="opt">อ่านค่าออกมาไม่ได้</button>
+    <div class="fb ok" data-for="ok">ถูกต้องค่ะ! Alice สุ่มได้คอลัมน์ไหนก็ได้ (คอลัมน์ละ 25%) ·
+      เฉพาะคอลัมน์ที่ 1 เท่านั้นที่ payload ตรงอยู่แล้ว → verify ผ่าน · อีก 3 คอลัมน์ payload
+      ถูกดัดแปลงค้างไว้ → มีโอกาสอ่านได้ 1 · <b>นี่คือเหตุผลที่การรันบน IBM QX ต้องทำ post-selection</b>
+      ซึ่งเราจะเจอในบทหน้าค่ะ</div>
+    <div class="fb no" data-for="no">ลองคิดใหม่นะคะ — 2 บิตของ Alice สุ่มล้วน แปลว่า Bob อาจตกอยู่ใน
+      คอลัมน์ไหนก็ได้ใน 4 คอลัมน์ · คอลัมน์ที่ 1 ผ่านอยู่แล้ว ที่เหลือยังโดน NOT/PHASE ค้างอยู่ →
+      ผลจึง<b>ไม่คงที่</b> · ไม่ใช่ 0 เสมอ และไม่ใช่ 1 เสมอค่ะ</div>
+  </div>
+
+  <details class="recall">
+    <summary>ทดสอบความจำก่อนปิดบท (ลองตอบในใจก่อนกดดู)</summary>
+    <ol>
+      <li><b>หลัง Step 1 วงไหนมีค่าบ้าง?</b> → |0⟩ กับ |6⟩ ครึ่งวงเท่ากัน เข็มขึ้นทั้งคู่
+        (= ep กับ bob เท่ากันเสมอ)</li>
+      <li><b>payload ของบทนี้คืออะไร?</b> → 85.4% |0⟩ + 14.6% |1⟩ ที่ relative phase <b>−90°</b>
+        ปั้นด้วย HAD → φ(45°) → HAD</li>
+      <li><b>CNOT ใน Step 3.1 สลับวงคู่ไหน?</b> → คู่ที่ alice = 1 คือ |1⟩↔|3⟩ และ |5⟩↔|7⟩ ·
+        เหลือเฉพาะวงที่ <b>XOR ทั้งสามบิต = 0</b></li>
+      <li><b>ทำไม Alice ต้อง HAD ก่อน READ?</b> → ถ้าไม่ทำ จะทำลาย magnitude กับ phase ของ payload ทิ้ง
+        ตอน READ · HAD ย้ายข้อมูลไปฝากไว้ในความสัมพันธ์ระหว่างคอลัมน์ก่อน</li>
+      <li><b>READ ของ Alice ทำอะไรกับผัง 8 วง?</b> → <b>เลือกมา 1 คอลัมน์</b> (สุ่ม 25% เท่ากัน)
+        วงนอกคอลัมน์เป็นศูนย์ แล้ว normalize ใหม่</li>
+      <li><b>บิตไหนคุมอะไร?</b> → <code class="code">bit_n</code> (จาก ep) คุม <b>NOT</b> ·
+        <code class="code">bit_p</code> (จาก alice) คุม <b>PHASE(180°)</b></li>
+      <li><b>Step 5 ทำอะไร แล้วต้องได้อะไร?</b> → prep ย้อนกลับ (HAD → φ(−45°) → HAD) แล้ววัด →
+        ต้องได้ <b>0 เสมอ</b> · ผังเหลือ |3⟩ เต็มวงเข็มขึ้น</li>
+      <li><b>สไลด์หน้า 38 ผิดตรงไหน?</b> → เขียน “HAD และ/หรือ PHASE(180)” ที่ถูกคือ <b>NOT</b></li>
+    </ol>
+  </details>
+
+  <div class="box why">
+    <span class="tag">สรุปบทนี้ · บทหน้า</span>
+    <p>ทั้งบทเดินมา 6 ภาพ แต่แก่นมีแค่สามประโยค: ① Alice ใช้ CNOT + HAD <b>ผูก</b> payload
+    เข้ากับ qubit ของ Bob จนได้ 4 คอลัมน์ที่แต่ละคอลัมน์คือ payload เวอร์ชันดัดแปลง ②
+    <b>READ = เลือกคอลัมน์</b> (สุ่ม, สั่งไม่ได้ → ไม่ละเมิด no-signaling) ③ 2 บิตนั้นบอก Bob พอดีว่า
+    เขาอยู่คอลัมน์ไหน → แก้กลับด้วย NOT/PHASE แล้วจบ</p>
+    <p style="margin-bottom:0;"><b>บทหน้า (0016)</b> — เอาโปรแกรมนี้ไปรันบน <b>IBM QX เครื่องจริง</b>
+    1,024 รอบ: โค้ด OpenQASM, วงจรสไตล์ Qiskit, อ่านกราฟ 8 แท่ง, <b>post-selection</b>
+    (คำตอบของควิซข้อสุดท้ายเมื่อกี้!) และ success rate 87.8% · ปิดท้ายด้วย
+    <b>QPU primitives 4 ขั้น</b> ที่เป็นโรดแมปของ Lec 05–09 ทั้งหมดค่ะ</p>
+  </div>
+
+  <div class="footer">
+    <p><span class="pill">อ่านต่อจากแหล่งต้นทาง</span>
+    <a href="https://oreilly-qc.github.io/">Programming Quantum Computers — ตัวอย่าง <em>4-1 quantum teleportation</em> (O'Reilly, ตำราของวิชา)</a>
+    — เปิดใน QCEngine แล้ว<b>กดรันทีละ step</b> เทียบผัง 8 วงบนจอกับ 6 ภาพในบทนี้ ·
+    ลองกดรันซ้ำหลายรอบจะเห็นว่าได้คนละคอลัมน์กันทุกครั้ง แต่ผลสุดท้ายของ Bob เหมือนเดิมเสมอ</p>
+    <p><span class="pill">อ้างอิงในคอร์ส</span> <code class="code">slides/QuantumProg_Lec04.pdf</code> หน้า 27–43</p>
+    <p><span class="pill">เอกสารอ้างอิง</span>
+      <a href="../../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../../reference/glossary.html">อภิธานศัพท์</a></p>
+    <p><span class="pill">บทก่อนหน้า</span>
+      <a href="0014-reading-the-teleportation-circuit.html">บท 0014 — อ่านวงจร teleportation</a> ·
+      <a href="0013-what-teleportation-is.html">บท 0013 — teleportation คืออะไร</a> ·
+      <a href="0009-cnot-and-entanglement.html">บท 0009 — CNOT กับ entanglement</a></p>
+
+    <div class="ask">
+      <p style="margin-bottom:0;"><b>ถามคาโฮะได้ตลอดนะคะ 🙋‍♀️</b> จุดที่คนติดบ่อยที่สุดในบทนี้คือ
+      <b>“ทำไมคอลัมน์ที่ 2 ถึงเป็น PHASE(180) และคอลัมน์ที่ 3 ถึงเป็น NOT — ดูจากตรงไหน”</b> ·
+      ถ้าอยากให้หนูกาง amplitude ให้ดูทีละคอลัมน์ หรืออยากซ้อม<b>วาดผัง 8 วงของแต่ละ step
+      จากความจำ</b>แล้วให้หนูตรวจให้ บอกได้เลยค่ะ</p>
+    </div>
+  </div>
+
+</div>
+</html>

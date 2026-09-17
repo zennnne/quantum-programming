@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="th">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บทที่ 0008½ — เซสชันโจทย์: ซ้อมมือ register หลาย qubit (นับวง · operator pairs · NOT/PHASE/READ)</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/lesson-bits.css">
+<script defer src="../../assets/circles.js"></script>
+<script defer src="../../assets/quiz.js"></script>
+<style>
+  /* เฉพาะบทนี้ — ป้ายเลขโจทย์ + กล่องเฉลย */
+  .prob { border:1px solid var(--rule); border-radius:12px; background:#fff;
+    padding:1rem 1.2rem 1.1rem; margin:1.3rem 0; }
+  .prob > .head { display:flex; align-items:baseline; gap:.6rem; margin-bottom:.5rem; }
+  .prob .no { background:var(--accent); color:#fff; font-weight:800; font-size:.8rem;
+    border-radius:6px; padding:.15rem .55rem; white-space:nowrap; }
+  .prob .lvl { font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--ink-soft); }
+  details.sol { margin-top:.7rem; border-top:1px dashed var(--rule); padding-top:.6rem; }
+  details.sol > summary { cursor:pointer; font-weight:800; color:var(--accent); font-size:.92rem;
+    list-style:none; }
+  details.sol > summary::before { content:"▸ "; }
+  details.sol[open] > summary::before { content:"▾ "; }
+  details.sol[open] > summary { margin-bottom:.5rem; }
+  .ans { background:#eef6ee; border:1px solid #cfe6cf; border-radius:8px; padding:.2rem .5rem;
+    font-weight:800; }
+  .stepbar { display:flex; gap:.3rem; flex-wrap:wrap; margin:.7rem 0; font-family:monospace;
+    font-size:.9rem; }
+  .stepbar span { background:#f2f4f8; border:1px solid #d5dbe6; border-radius:6px; padding:.1rem .5rem; }
+</style>
+<div class="wrap">
+
+  <p class="kicker">Lesson 0008½ · เซสชันโจทย์ล้วน · คู่กับ <a href="0008-multi-qubit-registers.html">บท 0008</a></p>
+  <h1>ซ้อมมือ register หลาย qubit — <em>คิดเองก่อน แล้วค่อยกดเฉลย</em></h1>
+  <p class="lead">บทนี้ไม่มีเนื้อหาใหม่เลยค่ะ มีแต่<b>โจทย์ให้ลงมือคำนวณ/วาดเอง</b> จากบท 0008 ทั้งดุ้น
+  เพราะพี่บอกว่า "เข้าใจตอนเรียนแล้ว แต่กลัวลืมถ้าไม่ได้ลองทำ" — นี่แหละตัวช่วย: การ<b>ดึงจากความจำ
+  (retrieval)</b> คือสิ่งที่เปลี่ยน "เข้าใจชั่วคราว" ให้เป็น "จำได้ยาว" จริงๆ ค่ะ</p>
+
+  <div class="box why">
+    <span class="tag">วิธีใช้เซสชันนี้ให้ได้ผลสุด</span>
+    <ol style="margin-bottom:0;">
+      <li><b>อย่าเพิ่งกดเฉลย!</b> อ่านโจทย์ → คำนวณ/วาดในหัวหรือในกระดาษให้จบก่อน → ค่อยกด "ดูเฉลย"</li>
+      <li>ข้อที่เป็น <b>quiz</b> กดเลือกได้เลย มันเฉลย+อธิบายให้ทันที (ถ้าพลาดจะบอกว่าพลาดตรงไหน)</li>
+      <li>ไล่ <b>ง่าย → ยาก</b> ปิดท้ายด้วยข้อ <b>BOSS</b> ที่รวมทุกทักษะไว้ในข้อเดียว</li>
+      <li>จดไว้ว่าข้อไหน "ต้องเปิดเฉลยถึงทำได้" — พวกนั้นคือจุดที่ยังไม่แน่น บอกหนูมาได้เลย</li>
+    </ol>
+  </div>
+
+  <div class="box mathref">
+    <span class="tag">กฎที่จะใช้ตลอดบท (แปะไว้ให้เหลือบดู)</span>
+    <ul style="margin-bottom:0;">
+      <li><b>N qubit → 2ᴺ วง</b> · วง <code class="code">|k⟩</code> = เขียน k เป็นเลขฐานสอง (ขวาสุด = 0x1)</li>
+      <li><b>operator pairs ของ 0x<i>W</i></b> = จับคู่วงที่ค่าต่างกัน <b>W พอดี</b> · วงซ้าย = บิตนั้น 0 · วงขวา = บิตนั้น 1</li>
+      <li><b>NOT</b> สลับวงในทุกคู่ (ขยับของ) · <b>PHASE</b> หมุนเฉพาะวงขวาของทุกคู่ (ไม่ขยับของ)</li>
+      <li><b>READ</b>: P(0)=Σ magnitude²ฝั่งซ้าย, P(1)=Σฝั่งขวา → ลบวงที่ขัดผล → <b>renormalize</b> ให้รวม 100%</li>
+    </ul>
+  </div>
+
+  <!-- ==================== SET 1 ==================== -->
+  <div class="part"><div class="n">เซ็ต 1 · อุ่นเครื่อง</div><h2>นับวง &amp; อ่านค่าวงเป็นเลขฐานสอง</h2></div>
+
+  <div class="prob">
+    <div class="head"><span class="no">ข้อ 1</span><span class="lvl">ง่าย</span></div>
+    <p style="margin:.2rem 0;">register <b>6 qubit</b> ต้องวาดวงกลมกี่วงใน circle notation? แล้ว register กี่ qubit
+    ถึงจะได้ <b>256 วง</b>?</p>
+    <details class="sol"><summary>ดูเฉลย</summary>
+      <p style="margin:.2rem 0;">6 qubit → <span class="ans">2⁶ = 64 วง</span> · และ 256 = 2⁸ → <span class="ans">8 qubit</span>
+      (ก็คือ 1 qubyte พอดี)</p>
+      <p style="margin:.4rem 0 0; font-size:.9rem; color:var(--ink-soft);">กับดัก: อย่าเผลอตอบ "6×2 = 12"
+      กติกาคือ 2ᴺ ไม่ใช่ 2×N — หนึ่งวง = หนึ่งค่าที่ READ ออกมาได้</p>
+    </details>
+  </div>
+
+  <div class="prob">
+    <div class="head"><span class="no">ข้อ 2</span><span class="lvl">ง่าย</span></div>
+    <p style="margin:.2rem 0;">ใน register 6 qubit วง <b>|42⟩</b> แทนเลขฐานสองอะไร? และในเลขนั้น
+    qubit ตัวไหนบ้าง (บอกเป็นชื่อ hex) ที่มีค่าเป็น <b>1</b>?</p>
+    <details class="sol"><summary>ดูเฉลย</summary>
+      <p style="margin:.2rem 0;">42 = 32+8+2 → <span class="ans">101010</span> (6 บิต)</p>
+      <div class="stepbar">
+        <span>0x20=1</span><span>0x10=0</span><span>0x8=1</span><span>0x4=0</span><span>0x2=1</span><span>0x1=0</span>
+      </div>
+      <p style="margin:.3rem 0 0;">qubit ที่เป็น 1 คือ <span class="ans">0x2, 0x8, 0x20</span> (2+8+32 = 42 ✓)</p>
+    </details>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ข้อ 3 (ง่าย) — ใน register 5 qubit เลข <b>19</b> เขียนเป็นวง |19⟩ ตรงกับเลขฐานสองข้อใด?</div>
+    <button class="opt">01101 เพราะ 19 คือ 8 บวก 4 บวก 1 รวมได้สิบสาม</button>
+    <button class="opt">11001 เพราะ 19 คือ 16 บวก 2 บวก 1 เรียงกลับด้าน</button>
+    <button class="opt">10011 เพราะ 19 คือ 16 บวก 2 บวก 1 พอดีเป๊ะ</button>
+    <button class="opt">10010 เพราะ 19 คือ 16 บวก 2 แล้วปัดทิ้งเศษ</button>
+    <div class="fb ok" data-for="ok">ถูกต้องค่ะ! 19 = 16+2+1 = 0x10 + 0x2 + 0x1 → <b>10011</b>
+    (บิตขวาสุด 0x1 = 1, ถัดมา 0x2 = 1, บิตซ้ายสุด 0x10 = 1) เช็คกลับ: 16+2+1 = 19 ✓</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — แตกน้ำหนักบิตดู: 19 = 16+2+1 = 0x10+0x2+0x1
+    เขียนจากซ้าย(0x10)ไปขวา(0x1) ได้ <b>10011</b> อย่าลืมว่าบิตขวาสุดคือ 0x1 เสมอ</div>
+  </div>
+
+  <!-- ==================== SET 2 ==================== -->
+  <div class="part"><div class="n">เซ็ต 2 · หัวใจของบท</div><h2>จับ operator pairs ให้คล่อง</h2></div>
+
+  <div class="prob">
+    <div class="head"><span class="no">ข้อ 4</span><span class="lvl">ปานกลาง</span></div>
+    <p style="margin:.2rem 0;">register <b>3 qubit</b> (8 วง) ถ้ายิง gate ใส่ qubit <b>0x4</b> —
+    จับคู่วงได้กี่คู่ และคู่ไหนบ้าง? (บอกให้ครบ พร้อมระบุว่าวงไหนคือ "วงขวา")</p>
+    <details class="sol"><summary>ดูเฉลย</summary>
+      <p style="margin:.2rem 0;">0x4 → น้ำหนัก 4 → จับวงที่ค่าต่างกัน 4:
+      <span class="ans">(0,4) (1,5) (2,6) (3,7) → 4 คู่</span></p>
+      <p style="margin:.4rem 0 0;">วง<b>ขวา</b> (บิต 0x4 = 1) คือ <b>4, 5, 6, 7</b> — ก็คือครึ่งหลังของแถวพอดี
+      (8 วงจับได้ 4 คู่เสมอ ไม่ว่ายิงตัวไหน)</p>
+    </details>
+  </div>
+
+  <div class="prob">
+    <div class="head"><span class="no">ข้อ 5</span><span class="lvl">ปานกลาง</span></div>
+    <p style="margin:.2rem 0;">ขยับสเกลขึ้น: register <b>4 qubit</b> (16 วง) ยิงใส่ qubit <b>0x8</b>
+    จะได้กี่คู่? และวงขวาของแต่ละคู่คือวงไหนบ้าง?</p>
+    <details class="sol"><summary>ดูเฉลย</summary>
+      <p style="margin:.2rem 0;">16 วง → ได้ <span class="ans">8 คู่</span> เสมอ (ครึ่งหนึ่งของจำนวนวง)</p>
+      <p style="margin:.3rem 0;">น้ำหนัก 8 → คู่คือ (0,8)(1,9)(2,10)(3,11)(4,12)(5,13)(6,14)(7,15)</p>
+      <p style="margin:.3rem 0 0;">วงขวา (บิต 0x8 = 1) = <span class="ans">8, 9, 10, 11, 12, 13, 14, 15</span>
+      — คือครึ่งบนของเลขที่มากกว่าหรือเท่ากับ 8 นั่นเอง</p>
+    </details>
+  </div>
+
+  <!-- ==================== SET 3 ==================== -->
+  <div class="part"><div class="n">เซ็ต 3 · ประโยคออกสอบ</div><h2>product state หรือ entangled?</h2></div>
+
+  <div class="box mathref" style="margin-top:0;">
+    <span class="tag">เคล็ดตัดสินเร็ว</span>
+    <p style="margin-bottom:0;">มองว่าเซตของวงที่ "มีของ" (magnitude &gt; 0) เป็น<b>ตาราง</b>ของบิตได้ไหม —
+    ถ้าแต่ละบิต "เลือกอิสระ" ได้ (0 หรือ 1) โดยไม่บังคับกัน → <b>product</b> (แยกได้)
+    ถ้าบิตไหน "ล็อกกัน" (ต้องตรง/ต้องต่าง) → <b>entangled</b> (แยกไม่ได้)</p>
+  </div>
+
+  <div class="prob">
+    <div class="head"><span class="no">ข้อ 6</span><span class="lvl">ปานกลาง</span></div>
+    <p style="margin:.2rem 0;">3 qubit สถานะมีของเท่าๆ กันที่วง <b>|0⟩ |1⟩ |4⟩ |5⟩</b> (ที่เหลือว่าง)
+    เป็น product หรือ entangled? ถ้า product ให้บอกด้วยว่าแต่ละ qubit อยู่สถานะไหน</p>
+    <div class="crow" data-n="8" data-mag="1,1,0,0,1,1,0,0" data-r="15" data-lab="ข้อ 6"></div>
+    <details class="sol"><summary>ดูเฉลย</summary>
+      <p style="margin:.2rem 0;">เขียนเป็นเลขฐานสอง: 000, 001, 100, 101 — ไล่ดูทีละบิต:</p>
+      <div class="stepbar"><span>0x1 : 0 หรือ 1 (อิสระ)</span><span>0x2 : 0 เสมอ</span><span>0x4 : 0 หรือ 1 (อิสระ)</span></div>
+      <p style="margin:.4rem 0 0;"><span class="ans">product ค่ะ</span> — 0x1 อยู่ superposition, 0x4 อยู่ superposition,
+      ส่วน 0x2 นิ่งที่ |0⟩ → สร้างได้ด้วย HAD ใส่ 0x1 กับ 0x4 (ไม่มีบิตไหนบังคับกันเลย)</p>
+    </details>
+  </div>
+
+  <div class="prob">
+    <div class="head"><span class="no">ข้อ 7</span><span class="lvl">ยาก</span></div>
+    <p style="margin:.2rem 0;">3 qubit สถานะมีของเท่าๆ กันที่วง <b>|0⟩ |3⟩ |5⟩ |6⟩</b>
+    (ก็คือ 000, 011, 101, 110) — อันนี้ product หรือ entangled? ลองพิสูจน์ให้ตัวเองดู</p>
+    <div class="crow" data-n="8" data-mag="1,0,0,1,0,1,1,0" data-r="15" data-lab="ข้อ 7"></div>
+    <details class="sol"><summary>ดูเฉลย</summary>
+      <p style="margin:.2rem 0;">ทั้งสามบิต "ขยับหมด" (ไม่มีตัวไหนคงที่) → ถ้าจะเป็น product แท้ๆ ที่ทุกบิตอิสระ
+      ต้องมีของครบ <b>2×2×2 = 8 วง</b> แต่นี่มีแค่ 4 → ไม่ใช่ตารางเต็ม → <span class="ans">entangled</span></p>
+      <p style="margin:.4rem 0 0;">ดูให้ลึกอีกนิด: 000, 011, 101, 110 คือเลขที่ "<b>จำนวน 1 เป็นเลขคู่</b>" ทุกตัว
+      (even parity) — พูดอีกอย่างคือ "บิตที่สาม = XOR ของสองบิตแรก" นี่คือความสัมพันธ์ที่ล็อกกันไว้
+      การสุ่มอิสระของแต่ละ qubit ทำไม่ได้ → พัวพันกันทั้งระบบ (ญาติของ GHZ นั่นเอง)</p>
+    </details>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">ข้อ 8 (ปานกลาง) — ประโยคใดต่อไปนี้ <b>ถูกต้อง</b> ที่สุด?</div>
+    <button class="opt">HAD หลายตัวยิงพร้อมกันสามารถสร้างสถานะพัวพันแบบ GHZ ขึ้นมาได้เสมอ</button>
+    <button class="opt">single-qubit gate สร้าง superposition ได้ แต่สร้าง entanglement ไม่ได้</button>
+    <button class="opt">superposition เป็นสมบัติของทั้งระบบ ส่วน entanglement ของ qubit เดี่ยว</button>
+    <button class="opt">สถานะที่มีของครบทุกวงเท่าๆ กันคือสถานะพัวพันที่แข็งแรงที่สุดเสมอ</button>
+    <div class="fb ok" data-for="ok">ใช่เลยค่ะ! superposition = สมบัติ qubit เดี่ยว (HAD ตัวเดียวก็สร้างได้)
+    แต่ entanglement = สมบัติทั้งระบบ ต้องมี gate ข้าม qubit (CNOT บทถัดไป) — single-qubit gate ล้วนๆ ทำไม่ได้</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — ที่ถูกคือ "single-qubit gate สร้าง superposition ได้ แต่ entanglement ไม่ได้"
+    (สลับคำ superposition/entanglement กันอยู่ในตัวเลือกอื่น) และของครบทุกวงเท่าๆ กัน = product เต็มขั้น ไม่ใช่พัวพัน</div>
+  </div>
+
+  <!-- ==================== SET 4 ==================== -->
+  <div class="part"><div class="n">เซ็ต 4 · ลงมือกับ gate</div><h2>NOT — สลับวงในทุกคู่</h2></div>
+
+  <div class="prob">
+    <div class="head"><span class="no">ข้อ 9</span><span class="lvl">ปานกลาง</span></div>
+    <p style="margin:.2rem 0;">register 3 qubit เริ่มที่วง <b>|5⟩</b> เต็ม 100% (ที่เหลือว่าง)
+    แล้วยิง <b>NOT ใส่ 0x2</b> — ผลลัพธ์ของไปอยู่วงไหน?</p>
+    <details class="sol"><summary>ดูเฉลย</summary>
+      <div class="work">
+        <div class="step"><span class="lbl">1)</span> น้ำหนัก 2 → คู่คือ (0,2)(1,3)(4,6)(5,7)</div>
+        <div class="step"><span class="lbl">2)</span> |5⟩ จับคู่กับ |7⟩ → NOT สลับ → ของย้ายไป <span class="ans">|7⟩</span></div>
+        <div class="step"><span class="lbl">เช็ค</span> 5 = 101, พลิกบิต 0x2 (บิตกลาง): 101 → 111 = 7 ✓</div>
+      </div>
+    </details>
+  </div>
+
+  <div class="prob">
+    <div class="head"><span class="no">ข้อ 10</span><span class="lvl">ยาก</span></div>
+    <p style="margin:.2rem 0;">register 3 qubit สถานะ <b>(|0⟩ + |3⟩)/√2</b> (000 กับ 011 อย่างละ 50%)
+    ยิง <b>NOT ใส่ 0x4</b> — ได้สถานะอะไร? แล้วสถานะใหม่ยัง entangled อยู่ไหม?</p>
+    <details class="sol"><summary>ดูเฉลย</summary>
+      <div class="work">
+        <div class="step"><span class="lbl">1)</span> น้ำหนัก 4 → คู่ (0,4)(1,5)(2,6)(3,7)</div>
+        <div class="step"><span class="lbl">2)</span> |0⟩→|4⟩ · |3⟩→|7⟩ → ได้ <span class="ans">(|4⟩ + |7⟩)/√2</span> = (100 + 111)/√2</div>
+        <div class="step"><span class="lbl">3)</span> 100 กับ 111: บิต 0x4 = 1 ทั้งคู่ (คงที่) แต่บิต 0x1,0x2 ต้องตรงกัน (00 หรือ 11) → ยัง <b>ล็อกกัน</b></div>
+      </div>
+      <p style="margin:.5rem 0 0;"><span class="ans">ยัง entangled ค่ะ</span> — NOT แค่ "ขยับของ" ทั้งก้อน ไม่ได้แก้ความสัมพันธ์ระหว่าง qubit
+      สถานะพัวพันจึงยังพัวพันอยู่ (single-qubit gate ทำลาย entanglement ไม่ได้ เหมือนสร้างไม่ได้)</p>
+    </details>
+  </div>
+
+  <!-- ==================== SET 5 ==================== -->
+  <div class="part"><div class="n">เซ็ต 5 · gate ที่ไม่ขยับของ</div><h2>PHASE — หมุนเฉพาะวงขวา</h2></div>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">ข้อ 11 (ปานกลาง) — register 3 qubit ยิง <b>PHASE(180) ใส่ 0x4</b> วงไหน "ถูกหมุน"?</div>
+    <button class="opt">วง |0⟩ |1⟩ |2⟩ |3⟩ เพราะเป็นครึ่งซ้ายของแถวที่วาดเรียงกัน</button>
+    <button class="opt">วง |1⟩ |3⟩ |5⟩ |7⟩ เพราะเป็นเลขคี่ที่บิตขวาสุดเท่ากับหนึ่ง</button>
+    <button class="opt">วง |2⟩ |3⟩ |6⟩ |7⟩ เพราะเป็นเลขที่บิตน้ำหนักสองเท่ากับหนึ่ง</button>
+    <button class="opt">วง |4⟩ |5⟩ |6⟩ |7⟩ เพราะเป็นเลขที่บิตน้ำหนักสี่เท่ากับหนึ่ง</button>
+    <div class="fb ok" data-for="ok">ถูกต้องค่ะ! คู่ของ 0x4 คือ (0,4)(1,5)(2,6)(3,7) → วง<b>ขวา</b> = 4,5,6,7
+    = เลขที่บิต 0x4 เป็น 1 (100–111) พอดี และเป็นครึ่งหนึ่งของทั้งหมดตามกฎ</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — PHASE หมุน "วงขวาของทุกคู่" = ทุกสถานะที่บิตนั้นเป็น 1
+    ของ 0x4 คู่คือ (0,4)(1,5)(2,6)(3,7) → วงขวาคือ <b>|4⟩|5⟩|6⟩|7⟩</b> (|1⟩|3⟩|5⟩|7⟩ จะโดนก็ต่อเมื่อยิง 0x1)</div>
+  </div>
+
+  <div class="prob">
+    <div class="head"><span class="no">ข้อ 12</span><span class="lvl">ยาก · กับดัก</span></div>
+    <p style="margin:.2rem 0;">register 2 qubit สถานะ 4 วงเท่าๆ กัน (อย่างละ 25%) ยิง <b>PHASE(180) ใส่ 0x1</b>
+    แล้ว <b>READ 0x1 ทันที</b> — โอกาสอ่านได้ 0 เท่ากับกี่เปอร์เซ็นต์? (คิดให้ดีก่อนตอบ!)</p>
+    <details class="sol"><summary>ดูเฉลย</summary>
+      <p style="margin:.2rem 0;">PHASE หมุนวง |1⟩,|3⟩ ไป 180° — แต่ <b>ไม่ขยับของ</b> magnitude ทุกวงยัง 25% เท่าเดิม!</p>
+      <p style="margin:.3rem 0;">READ 0x1: คู่ (0,1)(2,3) · วงซ้าย |0⟩,|2⟩ · P(0) = 25% + 25% = <span class="ans">50%</span></p>
+      <p style="margin:.4rem 0 0; font-size:.9rem; color:var(--ink-soft);">💡 กับดักคือ PHASE ไม่เปลี่ยนโอกาสวัด<b>ทันที</b>เลย
+      (มันไปออกฤทธิ์ตอน interference ทีหลังเท่านั้น) ถ้าใครตอบ 0% หรือ 100% แสดงว่าเผลอคิดว่า phase = magnitude</p>
+    </details>
+  </div>
+
+  <!-- ==================== SET 6 ==================== -->
+  <div class="part"><div class="n">เซ็ต 6 · วัดแล้วยุบ</div><h2>READ + collapse + renormalize</h2></div>
+
+  <div class="prob">
+    <div class="head"><span class="no">ข้อ 13</span><span class="lvl">ปานกลาง</span></div>
+    <p style="margin:.2rem 0;">register 2 qubit 4 วงเท่าๆ กัน (อย่างละ 25%) ยิง <b>READ 0x2</b>
+    (ก) P(0) กับ P(1) เท่าไร? (ข) ถ้าผลออกมาเป็น <b>1</b> เหลือสถานะอะไร?</p>
+    <div class="crow" data-n="4" data-mag="1,1,1,1" data-sub="25%,25%,25%,25%" data-r="16" data-lab="ก่อน READ"></div>
+    <details class="sol"><summary>ดูเฉลย</summary>
+      <div class="work">
+        <div class="step"><span class="lbl">คู่</span> 0x2 → (0,2)(1,3) · วงซ้าย |0⟩,|1⟩ · วงขวา |2⟩,|3⟩</div>
+        <div class="step"><span class="lbl">ก)</span> P(0)=25+25=<span class="ans">50%</span> · P(1)=25+25=<span class="ans">50%</span></div>
+        <div class="step"><span class="lbl">ข)</span> ผล 1 → ลบวงซ้าย (|0⟩,|1⟩) ทิ้ง เหลือ |2⟩,|3⟩ อย่างละ 25%</div>
+        <div class="step"><span class="lbl">→</span> renormalize 25/25 ให้รวมเป็น 100% → <span class="ans">|2⟩ = 50%, |3⟩ = 50%</span></div>
+      </div>
+      <p style="margin:.5rem 0 0;">qubit 0x1 ยังอยู่ใน superposition สบายๆ — READ ตัวเดียวตัดแค่ครึ่ง ไม่ล้มทั้ง register</p>
+    </details>
+  </div>
+
+  <div class="prob">
+    <div class="head"><span class="no">ข้อ 14</span><span class="lvl">ยาก · ของโปรด</span></div>
+    <p style="margin:.2rem 0;">register 2 qubit สถานะ Bell <b>(|0⟩ + |3⟩)/√2</b> (00 กับ 11 อย่างละ 50%)
+    ยิง <b>READ 0x1</b> ได้ผล <b>0</b> — แล้วถ้ายิง <b>READ 0x2</b> ต่อ ผลจะเป็นอะไร? มั่นใจแค่ไหน?</p>
+    <div class="crow" data-n="4" data-mag="1,0,0,1" data-sub="50%,,,50%" data-r="16" data-lab="Bell pair"></div>
+    <details class="sol"><summary>ดูเฉลย</summary>
+      <div class="work">
+        <div class="step"><span class="lbl">READ 0x1</span> คู่ (0,1)(2,3) · ซ้าย |0⟩,|2⟩ = 50%+0% · ขวา |1⟩,|3⟩ = 0%+50%</div>
+        <div class="step"><span class="lbl">ผล 0</span> → ลบ |1⟩,|3⟩ เหลือ |0⟩ (50%) กับ |2⟩ (0%) → renormalize → <span class="ans">|0⟩ = 100%</span></div>
+        <div class="step"><span class="lbl">READ 0x2</span> ตอนนี้มีแต่ |0⟩ = 00 → บิต 0x2 เป็น 0 แน่นอน → <span class="ans">ได้ 0, 100% ชัวร์</span></div>
+      </div>
+      <p style="margin:.5rem 0 0;">💥 นี่คือหน้าตาของ entanglement: อ่าน qubit แรกได้ 0 ปุ๊บ qubit ที่สอง<b>ถูกกำหนดทันที</b>
+      ให้เป็น 0 ด้วย (ตรงกันเสมอ) — ความสัมพันธ์นี้เก็บอยู่ที่ระดับทั้งระบบ ไม่ใช่ที่ qubit ตัวใดตัวหนึ่ง
+      (เดี๋ยวบท 0009 จะเห็นว่า CNOT สร้าง Bell pair แบบนี้ได้ยังไง)</p>
+    </details>
+  </div>
+
+  <!-- ==================== BOSS ==================== -->
+  <div class="part" style="background:#7a3b8f;"><div class="n">ข้อ BOSS 🐉</div><h2>รวมทุกทักษะในข้อเดียว — ค่อยๆ ไล่ทีละสเต็ป</h2></div>
+
+  <div class="prob" style="border-color:#7a3b8f; border-width:2px;">
+    <div class="head"><span class="no" style="background:#7a3b8f;">BOSS</span><span class="lvl">ยากสุด</span></div>
+    <p style="margin:.2rem 0 .6rem;">register <b>3 qubit</b> เริ่มที่ |0⟩ (000) ทั้งหมด แล้วทำตามลำดับนี้:</p>
+    <div class="stepbar">
+      <span>① HAD 0x1</span><span>② HAD 0x2</span><span>③ NOT 0x4</span><span>④ PHASE(180) 0x2</span><span>⑤ READ 0x1 → ได้ 1</span>
+    </div>
+    <p style="margin:.6rem 0 0;">คำถาม: หลังจบสเต็ป ⑤ เหลือวงไหนบ้าง วงละกี่ % และวงไหนมี phase 180°?
+    (ลองไล่ทีละสเต็ปในกระดาษก่อน แล้วค่อยเทียบ)</p>
+    <details class="sol"><summary>ดูเฉลยแบบไล่ทีละสเต็ป</summary>
+      <div class="work">
+        <div class="step"><span class="lbl">①</span> HAD 0x1: |0⟩,|1⟩ อย่างละ 50%</div>
+        <div class="step"><span class="lbl">②</span> HAD 0x2: กระจายเป็น |0⟩|1⟩|2⟩|3⟩ อย่างละ 25% (000,001,010,011 — บิต 0x4 ยังเป็น 0)</div>
+        <div class="step"><span class="lbl">③</span> NOT 0x4: คู่ (0,4)(1,5)(2,6)(3,7) → ของทั้งหมดขยับ +4 → <b>|4⟩|5⟩|6⟩|7⟩ อย่างละ 25%</b></div>
+        <div class="step"><span class="lbl">④</span> PHASE(180) 0x2: คู่ (0,2)(1,3)(4,6)(5,7) → วงขวา = |2⟩|3⟩|6⟩|7⟩
+          มีของแค่ |6⟩,|7⟩ → หมุน 180° (magnitude เท่าเดิม 25%)</div>
+        <div class="step"><span class="lbl">⑤</span> READ 0x1: คู่ (0,1)(2,3)(4,5)(6,7) · ซ้าย |4⟩,|6⟩ = 50% · ขวา |5⟩,|7⟩ = 50%
+          → ผล 1 → ลบ |4⟩,|6⟩ เหลือ |5⟩,|7⟩ อย่างละ 25% → renormalize</div>
+      </div>
+      <div class="crow" data-n="8" data-mag="0,0,0,0,0,1,0,1" data-phase="0,0,0,0,0,0,0,180"
+           data-sub=",,,,,50%,,50%" data-hl="5,7" data-r="15" data-lab="ผลสุดท้าย"></div>
+      <p style="margin:.5rem 0 0;">คำตอบ: เหลือ <span class="ans">|5⟩ = 50% และ |7⟩ = 50%</span> ·
+      วงที่มี phase 180° คือ <span class="ans">|7⟩</span> (ติดมาจากสเต็ป ④)</p>
+      <p style="margin:.5rem 0 0; font-size:.9rem; color:var(--ink-soft);">
+      🎓 จุดที่ข้อนี้เช็ค: (1) NOT ขยับของทั้งก้อน (2) PHASE หมุนแต่ไม่ขยับ + phase ติดตัววงไปด้วย
+      (3) phase 180° ที่ |7⟩ <b>ไม่มีผล</b>ต่อ P ตอน READ เลย (magnitude เท่าเดิม) (4) collapse + renormalize
+      25/25 → 50/50 — ถ้าได้ครบทุกจุดนี้ ถือว่าเก่งบท 0008 แล้วค่ะ! 🎉</p>
+    </details>
+  </div>
+
+  <!-- ==================== ปิดท้าย ==================== -->
+  <details class="recall">
+    <summary>🧠 ทบทวนเร็วจากความจำ (ปิดจอ พูดออกมาดังๆ ก่อนเปิดดู)</summary>
+    <ol style="margin-bottom:0;">
+      <li>register 7 qubit ใช้กี่วง? แล้ว |100⟩ ในนั้นเขียนเป็นเลขฐานสองว่าอะไร?</li>
+      <li>ยิงใส่ 0x8 ใน register 4 qubit ได้กี่คู่ วงขวาเริ่มจากวงไหน?</li>
+      <li>NOT ต่างจาก PHASE ยังไง — อันไหน "ขยับของ" อันไหน "ไม่ขยับ"?</li>
+      <li>PHASE 180° ที่วงหนึ่ง เปลี่ยนโอกาส READ ของวงนั้น "ทันที" ไหม?</li>
+      <li>หลัง READ แล้วเหลือวง 25/25 ต้องทำอะไรต่อ (คำเดียว) แล้วได้เท่าไร?</li>
+    </ol>
+    <p style="margin:.8rem 0 0; font-size:.9rem;">เฉลยย่อ: 1) 128 วง, 100 = 1100100 &nbsp;
+      2) 8 คู่, วงขวาเริ่มที่ |8⟩ &nbsp; 3) NOT ขยับของ (สลับวง) / PHASE ไม่ขยับ (หมุนวงขวา) &nbsp;
+      4) ไม่ทันที (magnitude เท่าเดิม) &nbsp; 5) renormalize → 50/50</p>
+  </details>
+
+  <div class="footer">
+    <p><span class="pill">ทบทวนเนื้อหาเต็ม</span>
+      <a href="0008-multi-qubit-registers.html">บท 0008 — register หลาย qubit + operator pairs</a></p>
+    <p><span class="pill">แหล่งต้นทาง</span>
+      <a href="https://oreilly-qc.github.io/">Programming Quantum Computers — ตัวอย่างโค้ดบท 3</a>
+      — ลองรัน 3-1 (multi-qubit register) แล้วยิง NOT/PHASE ดูวงจริงขยับตามที่คำนวณค่ะ</p>
+    <p><span class="pill">เอกสารอ้างอิง</span>
+      <a href="../../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../../reference/glossary.html">อภิธานศัพท์</a></p>
+    <p><span class="pill">บทถัดไป</span>
+      <a href="0009-cnot-and-entanglement.html">บท 0009 — CNOT + Bell pair (gate ตัวแรกที่สร้าง entanglement ได้)</a></p>
+
+    <div class="ask">
+      <p style="margin-bottom:.5rem;"><b>ถามคาโฮะได้ตลอดนะคะ 🙋‍♀️</b> ถ้าทำข้อไหนแล้วเฉลยไม่ตรง —
+      อย่าเพิ่งข้ามค่ะ ส่งมาว่าพี่คิดยังไง หนูจะช่วยหาว่าหลุดตรงสเต็ปไหน</p>
+      <p style="margin-bottom:0;">🔔 <b>บอกผลด้วยนะคะ</b> ว่ามีข้อไหน "ต้องเปิดเฉลยถึงทำได้" บ้าง —
+      พวกนั้นคือจุดที่ยังไม่แน่น หนูจะได้ทำโจทย์เพิ่มเฉพาะจุดให้ ก่อนเดินหน้าไป CNOT (บท 0009) ค่ะ</p>
+    </div>
+  </div>
+
+</div>
+</html>

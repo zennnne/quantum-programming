@@ -1,0 +1,254 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บทที่ 4 — QPU เป็นเครื่องรันคำสั่ง: NOT, WRITE, READ &amp; reversibility</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script defer src="../../assets/quiz.js"></script>
+<style>
+  /* --- circle notation mini-diagram (ยืมสไตล์จากบท 3) --- */
+  .circles { display:flex; gap:1.2rem; justify-content:center; flex-wrap:wrap; margin:1.2rem 0; align-items:center; }
+  .circ { text-align:center; }
+  .circ svg { display:block; margin:0 auto .3rem; }
+  .circ .cap { font-size:.85rem; color:var(--ink-soft); }
+  .circ .cap b { color:var(--ink); }
+  .op-arrow { font-size:1.6rem; color:var(--accent); font-weight:800; }
+  /* --- ตารางคำสั่ง --- */
+  .gates { width:100%; border-collapse:collapse; margin:1.2rem 0; font-size:.95rem; }
+  .gates th, .gates td { border:1px solid var(--rule); padding:.55rem .7rem; text-align:left; vertical-align:top; }
+  .gates th { background:var(--accent-dim); color:var(--accent); font-weight:800; }
+  .gates code { background:#f2f4f8; padding:.05rem .3rem; border-radius:4px; }
+  .wrap-scroll { overflow-x:auto; }
+  /* --- circuit symbols strip --- */
+  .circuit-syms { display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; margin:1.2rem 0; }
+  .circuit-syms .sy { text-align:center; border:1px solid var(--rule); border-radius:10px;
+    background:#fff; padding:.6rem .4rem; min-width:9rem; }
+  .circuit-syms .sy svg { display:block; margin:0 auto; }
+  .circuit-syms .cap { font-size:.9rem; margin-top:.2rem; }
+</style>
+<div class="wrap">
+
+  <p class="kicker">Lesson 04 · QPU Instructions</p>
+  <h1>QPU เป็น "เครื่องรันคำสั่ง" — รู้จัก 3 คำสั่งแรก: <em>NOT, WRITE, READ</em> และแนวคิด <em>reversibility</em></h1>
+  <p class="lead">3 บทที่ผ่านมาเราเรียนว่า qubit <b>เก็บ</b>อะไร (amplitude = magnitude + phase)
+  แต่ยังไม่เคยลง "มือทำ" อะไรกับมันเลย บทนี้เปลี่ยนจากการ <em>บรรยายสถานะ</em> มาเป็นการ
+  <b>สั่งงาน</b> qubit — เริ่มจากคำสั่งที่ง่ายที่สุด 3 ตัว พร้อมแนวคิดสำคัญที่จะติดตัวไปทั้งวิชา</p>
+
+  <div class="box aha">
+    <span class="tag">ข่าวดี: บทนี้มี slide จริงแล้ว!</span>
+    <p>บทที่ 2–3 อาจารย์ยังไม่อัป slide หนูเลยปูจากตำรา O'Reilly ไปก่อน คราวนี้ <b>slide Lec 02 มาแล้ว</b>
+    และพอเทียบดู — เนื้อหาบท 2–3 ตรงกับ slide หน้า 4–31 พอดี พี่ตามทันแล้วค่ะ 🎉 บทนี้เป็นต้นไป
+    เราอิง <b>slide Lec 02 โดยตรง</b> (หัวข้อ "QPU Instruction")</p>
+  </div>
+
+  <h2>1. ทำไมต้องมี "คำสั่ง"? — QPU ก็เหมือน CPU</h2>
+  <p>คิดถึง CPU ธรรมดา: มันมี <b>ชุดคำสั่ง (instruction set)</b> เช่น <code>ADD</code>, <code>MOV</code>
+  ที่เอาไปเรียงต่อกันเป็นโปรแกรม QPU ก็เป๊ะแบบเดียวกัน — มี <span class="term">QPU instruction</span>
+  (คำสั่งของ QPU) ที่ทำงานกับ <b>qubit</b> แทน bit ธรรมดา</p>
+  <p>ถ้า amplitude/phase ที่เราเรียนมาคือ "<b>คำนาม</b>" (สิ่งที่ qubit เป็น) คำสั่งพวกนี้ก็คือ
+  "<b>คำกริยา</b>" (สิ่งที่เราทำกับ qubit) โปรแกรมควอนตัม = เอาคำกริยามาเรียงต่อกันนั่นเอง</p>
+
+  <div class="box why">
+    <span class="tag">ศัพท์: gate = operation = instruction</span>
+    <p>ในวิชานี้คำว่า <b>gate</b> (เกต, ประตูสัญญาณ), <b>operation</b>, และ <b>instruction</b>
+    หมายถึงสิ่งเดียวกันหมด คือ "คำสั่งหนึ่งคำสั่งที่ทำกับ qubit" หนังสือ/อาจารย์สลับคำใช้ไปมา
+    เจอคำไหนก็ให้นึกถึง "คำกริยาที่กระทำต่อ qubit" เหมือนกันค่ะ</p>
+  </div>
+
+  <h2>2. NOT — คำสั่งสลับ 0 ↔ 1</h2>
+  <p><span class="term">NOT</span> คือฝาแฝดควอนตัมของ NOT คลาสสิกที่พี่รู้จักอยู่แล้ว:
+  <b>0 กลายเป็น 1, 1 กลายเป็น 0</b> แต่มีของแถมที่ NOT ธรรมดาทำไม่ได้ —
+  มันทำกับ qubit ที่อยู่ใน <b>superposition</b> ได้ด้วย</p>
+  <p>ใน circle notation เข้าใจง่ายมาก: NOT แค่ <b>สลับพื้นที่ทึบของวง |0⟩ กับ |1⟩ ให้กัน</b>
+  (ของในวง 0 ย้ายไปวง 1 และกลับกัน)</p>
+
+  <div class="circles">
+    <div class="circ">
+      <svg width="96" height="96" viewBox="0 0 96 96" role="img" aria-label="ก่อน NOT: วง 0 ทึบเต็ม วง 1 ว่าง">
+        <circle cx="26" cy="48" r="22" fill="#6a3fb5" stroke="#6a3fb5" stroke-width="2"/>
+        <circle cx="72" cy="48" r="22" fill="none" stroke="#e3ded3" stroke-width="2"/>
+        <text x="26" y="86" text-anchor="middle" font-size="12" fill="#4a4a4a">|0⟩</text>
+        <text x="72" y="86" text-anchor="middle" font-size="12" fill="#4a4a4a">|1⟩</text>
+      </svg>
+      <div class="cap"><b>ก่อน:</b> เป็น |0⟩ แน่นอน</div>
+    </div>
+    <div class="op-arrow">— NOT →</div>
+    <div class="circ">
+      <svg width="96" height="96" viewBox="0 0 96 96" role="img" aria-label="หลัง NOT: วง 0 ว่าง วง 1 ทึบเต็ม">
+        <circle cx="26" cy="48" r="22" fill="none" stroke="#e3ded3" stroke-width="2"/>
+        <circle cx="72" cy="48" r="22" fill="#6a3fb5" stroke="#6a3fb5" stroke-width="2"/>
+        <text x="26" y="86" text-anchor="middle" font-size="12" fill="#4a4a4a">|0⟩</text>
+        <text x="72" y="86" text-anchor="middle" font-size="12" fill="#4a4a4a">|1⟩</text>
+      </svg>
+      <div class="cap"><b>หลัง:</b> เป็น |1⟩ แน่นอน</div>
+    </div>
+  </div>
+
+  <div class="box aha">
+    <span class="tag">แนวคิดใหม่ที่ 1: NOT เป็น "ตัวย้อนของตัวเอง"</span>
+    <p>ทำ NOT <b>สองครั้ง</b> qubit กลับมาที่เดิมเป๊ะ (0→1→0) เราเรียกว่า NOT เป็น
+    <b>its own inverse</b> (ตัวย้อนของตัวมันเอง) — จำภาพ "กดสวิตช์ไฟสองที = กลับมาเหมือนเดิม" ก็ได้ค่ะ</p>
+  </div>
+
+  <h2>3. WRITE — ตั้งค่าเริ่มต้นให้ qubit</h2>
+  <p>ก่อนจะทำอะไรกับ qubit เราต้อง "ตั้งค่าเริ่มต้น" มันก่อน — นี่คือหน้าที่ของ <span class="term">WRITE</span>
+  มันบังคับ qubit ให้เป็น <b>|0⟩ หรือ |1⟩</b> เหมือนการ set ตัวแปร bit ธรรมดาให้เป็น 0 หรือ 1</p>
+  <p>จุดสำคัญ 2 อย่าง:</p>
+  <ul>
+    <li>WRITE เป็น <b>deterministic</b> (แน่นอน ไม่สุ่ม) — สั่งให้เป็น |0⟩ ก็ได้ |0⟩ เป๊ะทุกครั้ง</li>
+    <li>WRITE ตั้งได้ <b>แค่ค่าพื้นฐาน</b> |0⟩ หรือ |1⟩ เท่านั้น — <b>เตรียม superposition
+    หรือ phase แปลกๆ เองไม่ได้</b> ถ้าอยากได้ superposition ต้องใช้คำสั่งอื่น (เดี๋ยวเจอ HAD บทหน้า)</li>
+  </ul>
+
+  <h2>4. READ — การวัด (ตัวที่เราเจอแล้ว แต่คราวนี้ให้เป็นทางการ)</h2>
+  <p><span class="term">READ</span> คือชื่อทางการของ "การวัด (measurement)" ที่เราเรียนไปตั้งแต่บท 2
+  ทวนสั้นๆ: READ ทำให้ superposition <b>ยุบ (collapse)</b> เหลือ 0 หรือ 1 ค่าเดียว บทนี้เติม 3 จุดที่ต้องเน้น:</p>
+  <ul>
+    <li>READ เป็น <b>คำสั่งเดียวในทั้งชุด</b> ที่ผลลัพธ์ <b>สุ่มได้</b> — คำสั่งอื่นแน่นอนหมด</li>
+    <li>โอกาสได้แต่ละค่า = <b>magnitude²</b> ของ amplitude ฝั่งนั้น (Born rule จากบท 3) —
+    <b>phase ไม่มีผลต่อ READ เลย</b></li>
+    <li>หลัง READ ได้ 0 → qubit กลายเป็น |0⟩, ได้ 1 → กลายเป็น |1⟩ (วัดซ้ำได้ค่าเดิม) —
+    <b>magnitude กับ phase เดิมหายเกลี้ยง</b></li>
+  </ul>
+
+  <div class="box warn">
+    <span class="tag">เกร็ดสอบ: WRITE สร้างจาก READ + NOT ได้</span>
+    <p>slide โชว์ทริกน่ารัก: ถ้าอยากบังคับ qubit ให้เป็น |0⟩ ก็ <b>READ</b> มันก่อน (ได้ 0 หรือ 1 มั่วๆ)
+    ถ้าบังเอิญได้ค่าไม่ตรงที่อยากได้ ก็ <b>NOT</b> พลิกซะ — จบ ได้ค่าที่ต้องการเป๊ะ นี่แสดงว่า
+    คำสั่งพื้นฐานเอามาประกอบกันเป็นคำสั่งใหม่ได้ (ธีมที่จะกลับมาในบท 8)</p>
+  </div>
+
+  <h2>5. หน้าตาในวงจร — สัญลักษณ์ที่ต้องจำ (ออกสอบ!)</h2>
+  <p>อาจารย์ออกสอบเรื่อง <b>หน้าตาของวงจร (circuit diagram)</b> ด้วย ทุกคำสั่งมี "สัญลักษณ์" ของมัน
+  วางบนเส้น qubit อ่าน <b>ซ้าย → ขวา</b> ตามลำดับเวลา — บทนี้เก็บ 3 ตัวแรก:</p>
+
+  <div class="circuit-syms">
+    <div class="sy">
+      <svg width="130" height="56" viewBox="0 0 130 56" role="img" aria-label="สัญลักษณ์ WRITE">
+        <line x1="0" y1="28" x2="130" y2="28" stroke="#1a1a1a" stroke-width="2"/>
+        <circle cx="48" cy="28" r="5" fill="#6a3fb5"/>
+        <path d="M56,15 L80,28 L56,41 Z" fill="none" stroke="#1a1a1a" stroke-width="2" stroke-linejoin="round"/>
+      </svg>
+      <div class="cap"><b>WRITE</b></div>
+    </div>
+    <div class="sy">
+      <svg width="130" height="56" viewBox="0 0 130 56" role="img" aria-label="สัญลักษณ์ NOT">
+        <line x1="0" y1="28" x2="130" y2="28" stroke="#1a1a1a" stroke-width="2"/>
+        <circle cx="65" cy="28" r="15" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="65" y1="14" x2="65" y2="42" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="51" y1="28" x2="79" y2="28" stroke="#1a1a1a" stroke-width="2"/>
+      </svg>
+      <div class="cap"><b>NOT (X)</b></div>
+    </div>
+    <div class="sy">
+      <svg width="130" height="56" viewBox="0 0 130 56" role="img" aria-label="สัญลักษณ์ READ">
+        <line x1="0" y1="28" x2="130" y2="28" stroke="#1a1a1a" stroke-width="2"/>
+        <path d="M56,10 A18,18 0 0 1 56,46" fill="#efe9fb" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="56" y1="10" x2="56" y2="46" stroke="#1a1a1a" stroke-width="2"/>
+      </svg>
+      <div class="cap"><b>READ (วัด)</b></div>
+    </div>
+  </div>
+
+  <div class="box warn">
+    <span class="tag">ระวังกับดักข้อสอบ</span>
+    <p>เน็ตส่วนใหญ่ใช้สัญลักษณ์แบบ <b>Qiskit</b> (กล่องเหลี่ยมล้วน) แต่อาจารย์ใช้สไตล์
+    <b>QCEngine/O'Reilly</b> ที่เห็นข้างบน — READ เป็น "หน้าปัด detector" ครึ่งวงกลม, WRITE เป็นหัวลูกศร
+    ท่องให้ตรงสไตล์นี้นะคะ หนูเก็บทุกสัญลักษณ์ไว้ใน
+    <a href="../../reference/circuit-cheatsheet.html"><b>📐 Cheat Sheet วงจร</b></a> ที่จะโตขึ้นทุกบท
+    เอาไว้พิมพ์ท่องก่อนสอบได้เลย</p>
+  </div>
+
+  <h2>6. แนวคิดใหญ่ของบท: reversible vs irreversible</h2>
+  <p>นี่คือ <b>แนวคิดที่จะโผล่ซ้ำทั้งวิชา</b> ต้องแม่น: คำสั่งควอนตัมแบ่งเป็น 2 พวก</p>
+
+  <div class="wrap-scroll">
+  <table class="gates">
+    <thead>
+      <tr><th>ประเภท</th><th>ความหมาย</th><th>คำสั่งในบทนี้</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Reversible</b><br>(ย้อนกลับได้)</td>
+        <td>มี "คำสั่งย้อน" ที่พา qubit กลับสถานะเดิมได้เป๊ะ → <b>ไม่มีข้อมูลสูญหาย</b></td>
+        <td><b>NOT</b> (ย้อนด้วย NOT อีกที)</td>
+      </tr>
+      <tr>
+        <td><b>Irreversible</b><br>(ย้อนไม่ได้)</td>
+        <td>ทำแล้วข้อมูลบางส่วน <b>หายถาวร</b> ย้อนกลับไม่ได้อีก</td>
+        <td><b>READ, WRITE</b> (ทำลาย superposition + phase)</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="box why">
+    <span class="tag">ทำไม reversibility ถึงสำคัญ?</span>
+    <p>gate ควอนตัม "แท้ๆ" (ที่ไม่ใช่การวัด) เกือบทั้งหมด <b>ต้องเป็น reversible</b> — เป็นกฎของฟิสิกส์ควอนตัม
+    ไม่ใช่แค่ความสะดวก เพราะข้อมูล amplitude/phase มีค่าเกินกว่าจะยอมให้หายกลางทาง เราถึง "หวง"
+    การ READ ไว้ทำ<b>ท้ายสุด</b>เท่านั้น — เพราะพอ READ แล้ว ความเป็นควอนตัมก็จบ กลายเป็น bit ธรรมดาทันที</p>
+  </div>
+
+  <h2>เช็คความเข้าใจ</h2>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">1. ทำ NOT กับ qubit ที่เป็น |1⟩ สองครั้งติดกัน ผลเป็นอย่างไร?</div>
+    <button class="opt">กลายเป็น superposition ครึ่งๆ ของ |0⟩ และ |1⟩ พอดี</button>
+    <button class="opt">กลายเป็น |0⟩ เพราะ NOT ดันค่าลงทีละขั้นทุกครั้ง</button>
+    <button class="opt">กลับมาเป็น |1⟩ เท่าเดิม เพราะ NOT เป็นตัวย้อนของตัวเอง</button>
+    <button class="opt">อ่านค่าไม่ได้อีกเลย เพราะข้อมูลถูกทำลายไปหมดแล้ว</button>
+    <div class="fb ok" data-for="ok">ใช่ค่ะ! 1→0→1 กลับที่เดิม — NOT ทำสองทีเหมือนไม่ได้ทำ (its own inverse)</div>
+    <div class="fb no" data-for="no">ลองไล่ทีละสเต็ปนะ 1→(NOT)→0→(NOT)→1 กลับมาที่เดิม เพราะ NOT เป็นตัวย้อนของตัวเอง</div>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">2. ข้อใดคือสิ่งที่ WRITE <b>ทำไม่ได้</b>?</div>
+    <button class="opt">ตั้ง qubit ให้เป็น |0⟩ แบบแน่นอนทุกครั้งที่สั่ง</button>
+    <button class="opt">เตรียม qubit ให้อยู่ใน superposition หรือใส่ phase เอง</button>
+    <button class="opt">ตั้ง qubit ให้เป็น |1⟩ แบบไม่สุ่มเลยแม้แต่นิดเดียว</button>
+    <button class="opt">ใช้เป็นจุดเริ่มต้นก่อนจะเอา qubit ไปทำอย่างอื่นต่อ</button>
+    <div class="fb ok" data-for="ok">ถูกต้อง! WRITE ตั้งได้แค่ |0⟩/|1⟩ พื้นฐาน superposition ต้องพึ่งคำสั่งอื่น (HAD บทหน้า)</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ — สามข้อนั้น WRITE ทำได้หมด ที่มันทำไม่ได้คือเตรียม superposition/phase เอง</div>
+  </div>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">3. ทำไม READ ถึงต่างจากคำสั่งอื่นในชุดนี้อย่างชัดเจน?</div>
+    <button class="opt">เพราะ READ ทำงานได้เร็วกว่าคำสั่งอื่นทุกตัวมาก</button>
+    <button class="opt">เพราะ READ ต้องสั่งก่อนคำสั่งอื่นเสมอในทุกโปรแกรม</button>
+    <button class="opt">เพราะ READ ทำกับ qubit ที่เป็น superposition ไม่ได้</button>
+    <button class="opt">เพราะ READ เป็นคำสั่งเดียวที่สุ่มผล และย้อนกลับไม่ได้</button>
+    <div class="fb ok" data-for="ok">ใช่เลยค่ะ — READ สุ่ม (ตาม magnitude²) และ irreversible ทำลาย superposition+phase ถาวร</div>
+    <div class="fb no" data-for="no">ทบทวนนะ — จุดเด่นของ READ คือมันเป็นคำสั่งเดียวที่ผลสุ่มได้ และย้อนกลับไม่ได้ (irreversible)</div>
+  </div>
+
+  <details class="recall">
+    <summary>ลองก่อนเปิด: อธิบายด้วยคำพูดตัวเอง — "reversible" กับ "irreversible" ต่างกันยังไง ยกตัวอย่างคำสั่งอย่างละตัว</summary>
+    <p>ตัวอย่างคำตอบที่ดี: <em>"reversible = ย้อนกลับไปสถานะเดิมได้ ไม่มีข้อมูลหาย เช่น NOT
+    (ทำอีกทีก็กลับมา) ส่วน irreversible = ทำแล้วข้อมูลหายถาวร ย้อนไม่ได้ เช่น READ กับ WRITE
+    ที่ทำลาย superposition และ phase ทิ้ง gate ควอนตัมแท้ๆ ส่วนใหญ่ต้อง reversible เราเลยเก็บ
+    READ ไว้ทำท้ายสุด"</em></p>
+    <p class="src">นึกเองก่อนเปิดเฉลย (retrieval practice) ช่วยให้จำได้นานกว่าอ่านซ้ำเยอะเลยค่ะ</p>
+  </details>
+
+  <h2>อ่าน/ดูต่อ (แหล่งหลัก)</h2>
+  <p>แหล่งที่ตรงที่สุดคือ <b>slide Lec 02 หน้า 32–33 (NOT) และ 48–52 (READ/WRITE)</b> ประกอบกับ
+  <b>บทที่ 2 ของหนังสือ "Programming Quantum Computers" (O'Reilly)</b> หัวข้อ
+  <em>QPU instructions</em> — เปิดควบคู่กับ <b>QCEngine</b> ที่
+  <a href="https://oreilly-qc.github.io">oreilly-qc.github.io</a> ลองสั่ง <code>qc.write(0)</code>
+  แล้วตามด้วย <code>qc.not()</code> จ้องดูวงกลมสลับที่กัน จะเห็นบทนี้ชัดขึ้นมากค่ะ</p>
+
+  <div class="ask">
+    <p><b>หนูเป็นครูของพี่นะคะ 🙋‍♀️</b> ถ้าคำว่า reversible/irreversible ยังไม่เคลียร์
+    หรือสงสัยว่า "ทำไม gate ต้องย้อนได้" อยากให้หนูขยายเรื่องนี้ก่อนไปต่อ ก็บอกได้เลย
+    ถ้าพร้อมแล้ว บทหน้าคือ <b>HAD (Hadamard)</b> — gate ที่ <em>ไม่มีคู่ในโลกคลาสสิก</em>
+    ตัวที่สร้าง superposition 50/50 จริงๆ ที่เราค้างไว้ตั้งแต่บท 3 ค่ะ</p>
+  </div>
+
+  <div class="footer">
+    <span class="pill">บทที่ 4</span>
+    <a href="0003-amplitude-and-phase.html">← บทที่ 3</a> &nbsp;·&nbsp;
+    <a href="../../reference/glossary.html">📖 Glossary</a> &nbsp;·&nbsp;
+    <a href="../../reference/circuit-cheatsheet.html">📐 Cheat Sheet วงจร</a> &nbsp;·&nbsp;
+    <span class="src">บทถัดไป: <b>HAD (Hadamard) gate</b> — สร้าง superposition เท่าๆ กัน
+    พร้อม worked example เชิงเลข และทำไมต้องมี "เครื่องหมายลบ"</span>
+  </div>
+
+</div>

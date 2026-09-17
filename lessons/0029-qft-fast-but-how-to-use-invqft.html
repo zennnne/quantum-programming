@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0029 — QFT เร็ว แต่ใช้ยังไง? → invQFT</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 07 · บทที่ 0029</div>
+  <h1>QFT เร็วมาก แต่เอาไปใช้ยังไง? → กลับด้านเป็น invQFT</h1>
+  <p class="lead">บท <a href="0028b-harmonics-square-wave-qft.html">0028b</a> จบด้วยข่าวร้ายว่า QFT ทำได้เหมือน DFT เป๊ะ
+    แต่ <b>READ ได้ความถี่เดียวแบบสุ่ม</b> · บทนี้ตอบคำถามต่อว่า “แล้วจะลงทุนใช้ QPU ทำ QFT ไปทำไม” ·
+    คำตอบมีสองชั้น: QFT <b>เร็วกว่า FFT แบบทิ้งห่าง</b> แต่ติดปัญหา 2 ข้อ ·
+    แล้วเราจะพลิกเครื่องมือกลับด้านเป็น <b>invQFT</b> เพื่อ<b>สร้าง</b>สัญญาณแทนที่จะอ่านมันค่ะ</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 4 อย่าง
+    ① FFT ใช้ <b>O(n·2ⁿ)</b> ส่วน QFT ใช้ <b>O(m²)</b> → QFT ชนะหลังราว <b>22 บิต</b>
+    ② ปัญหา 2 ข้อ: <b>ใส่สัญญาณเข้า</b> register ยาก และ <b>อ่านผลออก</b>ได้ค่าเดียว → QFT จึงเป็น <b>phase manipulation primitive</b>
+    ③ <b>invQFT</b>: เขียน “ความถี่” ลง register แล้ว invQFT → ได้สัญญาณ (เฟสแกว่ง หรือ magnitude แกว่งถ้าเขียนแบบ<b>สมมาตร</b>)
+    ④ แก้ความถี่: <b>QFT → +1 → invQFT</b> · และแยกวงจร QFT กับ invQFT ออกด้วย <b>เครื่องหมายมุม + ตำแหน่ง SWAP</b> (เรื่องสอบ)
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · QFT เร็วแค่ไหน และทำไมยังเอาไปแทน FFT ไม่ได้</h2></div>
+
+  <h3>ตั้งคำถามก่อน: ลงทุนขนาดนี้เพื่ออะไร</h3>
+  <p>สไลด์ p40 ยอมรับตรงๆ ว่า QPU ทั้ง<b>จุกจิก (finicky)</b> และแพง · การใช้มันทำ DFT ซ้ำสิ่งที่โน้ตบุ๊กทำได้อยู่แล้วฟังดูไม่คุ้ม ·
+    แต่ต้องจำไว้ว่า</p>
+  <div class="box aha">
+    เหตุผลหลักที่ใช้ QFT เป็น primitive คือเพื่อ<b>จัดการผลลัพธ์ที่เข้ารหัสอยู่ในเฟส (phase-encoded results)</b>
+    ไม่ใช่เพื่อมาแทน FFT (p40)
+  </div>
+  <p>ถึงอย่างนั้นก็ยังน่าเทียบความเร็วดู เพราะ QFT เร็วกว่าคู่แข่งคลาสสิกที่ดีที่สุด “far, far faster”</p>
+
+  <h3>วัด “ความเร็ว” ยังไง</h3>
+  <p>ไม่ได้จับเวลาเป็นวินาที แต่ดูว่า <b>จำนวน operation โตแค่ไหน เมื่อสัญญาณมีจำนวนบิตมากขึ้น</b> (p41) ·
+    เรียกแนวคิดนี้ว่า <b>computational complexity (ความซับซ้อนเชิงคำนวณ)</b> · นับ operation แทนเวลาได้
+    เพราะแต่ละ gate ใช้เวลาคงที่</p>
+
+  <table class="cmp">
+    <thead><tr><th>อัลกอริทึม</th><th>ขนาด input</th><th>จำนวน operation</th><th>ทำไมโตแบบนั้น</th></tr></thead>
+    <tbody>
+      <tr><td data-label="อัลกอริทึม"><b>FFT</b> (คลาสสิก)</td><td data-label="ขนาด input">n บิต</td>
+        <td data-label="จำนวน operation"><b>O(n·2ⁿ)</b></td>
+        <td data-label="ทำไมโตแบบนั้น">มี sample 2ⁿ ตัวจริงๆ ต้องไล่ทำกับทุกตัว</td></tr>
+      <tr><td data-label="อัลกอริทึม"><b>QFT</b> (ควอนตัม)</td><td data-label="ขนาด input">m qubit</td>
+        <td data-label="จำนวน operation"><b>O(m²)</b></td>
+        <td data-label="ทำไมโตแบบนั้น">register m qubit ถือ 2ᵐ ค่าอยู่แล้วในตัว · gate แค่ H + CPHASE ทุกคู่สาย</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box mathref">
+    <b>refresher: O(…) อ่านว่าอะไร</b> · Big-O บอก<b>รูปทรงการโต</b> ไม่ใช่ตัวเลขเป๊ะ ·
+    ลองนับเองจากวงจร QFT 4 สายที่เห็นมา: H 4 ตัว + CPHASE 3+2+1 = 6 ตัว + SWAP 2 ตัว = 12 ·
+    ถ้าเป็น m สาย CPHASE จะมี m(m−1)/2 ตัว → โตตาม <b>m²</b> ·
+    ส่วน FFT พอเพิ่ม 1 บิต จำนวน sample <b>คูณ 2</b> ทันที
+  </div>
+
+  <p>ลองเทียบตัวเลขจริง (ค่าคงที่ข้างหน้าตัดทิ้ง ดูแค่รูปทรง):</p>
+  <table class="cmp">
+    <thead><tr><th>บิต / qubit</th><th>FFT ≈ n·2ⁿ</th><th>QFT ≈ m²</th></tr></thead>
+    <tbody>
+      <tr><td data-label="บิต / qubit">8</td><td data-label="FFT ≈ n·2ⁿ">2,048</td><td data-label="QFT ≈ m²">64</td></tr>
+      <tr><td data-label="บิต / qubit">22</td><td data-label="FFT ≈ n·2ⁿ">≈ 92 ล้าน</td><td data-label="QFT ≈ m²">484</td></tr>
+      <tr><td data-label="บิต / qubit">30</td><td data-label="FFT ≈ n·2ⁿ">≈ 3.2 หมื่นล้าน</td><td data-label="QFT ≈ m²">900</td></tr>
+    </tbody>
+  </table>
+
+  <p>แต่ถ้า m² น้อยกว่าตั้งแต่ 8 บิต ทำไมสไลด์บอกว่า <b>จุดตัดอยู่ราว 22 บิต</b>? · เพราะ Big-O <b>ตัดค่าคงที่ทิ้ง</b> (เช่นเวลาที่เครื่องแต่ละแบบใช้ต่อ 1 operation) ·
+    โน้ตบุ๊กทำ operation ได้เร็วมาก จึงยังนำอยู่ได้พักใหญ่ · Figure 7-20 (p42) ออกมาเป็นแบบนี้:</p>
+  <ul>
+    <li>เส้น <b>FFT</b> แทบติดศูนย์ตลอดช่วง 0–20 แล้ว<b>พุ่งชันแบบระเบิด</b> (ราว 26 บิตใช้ ~6 วินาที)</li>
+    <li>เส้น <b>QFT</b> ไต่ขึ้นช้าๆ เกือบเป็นเส้นตรง (35 qubit ยังไม่ถึง 1 วินาที)</li>
+    <li>ตัดกันราว <b>22 บิต ≈ 4 ล้าน sample</b> · น้อยกว่านั้น FFT บนโน้ตบุ๊กยังเร็วกว่า</li>
+  </ul>
+  <p class="src">ตรวจเพิ่ม: จำนวน gate O(m²) ของ QFT ดูได้ที่
+    <a href="https://en.wikipedia.org/wiki/Quantum_Fourier_transform">Wikipedia: Quantum Fourier transform</a> ·
+    FFT O(N log N) กับ N = 2ⁿ sample ก็คือ n·2ⁿ ที่
+    <a href="https://en.wikipedia.org/wiki/Fast_Fourier_transform">Wikipedia: Fast Fourier transform</a></p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">คิดเองก่อนเลือก: สัญญาณ 20 บิต → เพิ่มเป็น 21 บิต · งานของ FFT (n·2ⁿ) กับ QFT (m²) โตขึ้นประมาณกี่เท่าตามลำดับ</div>
+    <button class="opt">FFT ≈ 1.1 เท่า · QFT ≈ 2.0 เท่า</button>
+    <button class="opt">FFT ≈ 2.0 เท่า · QFT ≈ 2.0 เท่า</button>
+    <button class="opt">FFT ≈ 2.1 เท่า · QFT ≈ 1.1 เท่า</button>
+    <button class="opt">FFT ≈ 1.1 เท่า · QFT ≈ 1.1 เท่า</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · FFT: (21·2²¹)/(20·2²⁰) = 2 × 21/20 = 2.1 · QFT: 21²/20² = 441/400 ≈ 1.1 ·
+      เพิ่มบิตทีละตัว FFT <b>เบิ้ลงาน</b>ทุกครั้ง แต่ QFT แทบไม่ขยับ → นี่คือเหตุผลที่ FFT “ระเบิด” ในกราฟ</div>
+    <div class="fb no" data-for="no">ลองแทนค่าตรงๆ: FFT = (21·2²¹)/(20·2²⁰) และ QFT = 21²/20² · ตัว 2ⁿ ต่างหากที่ทำให้คูณ 2</div>
+  </div>
+
+  <h3>ข้อจำกัด: ผลของ QFT ถูก “ล็อก” อยู่ใน register</h3>
+  <p>output ของ DFT เป็น array ตัวเลขที่เปิดดูตอนไหนก็ได้ · แต่ output ของ QFT
+    <b>ถูกล็อกอยู่ใน amplitude ของ register</b> (p43) · ทั้งขาเข้าและขาออกจึงมีปัญหา:</p>
+
+  <div class="analogy">
+    <div class="cell"><b>ปัญหา 1 · ใส่สัญญาณเข้า</b><small>“How do we get our signal into an input quantum register in the first place?”</small></div>
+    <div class="arrow">+</div>
+    <div class="cell"><b>ปัญหา 2 · อ่านผลออก</b><small>“How do we access the result of the QFT when we're done?”</small></div>
+  </div>
+
+  <p><b>ปัญหา 1 (p44)</b>: square wave ในบท 0028b สร้างได้ง่ายเพราะมันเป็นแค่ <code class="code">had</code> + <code class="code">phase(180, 16)</code> ·
+    แต่ถ้าอยากใส่<b>ข้อมูลคลาสสิกอะไรก็ได้</b> (เช่นไฟล์เสียงจริง) วงจรง่ายๆ แบบนั้นอาจไม่มี ·
+    <b>ต้นทุนการเตรียม register อาจกลืนความได้เปรียบของ QFT จนหมด</b> ·
+    มีเทคนิคช่วยอยู่บ้าง แต่มักต้อง<b>เพิ่มฮาร์ดแวร์</b>นอกเหนือจาก QPU มาตรฐาน</p>
+  <div class="box aha">
+    เปรียบเทียบ: QFT เหมือนเครื่องคั้นน้ำผลไม้ที่คั้นได้ในเสี้ยววินาที แต่ต้อง<b>ปอกผลไม้ทีละลูกด้วยมือ</b>ก่อนใส่ ·
+    ถ้าปอกนาน 10 นาที ความเร็วตอนคั้นก็แทบไม่มีความหมาย
+  </div>
+
+  <p><b>ปัญหา 2 (p45)</b>: ถ้าสัญญาณมี<b>ความถี่เดียว</b> READ แล้วได้คำตอบชัดเจน ·
+    แต่สัญญาณซับซ้อน (เช่น square wave) ให้ superposition ของหลายความถี่ → READ ได้<b>ความถี่เดียวแบบสุ่ม</b> ·
+    ไม่ได้ spectrum ทั้งกราฟแบบ DFT</p>
+
+  <h3>แล้วผลแบบสุ่มยังใช้ได้เมื่อไหร่ (p46–47)</h3>
+  <div class="twocol">
+    <div class="c"><b>กรณี 1 · คำตอบไหนก็ได้ในกลุ่ม</b><br>
+      แอปยอมรับ “ความถี่หลักหรือจำนวนเท่าของมัน” แบบสุ่มได้ · square wave บน qubyte มี <b>คำตอบที่ถูก 8 ค่า</b>
+      และ READ ได้หนึ่งใน 8 ค่านั้นเสมอ
+      <small class="src">(peak จริงมี 16 ตำแหน่ง 8, 24, …, 248 · สไลด์ไม่ได้อธิบายว่านับ 8 ยังไง · คาโฮะเดาว่านับแบบจับคู่สะท้อน 8/248, 24/232, … เป็นคำตอบเดียวกัน)</small></div>
+    <div class="c"><b>กรณี 2 · ตรวจคำตอบได้</b><br>
+      แอป <b>verify</b> ได้เร็วว่าค่าที่ READ ใช้ได้ไหม · ถ้าไม่ใช่ ก็<b>รัน QFT ซ้ำ</b>จนได้</div>
+  </div>
+  <div class="box aha">
+    ด้วยสองกรณีนี้ QFT จึงยังมีค่าในฐานะ <b>phase manipulation primitive (ตัวดำเนินการพื้นฐานสำหรับจัดการเฟส)</b> ·
+    และจะได้เห็นมันทำหน้าที่นี้ใน <b>Shor's factoring algorithm (Lec 12)</b> (p47)
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">โจทย์: ต้องการหาตัวประกอบของเลขใหญ่ · QFT ให้ค่าสุ่มที่อาจช่วยหาตัวประกอบได้ · เอาค่าไปลองหารดูก็รู้ทันทีว่าถูกไหม · สถานการณ์นี้ตรงกับอะไร</div>
+    <button class="opt">กรณี 1 · ยอมรับค่าไหนก็ได้ในกลุ่มคำตอบ</button>
+    <button class="opt">กรณี 2 · ตรวจคำตอบได้ ผิดก็รัน QFT ซ้ำ</button>
+    <button class="opt">ปัญหา 1 · ใส่สัญญาณเข้า register ได้ยากมาก</button>
+    <button class="opt">ปัญหา 2 · อ่านผลได้ทั้ง spectrum ในครั้งเดียว</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · “ลองหารดู” = verify ได้ถูกๆ → ผิดก็รันใหม่ · นี่คือโครงของ Shor ที่จะเจอใน Lec 12</div>
+    <div class="fb no" data-for="no">คำสำคัญคือ “ลองหารก็รู้ว่าถูกไหม” = ตรวจสอบได้ · และระวัง: ปัญหา 2 คือ READ ได้<b>ค่าเดียว</b> ไม่ใช่ทั้ง spectrum</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · invQFT: เขียนความถี่ลงไป แล้วได้สัญญาณออกมา</h2></div>
+
+  <h3>กลับด้านเครื่องมือ</h3>
+  <p>ปัญหา 1 บอกว่า<b>เตรียมสัญญาณยาก</b> · แต่ทุก QPU operation ยกเว้น READ มี <b>inverse (ตัวผกผัน)</b> ·
+    QFT ก็เช่นกัน (p48):</p>
+  <div class="analogy">
+    <div class="cell"><b>QFT</b><small>รับ<b>สัญญาณ</b> (เข็มหมุนเป็นจังหวะ) → คืน <b>ความถี่</b> (peak)</small></div>
+    <div class="arrow">⇄</div>
+    <div class="cell"><b>invQFT</b><small>รับ <b>ความถี่</b> (frequency space) → คืน<b>สัญญาณ</b>ที่มีความถี่นั้น</small></div>
+  </div>
+  <p>ในโลกความถี่ สัญญาณคาบง่ายๆ หน้าตาเป็นแค่ “ค่าเดียว” ที่<b>เขียนลงไปง่ายมาก</b> · สูตรเตรียม superposition ที่เป็นคาบจึงมี 2 ขั้น:</p>
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> เตรียม register ให้เป็น state ที่ต้องการ<b>ในโลกความถี่</b> (มักง่ายกว่าสร้างสัญญาณตรงๆ มาก)</div>
+    <div class="step"><span class="lbl">②</span> ใส่ <b>invQFT</b> → ได้สัญญาณที่ต้องการใน register เดิม</div>
+  </div>
+
+  <h3>แบบที่ 1 · เฟสแกว่ง 3 รอบ: <code class="code">write(3)</code> + invQFT (p49)</h3>
+  <div class="wide">
+    <div class="circuit" data-wires="4" data-names="qin,qin,qin,qin" data-wire-labels="0x1,0x2,0x4,0x8"
+         data-groups="0-0:freq; 1-13:invQFT"
+         data-ops="WRITE:0:1 + WRITE:1:1 + WRITE:2 + WRITE:3; XWIRE:1,2; SWAP:0,3; H:0; CP:0,1:90; CP:0,2:45; CP:0,3:22.5;
+                   H:1; CP:1,2:90; CP:1,3:45; H:2; CP:2,3:90; H:3"
+         data-cap="สไลด์ p49 · ▷ <b>เหลืองทึบ = เขียน 1</b> (0x1, 0x2) · ▷ วงฟ้า = เขียน 0 · 1 + 2 = <b>3</b> · มุม CPHASE <b>บวก</b> และ <b>SWAP อยู่ต้น</b>"></div>
+  </div>
+<pre class="code-blk">// Setup
+var num_qubits = 4; qc.reset(num_qubits);
+var qin = qint.new(num_qubits, 'qin');
+// Write the frequency we want to register
+qin.write(3);
+// Inverse QFT to turn into a signal
+qin.invQFT()</pre>
+
+  <div class="box warn">
+    <b>สไลด์ขัดกันเอง (p49)</b>: บรรทัดนำเขียนว่า “<b>qubyte</b> register” แต่โค้ดและรูปเป็น <b>4 qubit</b> (<code class="code">num_qubits = 4</code>) ·
+    ยึดตามโค้ด/รูปเป็นหลัก · ถ้าข้อสอบถามจากรูปนี้ ตอบ 4 qubit
+  </div>
+
+  <p>ก่อนและหลัง invQFT (คาโฮะจำลองวงจรตามรูปทีละ gate แล้ว ผลตรงกับที่สไลด์บอก):</p>
+  <div class="wide">
+    <div class="crow" data-n="16" data-r="10" data-lab="ก่อน · frequency space"
+         data-mag="0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0" data-hl="3"></div>
+    <div class="crow" data-n="16" data-r="10" data-lab="หลัง invQFT"
+         data-phase="0,67.5,135,202.5,270,337.5,45,112.5,180,247.5,315,22.5,90,157.5,225,292.5"
+         data-sub="0°,67.5°,135°,,,,,,,,,,,,,292.5°" data-hl="0,6,11"></div>
+  </div>
+  <p>magnitude เท่ากันทุกวง (6.25%) · เข็มหมุนเพิ่มวงละ <b>3 × 360°/16 = 67.5°</b> → ตลอด 16 วงหมุนครบ <b>3 รอบ</b> ·
+    นี่คือสถานะ “ความถี่ 3” แบบเดียวกับสถานะ A/B/C ใน<a href="0027-qft-hidden-frequency.html">บท 0027</a> แค่เดินย้อนทาง</p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">คำนวณเอง: ถ้าเปลี่ยนเป็น <code class="code">qin.write(5)</code> แล้ว invQFT (4 qubit) · เข็มของวง |2⟩ ชี้ที่มุมเท่าไร</div>
+    <button class="opt">112.5°</button>
+    <button class="opt">225.0°</button>
+    <button class="opt">337.5°</button>
+    <button class="opt">180.0°</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · หมุนวงละ 5 × 22.5° = 112.5° · วง |2⟩ = 2 × 112.5° = 225°</div>
+    <div class="fb no" data-for="no">ขั้นแรกหามุมต่อวง: 5 × (360°/16) = 5 × 22.5° · แล้ววง |k⟩ หมุนไป k เท่าของมุมนั้น</div>
+  </div>
+
+  <h3>แบบที่ 2 · magnitude แกว่ง: ต้องเขียนความถี่แบบ<b>สมมาตร</b> (p50–51)</h3>
+  <p>ย้อนบท <a href="0028-dft-mirror-peaks.html">0028</a>: สัญญาณที่แกว่งใน <b>magnitude</b> เป็น <b>real signal (สัญญาณจำนวนจริง)</b>
+    ซึ่งใน frequency space มี <b>peak คู่สะท้อน</b> f กับ N−f เสมอ · ถ้าจะเดินย้อนทางด้วย invQFT
+    ก็ต้อง<b>เขียนทั้งคู่</b>ลงไป = <b>symmetric representation (การแทนแบบสมมาตร)</b></p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="4" data-names="qin,qin,qin,qin" data-wire-labels="0x1,0x2,0x4,0x8"
+         data-groups="0-5:Write freq; 6-18:invQFT"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0; CTRL:0 + X:1,2,3; X:1; CNOT:1,0; X:1;
+                   XWIRE:1,2; SWAP:0,3; H:0; CP:0,1:90; CP:0,2:45; CP:0,3:22.5;
+                   H:1; CP:1,2:90; CP:1,3:45; H:2; CP:2,3:90; H:3"
+         data-cap="Figure 7-22 (p50–51) · multi-target CNOT = ● บน 0x1 คุม ⊕ สามตัว"></div>
+  </div>
+<pre class="code-blk">// Setup
+var num_qubits = 4; qc.reset(num_qubits);
+var qin = qint.new(num_qubits, 'qin');   // สไลด์พิมพ์ 'qin’ (quote ปิดเอียง) → รันไม่ผ่าน
+qin.write(0);
+// Write the frequencies we want to register
+qin.had(1);
+qc.cnot(14,1);
+qin.not(2);
+qc.cnot(1,2);
+qin.not(2);
+//Inverse QFT to turn into a signal
+qin.invQFT()</pre>
+  <div class="box warn">
+    <b>อ่านโค้ดให้ถูก</b>: ตัวเลขทุกตัวคือ <b>bitmask</b> ไม่ใช่เลขสาย · <code class="code">qc.cnot(14, 1)</code> = <b>(target, control)</b>
+    → target 14 = 0x2+0x4+0x8, control 1 = 0x1 (เหมือนบท 0022) ·
+    และสไลด์ p51 พิมพ์ <code class="code">'qin’</code> ด้วย smart quote — ในข้อสอบเขียน <code class="code">'qin'</code>
+  </div>
+
+  <p><b>ลองไล่เอง</b>ก่อนเปิดดูเฉลย: ช่วง Write freq ทำให้ register เป็น superposition ของค่าอะไร</p>
+  <details class="recall"><summary>เฉลยทีละขั้น (ลองเขียนในกระดาษก่อนนะคะ)</summary>
+    <div class="work">
+      <div class="step"><span class="lbl">①</span> <code class="code">write(0)</code> → |0⟩</div>
+      <div class="step"><span class="lbl">②</span> <code class="code">had(1)</code> → |0⟩ + |1⟩ (ละ √2 ไว้)</div>
+      <div class="step"><span class="lbl">③</span> <code class="code">cnot(14,1)</code>: ถ้า 0x1 เป็น 1 ให้พลิก 0x2, 0x4, 0x8 → |0⟩ + |<b>15</b>⟩</div>
+      <div class="step"><span class="lbl">④</span> <code class="code">not(2)</code>: พลิก 0x2 → |2⟩ + |13⟩</div>
+      <div class="step"><span class="lbl">⑤</span> <code class="code">cnot(1,2)</code>: ถ้า 0x2 เป็น 1 ให้พลิก 0x1 → |2⟩ กลายเป็น |3⟩ · |13⟩ = 1101 บิต 0x2 เป็น 0 ไม่เปลี่ยน → |3⟩ + |13⟩</div>
+      <div class="step"><span class="lbl">⑥</span> <code class="code">not(2)</code>: พลิก 0x2 → |<b>1</b>⟩ + |<b>15</b>⟩ = ความถี่ +1 กับภาพสะท้อน 16−1 ✔ สมมาตร</div>
+    </div>
+  </details>
+
+  <div class="wide">
+    <div class="crow" data-n="16" data-r="10" data-lab="ก่อน · |1⟩ + |15⟩"
+         data-mag="0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1" data-hl="1,15"></div>
+    <div class="crow" data-n="16" data-r="10" data-lab="หลัง invQFT"
+         data-mag="1,0.854,0.5,0.146,0,0.146,0.5,0.854,1,0.854,0.5,0.146,0,0.146,0.5,0.854"
+         data-phase="0,0,0,0,0,180,180,180,180,180,180,180,0,0,0,0"
+         data-sub="12.5%,,,,0%,,,,12.5%,,,,0%,,,"></div>
+  </div>
+  <p>ได้ขนาดวงแกว่ง <b>1 รอบ</b> (ใหญ่ → หาย → ใหญ่ → หาย) และเข็มมีแค่ 0° กับ 180° = <b>จำนวนจริง</b> ·
+    หน้าตาเดียวกับ Figure 7-13 ในบท 0028 เพียงแต่เดินกลับทาง</p>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">4 qubit · อยากได้ magnitude แกว่ง <b>2 รอบ</b> ตลอด register · ก่อน invQFT ต้องเขียน register ให้เป็นอะไร</div>
+    <button class="opt">|2⟩ อย่างเดียว</button>
+    <button class="opt">|2⟩ กับ |12⟩</button>
+    <button class="opt">|2⟩ กับ |8⟩</button>
+    <button class="opt">|2⟩ กับ |14⟩</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · magnitude = สัญญาณจริง → ต้องมีคู่สะท้อน f กับ 16 − f = 2 กับ 14 ·
+      ถ้าเขียน |2⟩ อย่างเดียวจะได้<b>เฟส</b>แกว่ง 2 รอบ แต่ magnitude เท่ากันหมด</div>
+    <div class="fb no" data-for="no">กฎคู่สะท้อนจากบท 0028: f คู่กับ N − f · ที่นี่ N = 16 · ส่วน |2⟩ ตัวเดียวให้เฟสแกว่ง ไม่ใช่ magnitude</div>
+  </div>
+
+  <h3>แก้ความถี่ของสัญญาณ: QFT → +1 → invQFT (p52–53)</h3>
+  <p>invQFT ยังช่วย<b>แก้ (alter)</b> ความถี่ของสัญญาณที่มีอยู่แล้วได้ด้วย · สมมติกลางอัลกอริทึม อยากให้เฟสแกว่งเร็วขึ้น:</p>
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> <b>QFT</b> → ย้ายสัญญาณเข้า frequency space</div>
+    <div class="step"><span class="lbl">②</span> <b>บวก 1</b> → ทุก frequency component เลื่อนขึ้น 1 (ใช้วงจร +1 จาก<a href="midterm/0018-increment-decrement.html">บท 0018</a>)</div>
+    <div class="step"><span class="lbl">③</span> <b>invQFT</b> → กลับเป็นสัญญาณ แต่ความถี่สูงขึ้น</div>
+  </div>
+  <div class="wide">
+    <div class="circuit" data-wires="4" data-names="signal,signal,signal,signal" data-wire-labels="0x1,0x2,0x4,0x8"
+         data-groups="0-3:prep; 4-5:QFT; 6-9:Add one; 10-12:invQFT"
+         data-ops="WRITE:0 + WRITE:1:1 + WRITE:2 + WRITE:3; BOX:0,3:invQFT:3; _; _; BOX:0,3:QFT:2; _;
+                   CTRL:0,1,2 + X:3; CCNOT:0,1,2; CNOT:0,1; X:0; BOX:0,3:invQFT:3; _; _"
+         data-cap="Figure 7-23 แบบย่อกล่อง · เขียน 2 (▷ เหลืองที่ 0x2) → invQFT = สัญญาณความถี่ 2 → QFT → +1 → invQFT = ความถี่ <b>3</b>"></div>
+  </div>
+<pre class="code-blk">var n=4;
+// Prepare a complex sinusoidal signal
+qc.reset(n);
+var freq = 2;
+qc.write(freq);
+var signal = qint.new(n, 'signal');
+signal.invQFT();
+// Move to frequency space with QFT
+signal.QFT();
+// Increase the frequency of signal
+signal.add(1)
+// Move back from frequency space
+signal.invQFT();</pre>
+  <p>ตามรอยด้วยตัวเลข: เฟสหมุนวงละ 45° (ความถี่ 2) → QFT ได้ |2⟩ 100% → +1 ได้ |3⟩ → invQFT ได้เฟสหมุนวงละ 67.5° (ความถี่ 3) ·
+    คาโฮะจำลองวงจรเต็มทั้ง 4 บล็อกแล้วได้ผลนี้จริง</p>
+
+  <div class="box aha">
+    <b>กฎเลือกผลลัพธ์ของ invQFT</b> (p53):
+    ความถี่<b>เดียว</b> หรือหลายความถี่ที่<b>ไม่สมมาตร</b> → คาบใน <b>relative phase</b> ·
+    ความถี่ที่<b>สมมาตร</b> (f คู่กับ N−f) → คาบใน <b>magnitude</b> ·
+    สไลด์เตือนด้วยว่าสัญญาณ input ที่เป็น<b>จำนวนจริง</b>จัดการใน frequency space ยากกว่า
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">คิดต่อจากกฎข้างบน: ถ้าใช้ QFT → +1 → invQFT กับสัญญาณ magnitude แกว่ง 1 รอบ (|1⟩ + |15⟩ ในโลกความถี่) จะเกิดอะไรขึ้นตอน +1</div>
+    <button class="opt">ได้ |2⟩ + |0⟩ ไม่สมมาตรแล้ว</button>
+    <button class="opt">ได้ |2⟩ + |14⟩ ยังสมมาตรอยู่</button>
+    <button class="opt">ได้ |1⟩ + |15⟩ ไม่เปลี่ยนเลย</button>
+    <button class="opt">ได้ |2⟩ + |16⟩ เกินขนาด register</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · 15 + 1 = 16 ล้นกลับเป็น 0 · คู่สะท้อนที่ควรเป็น 14 กลับถูกเลื่อน<b>ออก</b>ไปอีกทาง ·
+      นี่คือเหตุที่สไลด์บอกว่าสัญญาณจำนวนจริง “trickier” — +1 ไม่ได้ทำให้แกว่งเร็วขึ้นแบบตรงไปตรงมา</div>
+    <div class="fb no" data-for="no">+1 บวกเท่ากันทุกค่า: 1 → 2 และ 15 → 16 ซึ่ง register 4 bit เก็บได้ถึง 15 เลยล้นเป็น 0 · แล้วเช็คว่า 2 กับ 0 เป็นคู่ f / 16−f ไหม</div>
+  </div>
+
+  <h3>จุดสอบ: แยกวงจร QFT กับ invQFT ด้วยตา</h3>
+  <p>ในรูป Figure 7-23 มีวงจรเต็มทั้งสองแบบ · หน้าตาคล้ายกันมาก ให้ดู 2 จุด:</p>
+  <div class="wide">
+    <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8" data-groups="0-10:QFT"
+         data-ops="H:3; CP:2,3:-90; CP:1,3:-45; CP:0,3:-22.5; H:2; CP:1,2:-90; CP:0,2:-45; H:1; CP:0,1:-90; H:0; SWAP:0,3 + XWIRE:1,2"
+         data-cap="<b>QFT</b> · มุม<b>ลบ</b> · เริ่ม H ที่สาย<b>ล่าง</b> · <b>SWAP ท้าย</b>"></div>
+    <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8" data-groups="0-10:invQFT"
+         data-ops="SWAP:0,3 + XWIRE:1,2; H:0; CP:0,1:90; CP:0,2:45; CP:0,3:22.5; H:1; CP:1,2:90; CP:1,3:45; H:2; CP:2,3:90; H:3"
+         data-cap="<b>invQFT</b> · มุม<b>บวก</b> · <b>SWAP ต้น</b> · = QFT ที่เอามาเรียงกลับหลังและกลับเครื่องหมายมุม"></div>
+  </div>
+  <p>ทำไมเป็นแบบนี้: inverse ของลำดับ gate คือ<b>ทำย้อนจากท้ายมาหน้า</b> และแต่ละ gate กลับทิศ ·
+    H กับ SWAP เป็น inverse ของตัวเอง ส่วน CPHASE(θ) กลับเป็น CPHASE(−θ) · จึงได้ “มุมกลับเครื่องหมาย + SWAP ย้ายข้าง” พอดี</p>
+  <div class="box warn">
+    <b>ระวังตอนสอบ</b>: หน้า p49, p50, p53 วาด invQFT แบบ <b>SWAP ต้น</b> · แต่ p55 กับ p63 (บทหน้า) วาด invQFT แบบ <b>SWAP ท้าย</b> ·
+    สไลด์ p56 บอกเองว่าวงจร QFT/invQFT <b>เขียนได้หลายแบบที่สมมูลกัน</b> · ตัวชี้ขาดที่ไม่หลอกคือ<b>เครื่องหมายมุม</b>: ลบ = QFT · บวก = invQFT
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">เจอวงจร 4 สาย: SWAP อยู่ท้ายวงจร · ป้ายมุม CPHASE เป็น 90°, 45°, 22.5° · วงจรนี้คืออะไร</div>
+    <button class="opt">QFT เพราะ SWAP อยู่ท้ายวงจร</button>
+    <button class="opt">QFT เพราะใช้มุมครบทั้งสามค่า</button>
+    <button class="opt">invQFT เพราะมุม CPHASE เป็นบวก</button>
+    <button class="opt">invQFT เพราะ SWAP อยู่ท้ายวงจร</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · ตำแหน่ง SWAP หลอกได้ (มีหลายแบบที่สมมูลกัน) แต่<b>มุมบวก = invQFT</b> เสมอในสไลด์ชุดนี้ · แบบนี้จะเจอจริงในบทหน้า (p55, p63)</div>
+    <div class="fb no" data-for="no">ตำแหน่ง SWAP เปลี่ยนได้ในวงจรที่สมมูลกัน · ให้ยึด<b>เครื่องหมายมุม</b>: ลบ = QFT · บวก = invQFT</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <details class="recall"><summary>ทดสอบความจำ (ตอบในหัวก่อน แล้วค่อยเปิด)</summary>
+    <ol>
+      <li>FFT กับ QFT ใช้ operation กี่ตัวในรูป Big-O · จุดตัดในกราฟอยู่ราวกี่บิต → <b>O(n·2ⁿ) vs O(m²) · ~22 บิต (~4 ล้าน sample)</b></li>
+      <li>ปัญหา 2 ข้อของการใช้ QFT ทำ signal processing → <b>ใส่สัญญาณเข้ายาก (อาจกลืนข้อได้เปรียบ) · READ ได้ความถี่เดียวแบบสุ่ม</b></li>
+      <li>2 กรณีที่ผลสุ่มยังใช้ได้ → <b>ยอมรับคำตอบไหนก็ได้ในกลุ่ม · verify ได้แล้วรันซ้ำ</b></li>
+      <li><code class="code">write(3)</code> + invQFT บน 4 qubit ได้อะไร → <b>magnitude เท่ากัน · เฟสเพิ่มวงละ 67.5° · 3 รอบ</b></li>
+      <li>อยากได้คาบใน magnitude ต้องเขียนความถี่แบบไหน → <b>สมมาตร f กับ N − f</b></li>
+      <li>สามขั้นแก้ความถี่ → <b>QFT → +1 → invQFT</b></li>
+      <li>แยก QFT/invQFT ในรูป → <b>มุมลบ = QFT · มุมบวก = invQFT · (สไลด์ชุดนี้ SWAP ท้าย vs ต้น)</b></li>
+    </ol>
+  </details>
+
+  <h3>สรุป</h3>
+  <ul>
+    <li>QFT <b>O(m²)</b> เทียบ FFT <b>O(n·2ⁿ)</b> · เพิ่ม 1 บิต FFT งานเบิ้ล QFT แทบไม่ขยับ · ชนะจริงหลัง ~22 บิต</li>
+    <li>ผลของ QFT ล็อกอยู่ใน register → ติด <b>ใส่เข้ายาก + อ่านออกได้ค่าเดียว</b> → ใช้เป็น <b>phase manipulation primitive</b> (→ Shor, Lec 12)</li>
+    <li><b>invQFT</b>: เขียนความถี่ → invQFT → ได้สัญญาณ · ความถี่เดียว = เฟสแกว่ง · สมมาตร = magnitude แกว่ง</li>
+    <li>Example 7-6: <code class="code">had(1); cnot(14,1); not(2); cnot(1,2); not(2)</code> → |1⟩ + |15⟩</li>
+    <li>แก้ความถี่: <b>QFT → add(1) → invQFT</b> · ระวังสัญญาณจริง: +1 ทำลายความสมมาตร</li>
+    <li>ชี้ขาด QFT/invQFT ด้วย<b>เครื่องหมายมุม</b> · สัญลักษณ์ใหม่: ▷ <b>เหลืองทึบ = write 1</b></li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 7 หัวข้อ
+      <i>Using the QFT</i>, <i>The QFT Is Fast</i>, <i>Signal Processing with the QFT</i> และ
+      <i>Preparing Superpositions with the Inverse QFT</i> (Figure 7-20 ถึง 7-23) ·
+      ลองรันโค้ดเองได้ที่ <a href="https://oreilly-qc.github.io/">QCEngine online (oreilly-qc.github.io)</a> ·
+      สไลด์ <code class="code">QuantumProg_Lec07.pdf</code> หน้า 40–53</p>
+    <p><b>บทถัดไป</b>: 0030 · ข้างในวงจร invQFT — ทำไม H, CPHASE 90/45/22.5 และ SWAP ถึงสร้างเฟส “วงละ n × 360°/2ᴺ” ได้ (p54–70)</p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="0027-qft-hidden-frequency.html">0027 · QFT อ่านความถี่ในเฟส</a> ·
+      <a href="0028-dft-mirror-peaks.html">0028 · peak สะท้อน</a> ·
+      <a href="0028b-harmonics-square-wave-qft.html">0028b · square wave ใน QPU</a> ·
+      <a href="midterm/0018-increment-decrement.html">0018 · วงจร +1</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① ทำไม m² น้อยกว่าตั้งแต่ 8 บิต แต่กราฟจริงตัดกันที่ 22 บิต ② ทำไมเขียนความถี่ตัวเดียวได้เฟสแกว่ง แต่เขียนคู่สมมาตรได้ magnitude แกว่ง
+      ③ ถ้าอยากลดความถี่ลง 1 ควรเปลี่ยนบล็อก Add one เป็นอะไร
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

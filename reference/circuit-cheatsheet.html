@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cheat Sheet — สัญลักษณ์ Quantum Circuit (สไตล์ QCEngine)</title>
 <link rel="stylesheet" href="../assets/style.css">
 <link rel="stylesheet" href="../assets/lesson-bits.css">
@@ -729,6 +730,144 @@
       <p class="meta" style="margin:.4rem 0 0;"><b>c = a NOR b</b> ·
       <code>ops="WRITE:2; X:0,1; CCNOT:0,1,2; X:0,1"</code><br>
       🔴 ต่างจาก OR <b>จุดเดียว</b>: คอลัมน์สุดท้าย<b>ไม่มี</b> ⊕ บนสาย c</p>
+    </div>
+  </div>
+
+  <h2>amplitude amplification: flip + mirror (บท 0023 · Lec 06 slide 6–7)</h2>
+  <p class="meta">วงจร 4 สาย <b>reg</b> (0x1 บนสุด … 0x8 ล่างสุด) แบ่ง 3 กล่อง prep → flip → mirror
+  · <b>flip เปลี่ยนตามค่าที่ mark · mirror หน้าตาเดียวทุกโจทย์</b></p>
+  <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8"
+       data-groups="1-1:prep; 2-4:flip; 5-9:mirror"
+       data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2 + H:3;
+                 X:2 + X:3; CZ:0,1,2,3; X:2 + X:3;
+                 H:0 + H:1 + H:2 + H:3; X:0 + X:1 + X:2 + X:3; CZ:0,1,2,3; X:0 + X:1 + X:2 + X:3; H:0 + H:1 + H:2 + H:3"
+       data-cap="mark ค่า 3 (0011) — slide p6–7"></div>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="4" data-ops="CZ:0,1,2,3"></div>
+      <p class="meta" style="margin:.4rem 0 0;"><b>CZ 4 จุด</b> = <code>reg.cphase(180)</code><br>
+      ● ทึบ 4 จุดบนเส้นเดียว ไม่มี ⊕ ไม่มีกล่อง Z · พลิกเฟส 180° เฉพาะ <b>1111</b></p>
+      <p class="meta" style="margin-top:.5rem;"><code>data-ops="CZ:0,1,2,3"</code></p>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8"
+           data-ops="X:2 + X:3; CZ:0,1,2,3; X:2 + X:3"></div>
+      <p class="meta" style="margin:.4rem 0 0;"><b>flip</b> (mark 3 = 0011)<br>
+      ⊕ ตกที่<b>บิตที่เป็น 0</b> → CZ → ⊕ คืน = <code>not(~n); cphase(180); not(~n)</code><br>
+      mark 12 (1100) → ⊕ ที่ 0x1, 0x2 แทน</p>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="4"
+           data-ops="H:0 + H:1 + H:2 + H:3; X:0 + X:1 + X:2 + X:3; CZ:0,1,2,3; X:0 + X:1 + X:2 + X:3; H:0 + H:1 + H:2 + H:3"></div>
+      <p class="meta" style="margin:.4rem 0 0;"><b>mirror</b> = <code>reg.Grover()</code><br>
+      H → ⊕ → CZ → ⊕ → H <b>ทุกสาย</b> · สไลด์เรียกว่า <b>Grover iteration</b><br>
+      ผล = <b>สะท้อนรอบค่าเฉลี่ย + พลิกเฟสทุกวง</b> (บท 0026 · p44)</p>
+    </div>
+  </div>
+
+  <h2>AA iteration = flip + mirror · วนหลายรอบ (บท 0024 · Lec 06 slide 12–16)</h2>
+  <p class="meta">สไลด์วาด flip + mirror ทั้ง 8 คอลัมน์ไว้ใน<b>กรอบมุมมนพื้นเทา ป้าย “AA” ทั้งบนและล่าง</b> = 1 AA iteration
+  · วนหลายรอบ = กรอบ AA <b>ต่อกันเป็นขบวน</b> เนื้อในเหมือนกันทุกกรอบ (flip ใหม่ทุกรอบ)</p>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8" data-groups="0-7:AA"
+           data-ops="X:2 + X:3; CZ:0,1,2,3; X:2 + X:3; H:0 + H:1 + H:2 + H:3; X:0 + X:1 + X:2 + X:3; CZ:0,1,2,3; X:0 + X:1 + X:2 + X:3; H:0 + H:1 + H:2 + H:3"></div>
+      <p class="meta" style="margin:.4rem 0 0;"><b>1 AA iteration</b> (mark 3) — 3 คอลัมน์แรก = flip · 5 คอลัมน์หลัง = mirror</p>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2 + H:3; BOX:0,3:AA:1; _; BOX:0,3:AA:1; _; BOX:0,3:AA:1; _; BOX:0,3:AA:1"></div>
+      <p class="meta" style="margin:.4rem 0 0;"><b>prep + AA × 4</b> (ผังย่อ p15) · snapshot: B = กลางกรอบแรก (หลัง flip) · B₁–B₄ = ท้ายแต่ละกรอบ<br>
+      4 qubit: 6.25 → 47.3 → 90.8 → <b>96.1</b> → 58.2% · <b>N<sub>AA</sub> = ⌊π√(2ⁿ)/4⌋</b> (n=4 → 3)</p>
+    </div>
+  </div>
+
+  <h2>QFT 4 สาย + SWAP แบบสายไขว้ (บท 0027 · Lec 07 slide 15–16)</h2>
+  <p class="meta">prep สถานะ C (ความถี่ 2) → กล่อง <b>QFT</b> · READ หลัง QFT ได้ <b>2</b> แน่นอน</p>
+  <div class="circuit" data-wires="4" data-names="signal,,," data-wire-labels="0x1,0x2,0x4,0x8"
+       data-groups="1-4:prep; 5-15:QFT"
+       data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2 + H:3; P:0:45; P:1:90; P:2:180;
+                 H:3; CP:2,3:-90; CP:1,3:-45; CP:0,3:-22.5; H:2; CP:1,2:-90; CP:0,2:-45; H:1; CP:0,1:-90; H:0;
+                 SWAP:0,3 + XWIRE:1,2"
+       data-cap="Figure 7-5 — slide p15"></div>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8"
+           data-ops="H:3; CP:2,3:-90; CP:1,3:-45; CP:0,3:-22.5; H:2; CP:1,2:-90; CP:0,2:-45; H:1; CP:0,1:-90; H:0; SWAP:0,3 + XWIRE:1,2"></div>
+      <p class="meta" style="margin:.4rem 0 0;"><b>QFT</b> = <code>signal.QFT()</code> / <code>qc.QFT()</code><br>
+      ขั้นบันได: <b>H บิตสูงสุดก่อน</b> → CPHASE มุม<b>ลบ</b> −90 / −45 / −22.5 (หารครึ่งเมื่อไกลขึ้น 1 สาย) → ลงสายถัดไป → <b>SWAP ท้าย</b> กลับลำดับบิต<br>
+      4 สาย = H 4 ตัว · CPHASE 6 ตัว · ลืม SWAP → ได้ค่ากลับบิต (2 → 4)</p>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="4" data-ops="SWAP:0,3 + XWIRE:1,2"></div>
+      <p class="meta" style="margin:.4rem 0 0;"><b>SWAP 2 แบบในคอลัมน์เดียว</b><br>
+      ×—× = SWAP ปกติ · <b>เส้นสายไขว้ (ไม่มี ×)</b> = SWAP เหมือนกัน<br>
+      สไลด์ใช้สายไขว้ตรงที่เส้นตั้งของ ×—× พาดผ่าน</p>
+      <p class="meta" style="margin-top:.5rem;"><code>data-ops="SWAP:0,3 + XWIRE:1,2"</code></p>
+    </div>
+  </div>
+
+  <h2>prep square wave + QFT (บท 0028b · Lec 07 slide 20, 36)</h2>
+  <p class="meta"><b>H ทุกสาย → φ 180° สายเดียว</b> = square wave · สายที่มี φ = <code>wave_period</code> (เป็น <b>bitmask</b> ไม่ใช่คาบ!) · mask 1/2/4/8 → ความถี่ 8/4/2/1</p>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="4" data-names="signal,,," data-wire-labels="0x1,0x2,0x4,0x8"
+           data-groups="1-2:prep; 3-13:QFT"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2 + H:3; P:1:180;
+                     H:3; CP:2,3:-90; CP:1,3:-45; CP:0,3:-22.5; H:2; CP:1,2:-90; CP:0,2:-45; H:1; CP:0,1:-90; H:0;
+                     SWAP:0,3 + XWIRE:1,2"></div>
+      <p class="meta" style="margin:.4rem 0 0;"><b>Figure 7-8</b> · <code>signal.phase(180, 2)</code> → หลัง QFT ได้ |4⟩ กับ |12⟩ อย่างละ 50%</p>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="8" data-wire-labels="0x1,0x2,0x4,0x8,0x10,0x20,0x40,0x80"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1 + H:2 + H:3 + H:4 + H:5 + H:6 + H:7; P:4:180"></div>
+      <p class="meta" style="margin:.4rem 0 0;"><b>Figure 7-16 qubyte</b> · <code>qc.phase(180, 16)</code> → 8 รอบ · หลัง QFT READ ได้ 8/248 ~81%<br>
+      ⚠️ รูปในสไลด์<b>ไม่มีกล่อง QFT</b> แต่โค้ดมี <code>qc.QFT()</code></p>
+    </div>
+  </div>
+
+  <h2>invQFT · write 1 · QFT vs invQFT (บท 0029 · Lec 07 slide 49–53)</h2>
+  <p class="meta">🔴 <b>ชี้ขาด QFT/invQFT ด้วยเครื่องหมายมุม</b>: ลบ = QFT · บวก = invQFT · SWAP ย้ายได้ (p49–53 invQFT มี SWAP ต้น · p55/63 SWAP ท้าย) ·
+  ▷ <b>เหลืองทึบ = write 1</b> · ▷ วงฟ้า = write 0</p>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="4" data-names="qin,,," data-wire-labels="0x1,0x2,0x4,0x8"
+           data-groups="0-0:freq; 1-13:invQFT"
+           data-ops="WRITE:0:1 + WRITE:1:1 + WRITE:2 + WRITE:3; XWIRE:1,2; SWAP:0,3; H:0; CP:0,1:90; CP:0,2:45; CP:0,3:22.5;
+                     H:1; CP:1,2:90; CP:1,3:45; H:2; CP:2,3:90; H:3"></div>
+      <p class="meta" style="margin:.4rem 0 0;"><b>p49</b> · <code>qin.write(3); qin.invQFT()</code> → เฟสแกว่ง 3 รอบ (วงละ 67.5°)</p>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="4" data-names="qin,,," data-wire-labels="0x1,0x2,0x4,0x8"
+           data-groups="0-5:Write freq; 6-18:invQFT"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0; CTRL:0 + X:1,2,3; X:1; CNOT:1,0; X:1;
+                     XWIRE:1,2; SWAP:0,3; H:0; CP:0,1:90; CP:0,2:45; CP:0,3:22.5;
+                     H:1; CP:1,2:90; CP:1,3:45; H:2; CP:2,3:90; H:3"></div>
+      <p class="meta" style="margin:.4rem 0 0;"><b>Figure 7-22</b> · <code>had(1); cnot(14,1); not(2); cnot(1,2); not(2)</code> → |1⟩+|15⟩ (สมมาตร) → magnitude แกว่ง 1 รอบ</p>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8"
+           data-groups="0-3:prep; 4-5:QFT; 6-9:Add one; 10-12:invQFT"
+           data-ops="WRITE:0 + WRITE:1:1 + WRITE:2 + WRITE:3; BOX:0,3:invQFT:3; _; _; BOX:0,3:QFT:2; _;
+                     CTRL:0,1,2 + X:3; CCNOT:0,1,2; CNOT:0,1; X:0; BOX:0,3:invQFT:3; _; _"></div>
+      <p class="meta" style="margin:.4rem 0 0;"><b>Figure 7-23</b> · ความถี่ 2 → QFT → +1 → invQFT → ความถี่ 3</p>
+    </div>
+  </div>
+
+  <h2>ข้างใน QFT/invQFT (บท 0030 · Lec 07 slide 54–68)</h2>
+  <p class="meta">QFT 8 สาย มุม −90, −45, −22.5, −11.3, −5.6, −2.8, −1.4 (= −360°/2ᵏ) + SWAP 4 คู่ ·
+  invQFT 4 สาย (p55/p63): <b>มุมบวก + SWAP ท้าย</b> · กล่อง 1–4 หมุน 1θ/2θ/4θ/8θ แล้ว SWAP กลับหัว</p>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8"
+           data-groups="1-4:① 1×θ → 0x8; 5-7:② 2×θ → 0x4; 8-9:③ 4×θ; 10:④ 8×θ"
+           data-ops="WRITE:0 + WRITE:1:1 + WRITE:2 + WRITE:3; H:3; CP:2,3:90; CP:1,3:45; CP:0,3:22.5; H:2; CP:1,2:90; CP:0,2:45; H:1; CP:0,1:90; H:0; SWAP:0,3 + XWIRE:1,2"></div>
+      <p class="meta" style="margin:.4rem 0 0;"><b>Figure 7-25/7-31</b> · invQFT กับ |2⟩ → เฟสวงละ 45°</p>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2 + H:3; P:0:20; P:1:20; P:1:20; P:2:20; P:2:20; P:2:20; P:2:20; P:3:20; P:3:20; P:3:20; P:3:20; P:3:20; P:3:20; P:3:20; P:3:20"></div>
+      <p class="meta" style="margin:.4rem 0 0;"><b>Figure 7-29</b> · PHASE ซ้ำ 2ⁱ ครั้งบน qubit ที่ i (ไม่มีเส้นควบคุม) → |k⟩ ได้ k × 20°</p>
     </div>
   </div>
 

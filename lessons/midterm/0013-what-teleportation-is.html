@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="th">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บทที่ 0013 — quantum teleportation คืออะไร (และไม่ใช่อะไร)</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/lesson-bits.css">
+<script defer src="../../assets/quiz.js"></script>
+<script defer src="../../assets/circuit.js"></script>
+<script defer src="../../assets/circles.js"></script>
+
+<div class="wrap">
+  <p class="kicker">Quantum Programming · Lec 04 · บทที่ 0013 (เปิด Lec 04)</p>
+  <h1>Quantum teleportation คืออะไร (และไม่ใช่อะไร)</h1>
+  <p class="lead">บท <a href="0012-building-conditional-ops-remote-randomness.html">0012</a> จบด้วยข่าวร้าย:
+  entanglement เปลี่ยนสถานะอีกฝั่งได้ทันทีข้ามระยะทาง <b>แต่สั่งทิศไม่ได้</b> → ส่งข้อมูลเร็วกว่าแสงไม่ได้
+  แล้วถ้าอย่างนั้น entanglement มีไว้ทำอะไร? Lec 04 คือคำตอบ — เอาคู่ entangled หนึ่งคู่
+  บวก<b>บิตคลาสสิกแค่ 2 บิต</b> แล้ว<b>ย้ายสถานะของ qubit ทั้งดวงไปอีกฝั่งได้ครบเป๊ะ</b>
+  ทั้งที่คนส่งไม่รู้ด้วยซ้ำว่าสถานะนั้นคืออะไรค่ะ</p>
+
+  <div class="box why">
+    <span class="tag">บทนี้จับ 3 อย่าง</span>
+    <p style="margin-bottom:0;">① teleportation = ย้าย<b>สถานะ</b> ไม่ใช่ย้ายสสาร — และ<b>ต้นฉบับต้องถูกทำลาย</b>เสมอ ·
+    ② โปรโตคอลระดับบทบาท: <b>3 qubit · Alice วัดได้ 2 บิต · ส่งผ่านสายธรรมดา · Bob แก้</b> ·
+    ③ ทำไมถึงน่าทึ่ง: ข้อมูล<b>ต่อเนื่องไม่จำกัด</b> เดินทางไปกับบิตคลาสสิกแค่ 2 บิต</p>
+  </div>
+
+  <div class="part">
+    <div class="n">ส่วนที่ 1 · นิยาม</div>
+    <h2>ย้าย “สถานะ” ไม่ใช่ย้าย “ของ”</h2>
+  </div>
+
+  <p>สไลด์หน้า 8 ให้นิยามไว้ตรงๆ ว่า quantum teleportation คือ</p>
+
+  <div class="box aha">
+    <span class="tag">นิยามจากสไลด์ (p8)</span>
+    <p style="margin-bottom:0;">การ<b>ย้ายสถานะควอนตัมที่แน่นอน</b>ของ qubit หนึ่ง ไปยัง qubit อีกตัวหนึ่ง
+    — ครบทั้ง <b>magnitude</b> (ขนาดวง) และ <b>relative phase</b> (ทิศเข็ม)</p>
+  </div>
+
+  <p>สังเกตว่านิยามนี้<b>ไม่มีคำว่า “ย้ายอนุภาค”</b> เลย · qubit ตัวต้นทางกับตัวปลายทางเป็นคนละดวง
+  อยู่กันคนละที่ตั้งแต่ต้นจนจบ ไม่มีใครเดินทางไปไหน สิ่งเดียวที่ย้ายคือ <b>“ตัวเลขที่บรรยายสถานะ”</b>
+  ซึ่งเราวาดเป็น circle notation ได้แบบนี้:</p>
+
+  <div class="twocol">
+    <div class="c">
+      <div class="crow" data-n="2" data-r="20" data-lab="ก่อน: qubit ของ Alice (payload)"
+           data-mag="0.854,0.146" data-phase="0,-90" data-sub="85.4%,14.6% ที่ −90°"></div>
+    </div>
+    <div class="c">
+      <div class="crow" data-n="2" data-r="20" data-lab="หลัง: qubit ของ Bob"
+           data-mag="0.854,0.146" data-phase="0,-90" data-sub="85.4%,14.6% ที่ −90°"></div>
+    </div>
+  </div>
+
+  <p>สองแถวนี้คือ<b>รูปเดียวกันเป๊ะ</b> — นั่นแหละคือความหมายของคำว่า teleport สำเร็จ
+  (สถานะตัวอย่างนี้คือ payload จริงที่เราจะเดินทีละ step ในบท 0015 ค่ะ)</p>
+
+  <div class="analogy">
+    <div class="cell"><b>ย้ายไฟล์ (move ไม่ใช่ copy)</b>
+      <small>ตัวไฟล์ไม่ได้บินข้ามสาย แต่ปลายทางได้ครบทุกบิต และต้นทางต้องไม่เหลือไฟล์นั้น</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>teleport สถานะ qubit</b>
+      <small>qubit ไม่ได้เดินทาง แต่ปลายทางได้สถานะเดิมเป๊ะ และต้นทางต้องถูกทำลาย</small></div>
+  </div>
+
+  <p>ต่างกันอยู่จุดเดียว: ในโลกไฟล์ การลบต้นฉบับเป็น<b>มารยาท</b> (จะไม่ลบก็ได้)
+  แต่ในโลกควอนตัมมันเป็น<b>กฎฟิสิกส์</b> — ไม่ลบไม่ได้</p>
+
+  <h3>ทำไมต้นฉบับ “ต้อง” ถูกทำลาย</h3>
+
+  <p>เพราะข้อมูลควอนตัม<b>คัดลอกไม่ได้</b> (<span class="term">no-cloning</span> / no-copying) —
+  ถ้ามีขั้นตอนไหนก็ตามที่จบแล้วเหลือ qubit สถานะเดียวกัน<b>สองดวง</b> นั่นแปลว่าเราเพิ่งละเมิดกฎ
+  ดังนั้นโปรโตคอลจึงต้องบังคับให้ qubit ต้นทางพังไปพร้อมกัน · และในโปรโตคอลจริง
+  ตัวการที่ทำลายก็คือ <b>READ ของ Alice นั่นเอง</b> (เราจะเห็นตอนบท 0015)</p>
+
+  <div class="box warn">
+    <span class="tag">กันเข้าใจผิด (p2)</span>
+    <p style="margin-bottom:0;">teleportation ควอนตัม <b>ไม่ใช่</b> มายากลบนเวที และ<b>ไม่ใช่</b> Star Trek
+    ที่ย้ายตัวคน · ของจริงที่สาธิตในหนังสือ/สไลด์นี้ระยะทาง <b>3.1 มิลลิเมตร</b> (ภายในชิป IBM)
+    — แต่ประเด็นคือ <b>โค้ดชุดเดียวกันนี้ใช้ได้ถึงระยะ interstellar</b> ถ้ามีฮาร์ดแวร์รองรับ
+    ระยะทางไม่ใช่ส่วนหนึ่งของอัลกอริทึม</p>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">Alice teleport สถานะ qubit ไปให้ Bob สำเร็จ · ข้อไหน<b>ต้อง</b>เป็นจริงหลังจบโปรโตคอล?</div>
+    <button class="opt">qubit ของ Alice ยังอยู่ในสถานะเดิมทุกประการ</button>
+    <button class="opt">qubit ของ Alice ไม่ได้อยู่ในสถานะเดิมแล้ว</button>
+    <button class="opt">qubit ของ Alice เดินทางข้ามไปอยู่ฝั่งของ Bob</button>
+    <div class="fb ok" data-for="ok">ถูกต้องค่ะ — ถ้าต้นฉบับยังอยู่ครบ = เกิดสำเนาสองชุด = ละเมิด no-cloning
+    ดังนั้นการทำลายต้นฉบับไม่ใช่ผลข้างเคียง แต่เป็น<b>เงื่อนไขบังคับ</b></div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · ตัว qubit ไม่ได้เดินทางไปไหนเลย (ข้อ 3 ผิด) และถ้าต้นฉบับยังอยู่ครบ
+    (ข้อ 1) จะเท่ากับ<b>คัดลอกสถานะควอนตัมสำเร็จ</b> ซึ่งทำไม่ได้ → คำตอบคือข้อ 2</div>
+  </div>
+
+  <div class="part">
+    <div class="n">ส่วนที่ 2 · โปรโตคอล</div>
+    <h2>Alice, Bob, 3 qubit และ 2 บิต</h2>
+  </div>
+
+  <p>สถานการณ์มาตรฐาน (p9) ใช้ qubit <b>3 ตัว</b> เท่านั้น:</p>
+
+  <table class="cmp">
+    <tr><th>qubit</th><th>ใครถือ</th><th>หน้าที่</th></tr>
+    <tr><td><b>payload</b></td><td>Alice</td><td>ตัวที่จะถูก teleport — สถานะที่อยากส่ง</td></tr>
+    <tr><td><b>ep</b> (ครึ่งของคู่ entangled)</td><td>Alice</td><td>ปลายสายฝั่ง Alice</td></tr>
+    <tr><td><b>bob</b> (อีกครึ่งของคู่)</td><td>Bob</td><td>ปลายสายฝั่ง Bob — จะกลายเป็น payload ตอนจบ</td></tr>
+  </table>
+
+  <p>คู่ entangled สองตัวหลังนี้คือ <b>Bell pair</b> ที่เราสร้างเป็นตั้งแต่
+  <a href="0009-cnot-and-entanglement.html">บท 0009</a> — HAD หนึ่งตัว แล้ว CNOT หนึ่งตัว:</p>
+
+  <div class="circuit" data-wires="2" data-wire-labels="ep,bob" data-init="0,0"
+       data-ops="H:0; CNOT:0,1"
+       data-cap="คู่ entangled = “สาย Ethernet ควอนตัม” ที่ต้องวางไว้ล่วงหน้า (p9)"></div>
+
+  <div class="box aha">
+    <span class="tag">คำเปรียบของสไลด์ (p9)</span>
+    <p style="margin-bottom:0;">คู่ entangled ทำหน้าที่เป็น <b>shared resource</b> เปรียบเหมือน
+    <b>“quantum Ethernet cable”</b> ที่ Alice กับ Bob แชร์กันไว้ · ข้อสำคัญ: สายนี้ต้อง<b>วางไว้ก่อน</b>
+    ตอนสองคนยังอยู่ด้วยกัน แล้วต่างคนต่างถือปลายของตัวเองแยกย้ายไป</p>
+  </div>
+
+  <h3>4 จังหวะของโปรโตคอล</h3>
+
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> <b>Alice เตรียม payload</b> (p10) —
+    หรือรับมาจากใครก็ได้ · เธอ<b>ไม่จำเป็นต้องรู้</b>ว่าสถานะข้างในคืออะไร</div>
+    <div class="step"><span class="lbl">②</span> <b>Alice เอา payload ไปพัวพันกับ ep ของเธอ ด้วย CNOT + HAD
+    แล้ว READ ทั้งสองตัว</b> (p10) — qubit ทั้งคู่ในมือเธอถูกทำลาย และเธอได้
+    <b>ข้อมูลคลาสสิก 2 บิตพอดี</b></div>
+    <div class="step"><span class="lbl">③</span> <b>ส่ง 2 บิตนั้นให้ Bob ผ่านช่องทางธรรมดา</b> (p11) —
+    โทรศัพท์ อีเมล สาย Ethernet อะไรก็ได้ · ขั้นนี้<b>ไม่มีอะไรเป็นควอนตัมเลย</b></div>
+    <div class="step"><span class="lbl">④</span> <b>Bob ทำ single-qubit op กับ qubit ของเขา
+    โดยเลือก op ตาม 2 บิตที่ได้รับ</b> (p12) — จบแล้ว qubit ของ Bob = payload เดิมเป๊ะ</div>
+  </div>
+
+  <p>สังเกตการแบ่งงาน: <b>คนวัดคือ Alice · คนแก้คือ Bob</b> — จำประโยคนี้ไว้ให้แน่น เพราะ…</p>
+
+  <div class="box warn">
+    <span class="tag">🔴 สไลด์ผิด — จุดที่ 6 ของคอร์ส (p12)</span>
+    <p style="margin-bottom:0;">รูปผังกล่อง ALICE/BOB ในหน้า 12 <b>เป็นผังของ superdense coding ไม่ใช่ teleportation</b>
+    — ในผังนั้น “ALICE MODIFIES HER QUBIT” แล้ว “BOB MEASURES HIS QUBITS” ซึ่ง<b>กลับด้าน</b>กับ
+    ตัวหนังสือในหน้าเดียวกัน (ที่เขียนถูกว่า Bob เป็นฝ่ายรับ 2 บิตแล้วแก้) ·
+    <b>ห้ามใช้ผังนั้นอธิบายลำดับขั้น teleportation</b> · ตอนสอบให้ยึด<b>ตัวหนังสือ + โค้ด</b>
+    (Alice วัด → Bob แก้) และถ้ามีโอกาสลองทักอาจารย์ดูนะคะ</p>
+  </div>
+
+  <h3>แล้วมันน่าทึ่งตรงไหน? (ข้อค้านยอดฮิต)</h3>
+
+  <p>สไลด์หน้า 13 ยกข้อสงสัยที่คนคิดกันเกือบทุกคนขึ้นมาเอง:</p>
+
+  <div class="twocol">
+    <div class="c"><b>ข้อค้าน</b><br>“สุดท้ายก็ต้องส่งบิตคลาสสิกผ่านสาย Ethernet อยู่ดี
+    แล้วจะเรียก teleportation ทำไม?”</div>
+    <div class="c"><b>คำตอบ</b><br>“ถูก แต่ไม่ครบ” — จริงที่ต้องพึ่งการสื่อสารคลาสสิก
+    แต่<b>ลำพังบิตคลาสสิก 2 บิตอย่างเดียวทำแบบนี้ไม่ได้เด็ดขาด</b></div>
+  </div>
+
+  <p>เหตุผลอยู่ที่การนับ<b>ปริมาณข้อมูล</b>: สถานะของ qubit หนึ่งดวงคือข้อมูล<b>ต่อเนื่อง</b> —
+  ขนาดวงเป็นจำนวนจริงตัวหนึ่ง มุมเข็มเป็นจำนวนจริงอีกตัวหนึ่ง ทั้งคู่ละเอียดได้ไม่จำกัด
+  (จะเป็น 45.000001° ก็ยังต่างจาก 45° นะคะ) แต่สิ่งที่วิ่งผ่านสายมีแค่ <b>2 บิต = 4 ความเป็นไปได้</b></p>
+
+  <div class="eq">ข้อมูลต่อเนื่องไม่จำกัด &nbsp;→&nbsp; ส่งจริงแค่ 2 บิต &nbsp;→&nbsp; ประกอบกลับได้ครบ</div>
+
+  <p>สมการนี้ดู “ไม่พอ” อย่างเห็นได้ชัด — และมัน<b>ไม่พอจริงๆ</b> ถ้าไม่มีอะไรอย่างอื่น ·
+  ส่วนที่เหลือถูกจ่ายไปแล้วล่วงหน้าตอนที่สองคน<b>แชร์คู่ entangled</b> กันไว้ (p14)
+  2 บิตที่ส่งทีหลังเป็นแค่ “กุญแจ” ที่บอก Bob ว่าต้องหมุนของที่เขามีอยู่แล้วยังไง</p>
+
+  <div class="box aha">
+    <span class="tag">จุดที่น่าทึ่งที่สุด (p13)</span>
+    <p style="margin-bottom:0;">โปรโตคอลนี้<b>ทำงานได้แม้ Alice ไม่รู้ว่าสถานะ payload คืออะไร</b> ·
+    และเธอ<b>ไม่มีทางรู้</b>ด้วย — การจะรู้สถานะเต็มของ qubit ที่ไม่รู้จักนั้นเป็นไปไม่ได้ตั้งแต่ต้น
+    (READ ครั้งเดียวได้แค่ 0 หรือ 1) · แปลว่า teleportation <b>ไม่ใช่</b> “วัดแล้วบอกค่าไปให้สร้างใหม่”
+    แต่เป็นการย้ายของที่<b>ไม่มีใครเคยอ่านมัน</b></p>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ข้อไหนคือเหตุผลที่ “2 บิตคลาสสิก” เพียงพอต่อการประกอบสถานะต่อเนื่องกลับมาได้?</div>
+    <button class="opt">เพราะ 2 บิตเข้ารหัสมุมเข็มของ payload ได้แบบละเอียดมาก</button>
+    <button class="opt">เพราะ Alice วัด payload จนรู้ค่ามันแล้วส่งค่านั้นไปให้</button>
+    <button class="opt">เพราะสองคนแชร์คู่ entangled ไว้ก่อนแล้ว 2 บิตเป็นแค่กุญแจ</button>
+    <div class="fb ok" data-for="ok">ใช่เลยค่ะ — งานหนักถูกจ่ายไปตั้งแต่ตอนวางสาย entangled
+    2 บิตแค่บอกว่า “ของที่คุณถืออยู่เป็นเวอร์ชันไหนใน 4 เวอร์ชัน” แล้ว Bob แก้ให้ตรง</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · 2 บิต = 4 ความเป็นไปได้ เข้ารหัสมุมต่อเนื่องไม่ได้แน่ (ข้อ 1) ·
+    และ Alice <b>ไม่รู้</b>สถานะ payload เลยตลอดโปรโตคอล (ข้อ 2 ผิด) → คำตอบคือข้อ 3</div>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">ทบทวนบท 0012: ทำไม teleportation ถึง<b>ไม่</b>ทำให้ส่งข้อมูลเร็วกว่าแสงได้?</div>
+    <button class="opt">เพราะ Bob ทำอะไรไม่ได้จนกว่า 2 บิตจะเดินทางมาถึงด้วยความเร็วปกติ</button>
+    <button class="opt">เพราะการพัวพันของคู่ entangled สลายตัวลงเมื่อระยะทางไกลขึ้น</button>
+    <button class="opt">เพราะสถานะที่ Bob ได้รับมานั้นถูกต้องเพียงบางส่วนเท่านั้นเสมอ</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — entanglement เปลี่ยนอีกฝั่ง “ทันที” ก็จริง แต่ผลที่ Bob ถืออยู่
+    ยังเป็น 1 ใน 4 เวอร์ชันที่<b>สุ่ม</b> จนกว่าจะรู้ 2 บิตนั้น · ช่องทางคลาสสิกคือ<b>คอขวดที่จำกัดความเร็ว</b>
+    ต่อเนื่องกับ no-signaling ในบท 0012 พอดี</div>
+    <div class="fb no" data-for="no">ลองใหม่ค่ะ · ข้อ 2 กับ 3 เป็นเรื่อง<b>คุณภาพฮาร์ดแวร์</b> ไม่ใช่หลักการ
+    (โปรโตคอลในอุดมคติแม่นยำ 100% และไกลแค่ไหนก็ได้) · เหตุผลเชิงหลักการอยู่ที่<b>ต้องรอ 2 บิต</b></div>
+  </div>
+
+  <details class="recall">
+    <summary>ทดสอบความจำก่อนไปบทหน้า (ลองตอบในใจก่อนกด)</summary>
+    <ol>
+      <li>teleportation ย้าย<b>อะไร</b>กันแน่ และอะไรที่<b>ไม่ได้</b>ย้าย?
+        <br><span class="src">ย้ายสถานะ (magnitude + relative phase) · ไม่ได้ย้ายตัว qubit/สสาร</span></li>
+      <li>ทำไมต้นฉบับต้องถูกทำลาย — ตอบด้วยกฎข้อเดียว
+        <br><span class="src">no-cloning: ถ้าเหลือสองสำเนาเท่ากับคัดลอกสถานะควอนตัมสำเร็จ ซึ่งทำไม่ได้</span></li>
+      <li>qubit 3 ตัวชื่ออะไรบ้าง ใครถือตัวไหน?
+        <br><span class="src">payload + ep อยู่กับ Alice · bob อยู่กับ Bob (ep กับ bob เป็นคู่ entangled)</span></li>
+      <li>ใครวัด ใครแก้ และส่งอะไรถึงกันกี่บิต?
+        <br><span class="src">Alice วัด 2 qubit ได้ 2 บิต → ส่งผ่านช่องทางคลาสสิก → Bob แก้ด้วย single-qubit op</span></li>
+      <li>ลองอธิบายให้เพื่อนฟังใน 1 ประโยค ว่าทำไม 2 บิตถึงพอ
+        <br><span class="src">เพราะแชร์ entanglement ไว้ล่วงหน้า 2 บิตเป็นแค่กุญแจบอกว่าต้องแก้แบบไหน</span></li>
+    </ol>
+  </details>
+
+  <div class="box why">
+    <span class="tag">สรุปบทนี้ · บทหน้า</span>
+    <p style="margin-bottom:0;">ตอนนี้พี่ Zen รู้ “เรื่องราว” ครบแล้ว — <b>ย้ายสถานะ · ต้นฉบับพัง ·
+    3 qubit · Alice วัด 2 บิต · Bob แก้ · เวิร์กเพราะ entanglement ที่แชร์ไว้ก่อน</b> ·
+    บท <b>0014</b> จะลงมือ<b>อ่านวงจรจริง</b>: วงจร teleportation ฉบับเต็มสไตล์ QCEngine 5 กล่อง
+    (รวม<b>สัญลักษณ์ควบคุมด้วยบิตคลาสสิก</b> ที่ยังไม่เคยเจอ — ตัวนี้ออกสอบ)
+    แล้วต่อด้วยผัง circle notation 8 วงของ 3 qubit ที่เราจะใช้เดินโปรแกรมในบท 0015 ค่ะ</p>
+  </div>
+
+  <div class="footer">
+    <p><span class="pill">อ่านต่อจากแหล่งต้นทาง</span>
+    <a href="https://oreilly-qc.github.io/">Programming Quantum Computers — ตัวอย่างโค้ดบท 4 (O'Reilly, ตำราของวิชา)</a>
+    — ตัวอย่าง <em>4-1 quantum teleportation</em> รันได้จริงบน QCEngine (ยังไม่ต้องเข้าใจโค้ดตอนนี้ ดูภาพรวมพอ)</p>
+    <p><span class="pill">อ้างอิงในคอร์ส</span> <code class="code">slides/QuantumProg_Lec04.pdf</code> หน้า 1–2, 8–14</p>
+    <p><span class="pill">เอกสารอ้างอิง</span>
+      <a href="../../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../../reference/glossary.html">อภิธานศัพท์</a></p>
+    <p><span class="pill">บทก่อนหน้า</span>
+      <a href="0012-building-conditional-ops-remote-randomness.html">บท 0012 — ประกอบ conditional op + no-signaling</a> ·
+      <a href="0009-cnot-and-entanglement.html">บท 0009 — CNOT กับ entanglement (Bell pair)</a></p>
+
+    <div class="ask">
+      <p style="margin-bottom:0;"><b>ถามคาโฮะได้ตลอดนะคะ 🙋‍♀️</b> จุดที่คนติดบ่อยในบทนี้คือ
+      <b>“ทำไมข้อมูลต่อเนื่องถึงเดินทางไปกับ 2 บิตได้”</b> — ถ้าอยากให้หนูอธิบายซ้ำด้วยมุม
+      “บัญชีข้อมูล: ใครจ่ายอะไรไปตอนไหน” บอกได้เลยค่ะ ·
+      หรืออยากรู้ว่า <b>superdense coding</b> (ตัวที่อยู่ในรูปผิดหน้า 12) ต่างจาก teleportation ยังไง
+      ก็ถามได้ เป็นของคู่กันพอดี</p>
+    </div>
+  </div>
+
+</div>
+</html>

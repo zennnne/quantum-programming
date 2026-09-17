@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0025 — mark หลายค่า และ AA เอาไปใช้ทำอะไร</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+<script defer src="../assets/bars.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 06 · บทที่ 0025</div>
+  <h1>mark หลายค่า — คลื่นถี่ขึ้น และ AA เอาไปใช้ทำอะไร</h1>
+  <p class="lead">บทที่แล้ว (<a href="0024-how-many-aa-iterations.html">0024</a>) เรา mark ค่าเดียว แล้วเห็นว่าความน่าจะเป็น
+    <b>แกว่งเป็นคลื่น</b> ยอดแรกอยู่ที่รอบ ⌊π√(2ⁿ)/4⌋ · แต่โจทย์จริงมักมี<b>คำตอบถูกหลายตัว</b> —
+    บทนี้ลองเปลี่ยนตัวแปรเดียวคือ <b>m = จำนวนค่าที่ถูก mark</b> แล้วดูว่าคลื่นเปลี่ยนยังไง
+    จนไปถึงคำถามว่า “แล้ว AA เอาไปทำอะไรได้จริง”</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b> — จับหลัก 4 อย่าง:
+    ① m มากขึ้น → <b>คลื่นถี่ขึ้น</b> (ขึ้นกับ<b>จำนวน</b> ไม่ใช่<b>ค่าไหน</b>)
+    ② m = N/4 ได้ <b>100% ในรอบเดียว</b> · m = N/2 <b>พังสนิท</b> (50% ตลอด)
+    ③ สูตร <b>N<sub>AA</sub> = ⌊(π/4)√(2ⁿ/m)⌋</b> — ต้องรู้ m ก่อน
+    ④ ไม่รู้ m? → <b>AA + QFT = Quantum Sum Estimation</b> · และ AA เร่งอัลกอริทึมคลาสสิกแบบ <b>quadratic</b>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · mark 1, 2, 3, 4 ค่า → คลื่นถี่ขึ้นเรื่อยๆ</h2></div>
+
+  <h3>โค้ด: flip ทีละค่าใน <code class="code">n2f</code> แล้ว mirror ครั้งเดียว</h3>
+  <p>แก้จากโค้ดบท 0024 นิดเดียว — ใส่ลิสต์ <code class="code">n2f</code> (<i>numbers to flip</i>) แล้วในแต่ละรอบ AA
+    ให้ flip <b>ทุกค่าในลิสต์</b> (ท่าเดิม <code class="code">not(~n)</code> → <code class="code">cphase(180)</code> →
+    <code class="code">not(~n)</code>) ก่อนเรียก <code class="code">Grover()</code> <b>ครั้งเดียว</b></p>
+<pre class="code-blk">var n2f = [4, 7];                  // ค่าที่จะ flip
+var number_of_iterations = 50;
+qc.reset(4);
+var reg = qint.new(4, 'reg');
+reg.write(0);
+reg.hadamard();
+
+for (var i = 0; i &lt; number_of_iterations; ++i) {
+    for (var j = 0; j &lt; n2f.length; ++j) {   // flip: ทีละค่า
+        var marked_term = n2f[j];
+        reg.not(~marked_term);
+        reg.cphase(180);
+        reg.not(~marked_term);
+    }
+    reg.Grover();                              // mirror: ครั้งเดียวต่อรอบ
+
+    var prob = 0;                              // รวมโอกาสของทุกค่าที่ mark
+    for (var j = 0; j &lt; n2f.length; ++j)
+        prob += reg.peekProbability(n2f[j]);
+    qc.print('iters: ' + i + ' prob: ' + prob);
+}</pre>
+  <p>“สำเร็จ” ในบทนี้ = READ ได้<b>ค่าใดค่าหนึ่ง</b>ในกลุ่มที่ mark → เลยต้อง<b>บวก</b>ความน่าจะเป็นของทุกตัว</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ฝึกนับ: ถ้า <code class="code">n2f = [4, 7]</code> AA <b>1 รอบ</b> จะมีเกต CZ 4 ขา (<code class="code">cphase(180)</code> ทั้งรีจิสเตอร์) กี่ตัว?
+      <br><small>ใบ้: อย่าลืมว่าข้างใน mirror ก็มี CZ อยู่ (บท 0023)</small></div>
+    <button class="opt">1 ตัว</button>
+    <button class="opt">2 ตัว</button>
+    <button class="opt">3 ตัว</button>
+    <button class="opt">4 ตัว</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — flip 2 ค่า = CZ 2 ตัว + mirror มี CZ อีก 1 ตัว = <b>3</b> · ส่วน flip ยาวขึ้นตาม m แต่ mirror เท่าเดิมเสมอ</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — flip แต่ละค่ามี CZ ของตัวเอง (2 ค่า = 2 ตัว) และ mirror = H→X→<b>CZ</b>→X→H มีอีก 1 → รวม 3</div>
+  </div>
+
+  <h3>ผลหลัง AA 1 รอบ: m ต่างกัน วงโตต่างกัน</h3>
+  <div class="crow" data-n="16" data-r="14" data-lab="m = 1 · n2f=[4]"
+       data-mag=".0352,.0352,.0352,.0352,.4727,.0352,.0352,.0352,.0352,.0352,.0352,.0352,.0352,.0352,.0352,.0352"
+       data-phase="180,180,180,180,180,180,180,180,180,180,180,180,180,180,180,180"
+       data-hl="4" data-sub="47.3%"></div>
+  <div class="crow" data-n="16" data-r="14" data-lab="m = 2 · n2f=[4,7]"
+       data-mag=".0156,.0156,.0156,.0156,.3906,.0156,.0156,.3906,.0156,.0156,.0156,.0156,.0156,.0156,.0156,.0156"
+       data-phase="180,180,180,180,180,180,180,180,180,180,180,180,180,180,180,180"
+       data-hl="4,7" data-sub="78.1%"></div>
+  <div class="crow" data-n="16" data-r="14" data-lab="m = 3 · n2f=[4,7,8]"
+       data-mag=".0039,.0039,.0039,.0039,.3164,.0039,.0039,.3164,.3164,.0039,.0039,.0039,.0039,.0039,.0039,.0039"
+       data-phase="180,180,180,180,180,180,180,180,180,180,180,180,180,180,180,180"
+       data-hl="4,7,8" data-sub="94.9%"></div>
+  <p>สังเกต: ค่าที่ mark <b>ค่าไหนก็ได้</b> (4, 7, 8…) ผลรวมเท่าเดิม — สิ่งที่ทำให้ตัวเลขเปลี่ยนคือ<b>จำนวน</b> m เท่านั้น</p>
+
+  <div class="box warn">
+    <b>⚠️ ทิศเข็มในสไลด์ p21–p23 ต่างจากรูปนี้</b> — สไลด์วาด marked ชี้ทางหนึ่ง ค่าอื่นชี้อีกทาง และสลับทิศไปมาระหว่างรูป
+    ส่วนรูปข้างบนคาโฮะคำนวณตรงจาก “หลัง AA 1 รอบ” (convention เดียวกับบท 0024) ซึ่งเฟสเท่ากันหมด ·
+    ไม่ต้องตกใจ — เพราะ <b>ที่วัดได้มีแค่ relative phase</b> และสิ่งที่รูปอยากสื่อคือ<b>ขนาดวง</b> ซึ่งตรงกัน ·
+    อีกจุด: รูปชื่อ “<i>Two values flipped</i>” แต่วาด<b>สถานะหลังขยายแล้ว</b> ไม่ใช่หลัง flip เฉยๆ (หลัง flip เฉยๆ วงยังเท่ากันหมด)
+  </div>
+
+  <h3>วนหลายรอบ: ตารางคลื่นของแต่ละ m</h3>
+  <table class="cmp">
+    <thead><tr><th>m (จาก 16)</th><th>รอบ 1</th><th>รอบ 2</th><th>รอบ 3</th><th>รอบ 4</th><th>รอบ 5</th><th>รอบ 6</th><th>คาบ ≈</th></tr></thead>
+    <tbody>
+      <tr><td data-label="m">1</td><td data-label="รอบ 1">47.3</td><td data-label="รอบ 2">90.8</td><td data-label="รอบ 3"><b>96.1</b></td><td data-label="รอบ 4">58.2</td><td data-label="รอบ 5">12.5</td><td data-label="รอบ 6">2.0</td><td data-label="คาบ">6.2 รอบ</td></tr>
+      <tr><td data-label="m">2</td><td data-label="รอบ 1">78.1</td><td data-label="รอบ 2"><b>94.5</b></td><td data-label="รอบ 3">33.0</td><td data-label="รอบ 4">1.2</td><td data-label="รอบ 5">54.8</td><td data-label="รอบ 6">100</td><td data-label="คาบ">4.3 รอบ</td></tr>
+      <tr><td data-label="m">3</td><td data-label="รอบ 1"><b>94.9</b></td><td data-label="รอบ 2">61.6</td><td data-label="รอบ 3">0.0</td><td data-label="รอบ 4">60.3</td><td data-label="รอบ 5">95.5</td><td data-label="รอบ 6">19.8</td><td data-label="คาบ">3.5 รอบ</td></tr>
+      <tr><td data-label="m">4</td><td data-label="รอบ 1"><b>100</b></td><td data-label="รอบ 2">25</td><td data-label="รอบ 3">25</td><td data-label="รอบ 4">100</td><td data-label="รอบ 5">25</td><td data-label="รอบ 6">25</td><td data-label="คาบ">3 รอบพอดี</td></tr>
+    </tbody>
+  </table>
+  <p class="src">หน่วย % · ตัวหนา = ยอดแรก · คาบอ่านจากกราฟสไลด์ p21–p25 · ตัวเลขรายรอบคาโฮะ simulate ยืนยันแล้ว</p>
+
+  <div class="analogy">
+    <div class="cell"><b>ชิงช้า</b><small>เชือกสั้น → แกว่งถี่ · ยิ่งสั้นยิ่งถึงยอดเร็ว</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>AA ที่ m มากขึ้น</b><small>“สัดส่วนคำตอบ” m/N มากขึ้น → คลื่นถี่ขึ้น → ถึงยอดแรกในรอบที่น้อยลง</small></div>
+  </div>
+
+  <h3>m = 4 จาก 16: รอบแรก 100% แล้ววนทุก 3 รอบ</h3>
+  <p>กรณีพิเศษ — mark <code class="code">|4⟩ |7⟩ |8⟩ |14⟩</code> (1 ใน 4 ของรีจิสเตอร์) แล้วดู 4 รอบแรก (สไลด์ Figure 6-14):</p>
+  <div class="crow" data-n="16" data-r="14" data-lab="หลังรอบที่ 1"
+       data-mag="0,0,0,0,.25,0,0,.25,.25,0,0,0,0,0,.25,0"
+       data-phase="0,0,0,0,180,0,0,180,180,0,0,0,0,0,180,0" data-hl="4,7,8,14" data-sub="100%"></div>
+  <div class="crow" data-n="16" data-r="14" data-lab="หลังรอบที่ 2"
+       data-mag=".0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625"
+       data-phase="180,180,180,180,0,180,180,0,0,180,180,180,180,180,0,180" data-hl="4,7,8,14" data-sub="25%"></div>
+  <div class="crow" data-n="16" data-r="14" data-lab="หลังรอบที่ 3"
+       data-mag=".0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625"
+       data-phase="0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0" data-hl="4,7,8,14" data-sub="25%"></div>
+  <div class="crow" data-n="16" data-r="14" data-lab="หลังรอบที่ 4"
+       data-mag="0,0,0,0,.25,0,0,.25,.25,0,0,0,0,0,.25,0"
+       data-phase="0,0,0,0,180,0,0,180,180,0,0,0,0,0,180,0" data-hl="4,7,8,14" data-sub="100%"></div>
+  <ul>
+    <li><b>รอบ 1</b>: ค่าอื่นหายเกลี้ยง (วงว่าง) → READ ได้ค่าที่ mark <b>แน่นอน</b></li>
+    <li><b>รอบ 2</b>: วงเท่ากันหมด แต่เฟสแยกสองกลุ่ม → กลับไป 25% (= 4/16 เท่าสุ่ม)</li>
+    <li><b>รอบ 3</b>: เท่ากันหมด<b>และเฟสตรงกันหมด</b> = หน้าตาเหมือน<b>สถานะเริ่มต้นเป๊ะ</b> (หลัง HAD) →
+      รอบถัดไปจึงซ้ำรอบ 1 → คาบ = 3</li>
+  </ul>
+
+  <div class="bars" data-labels="1,2,3,4,5,6,7,8,9" data-vals="100,25,25,100,25,25,100,25,25" data-max="100"
+       data-hl="0:ok; 3:ok; 6:ok" data-cap="m = 4 จาก 16 · ความน่าจะเป็น (%) หลัง AA รอบที่ 1–9"></div>
+
+  <div class="box warn">
+    <b>⚠️ แกน x ของกราฟในสไลด์ (p21–p29) เริ่มที่ 0 — แต่ “0” คือหลังทำ AA ไปแล้ว 1 รอบ</b>
+    เพราะกราฟพล็อตตาม <code class="code">i</code> ในโค้ด ซึ่งพิมพ์<b>หลัง</b> Grover() · ดูได้จากจุด x=0 ของกรณี m = 4 ที่เป็น 100%
+    (ถ้าเป็น 0 รอบจริงต้อง 25%) · กราฟข้างบนคาโฮะนับแบบ “รอบที่ 1, 2, …” · ตอนสอบถ้าโจทย์ชี้กราฟ ให้อ่านตามแกนสไลด์ แต่รู้ว่าคลาดกัน 1
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · ดันจนสุด: m = N/2 พัง → สูตรที่มี m → เอาไปใช้</h2></div>
+
+  <h3>m = 7: ยังขยายได้ แต่คุ้มไหม?</h3>
+  <p>mark 7 จาก 16 คลื่นถี่มาก (คาบ ≈ 2.2 รอบ) รอบแรกได้ 68.4% · สไลด์ชี้ว่า <b>ต่อให้ READ ได้ค่าที่ “ถูก” ก็ไม่ค่อยมีประโยชน์</b>
+    — เกือบครึ่งรีจิสเตอร์เป็นคำตอบถูกอยู่แล้ว สุ่มเดาเอาก็ได้ 43.75%</p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">ทายก่อนอ่านต่อ: mark <b>8 จาก 16</b> (ครึ่งหนึ่งพอดี) ทำ AA ไป <b>10 รอบ</b> โอกาส READ ได้ค่าที่ mark เป็นเท่าไร?</div>
+    <button class="opt">ได้ 100% ในรอบนั้น</button>
+    <button class="opt">ได้ 50% ทุกรอบเลย</button>
+    <button class="opt">ได้ 0% ในรอบนั้น</button>
+    <button class="opt">แกว่งขึ้นลงเป็นคลื่น</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — m = N/2 แล้ว AA <b>ไม่ทำอะไรเลย</b> ได้ 50% ตลอดกาล เท่ากับสุ่ม · ไปดูเหตุผลข้างล่าง</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — คำตอบคือ <b>50% ทุกรอบ</b> (Figure 6-19 จุดทุกจุดนอนราบที่ 50%) · ทำไมถึงเป็นแบบนั้น อ่านต่อข้างล่างนะคะ</div>
+  </div>
+
+  <h3>ทำไม m = 8 พังสนิท: relative phase</h3>
+  <div class="crow" data-n="16" data-r="14" data-lab="หลังรอบที่ 1 (1st)"
+       data-mag=".0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625"
+       data-phase="0,180,180,0,180,0,0,180,180,0,180,0,0,0,180,180" data-hl="1,2,4,7,8,10,14,15" data-sub="50%"></div>
+  <div class="crow" data-n="16" data-r="14" data-lab="หลังรอบที่ 2 (2nd)"
+       data-mag=".0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625,.0625"
+       data-phase="180,180,180,180,180,180,180,180,180,180,180,180,180,180,180,180" data-sub="50%"></div>
+  <ol>
+    <li>จำจากบท <a href="midterm/0003-amplitude-and-phase.html">0003</a>: สิ่งที่วัดผลได้คือ<b>เฟสสัมพัทธ์ (relative phase)</b> ระหว่างวง ไม่ใช่เฟสของแต่ละวงเอง</li>
+    <li>พลิกเฟส 8 ค่า → ได้ “ครึ่งหนึ่ง 0° / ครึ่งหนึ่ง 180°” · แต่พลิก<b>อีก 8 ค่าที่เหลือ</b>ก็ได้หน้าตาแบบเดียวกันทุกอย่าง
+      (ต่างกันแค่เฟสรวมทั้งก้อน) → ในทางกายภาพ <b>“mark กลุ่มนี้” กับ “mark อีกกลุ่ม” แยกกันไม่ออก</b></li>
+    <li>เมื่อ QPU แยกไม่ออกว่ากลุ่มไหนคือคำตอบ mirror ก็ไม่มีทางดันกลุ่มไหนให้โต → magnitude เท่ากันตลอด → 50%</li>
+  </ol>
+  <p>ในรูป: รอบ 1 วงเท่ากันแต่เฟสแยกครึ่ง · รอบ 2 flip ทำให้เฟสกลับมาตรงกันหมด = สถานะเริ่มต้น → วนแค่ 2 สภาพนี้ไปเรื่อยๆ
+    (คาโฮะคำนวณยืนยันแล้ว แถว 2nd ของสไลด์ p28 ที่ “ชี้ลงหมด” <b>ถูกต้อง</b>)</p>
+
+  <div class="box aha">
+    <b>สมมาตร: m &gt; N/2 ไม่ต้องคิดแยก</b> — mark 12 จาก 16 ให้ผลเหมือน mark 4 จาก 16 ทุกอย่าง
+    <b>แค่สลับว่าอะไรคือ “สำเร็จ” กับ “ล้มเหลว”</b> (m = 12: รอบ 1, 2, 3 = 0%, 75%, 75% = 100 − ของ m = 4)
+  </div>
+
+  <h3>สูตรจำนวนรอบเมื่อมี m ค่าที่ mark</h3>
+  <p>จากการทดลองข้างบน สไลด์สรุปว่า <b>ความถี่ของการแกว่งขึ้นกับ<i>จำนวน</i>ค่าที่ flip เท่านั้น ไม่ขึ้นกับว่า flip <i>ค่าไหน</i></b>
+    → ขยายสูตรบท 0024 ให้มี m:</p>
+  <div class="eq">N<sub>AA</sub> = ⌊ (π/4) · √(2ⁿ / m) ⌋</div>
+  <ul>
+    <li>n = จำนวน qubit · 2ⁿ = N ขนาดรีจิสเตอร์ · m = จำนวนค่าที่ mark · ⌊ ⌋ = ปัดลง</li>
+    <li>m = 1 → กลับเป็นสูตรเดิม ⌊π√(2ⁿ)/4⌋ พอดี</li>
+    <li>ตรงกับตาราง: n = 4 → m = 1 ได้ 3 · m = 2 ได้ ⌊2.22⌋ = <b>2</b> · m = 3 ได้ ⌊1.81⌋ = <b>1</b> · m = 4 ได้ ⌊1.57⌋ = <b>1</b></li>
+  </ul>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">ลองคำนวณ: รีจิสเตอร์ <b>6 qubit</b> มีคำตอบถูก <b>4 ค่า</b> ควรทำ AA กี่รอบ?
+      <br><small>ใบ้: π/4 ≈ 0.785</small></div>
+    <button class="opt">ทำ 6 รอบ</button>
+    <button class="opt">ทำ 4 รอบ</button>
+    <button class="opt">ทำ 2 รอบ</button>
+    <button class="opt">ทำ 3 รอบ</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — 2⁶/4 = 16 → √16 = 4 → 0.785 × 4 = 3.14 → ปัดลง = <b>3</b> (ได้ ≈ 96%)</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — 2⁶ = 64 · 64/4 = 16 · √16 = 4 · (π/4)×4 = π ≈ 3.14 → ปัดลงได้ <b>3</b> · (6 = ลืมหาร m · 4 = ลืมคูณ π/4)</div>
+  </div>
+
+  <div class="box why">
+    <b>ไก่กับไข่</b> — สูตรนี้ใช้ได้<b>ต่อเมื่อรู้ m</b> · แต่ถ้าไม่รู้ว่ามีคำตอบถูกกี่ตัว จะรู้ได้ยังไงว่าต้องวนกี่รอบ?
+    ทำเกินก็ร่วง ทำขาดก็ต่ำ · สไลด์บอกว่า “จะกลับมาตอบด้วย primitive ตัวอื่น” → ดูข้างล่าง
+  </div>
+
+  <h3>เอา AA ไปใช้ ① Quantum Sum Estimation (การประมาณผลรวมเชิงควอนตัม)</h3>
+  <p>เชื่อมจุดที่เพิ่งเห็น: <b>ความถี่ของคลื่นบอก m</b> — เหมือนดูความถี่ชิงช้าแล้วรู้ความยาวเชือก</p>
+  <div class="analogy">
+    <div class="cell"><b>AA</b><small>ทำให้ความน่าจะเป็น “แกว่ง” ด้วยความถี่ที่ขึ้นกับ m</small></div>
+    <div class="arrow">+</div>
+    <div class="cell"><b>QFT — Quantum Fourier Transform</b><small>primitive ตัวถัดไป (Lec 07) READ “ความถี่” ของสิ่งที่แกว่งในรีจิสเตอร์ออกมาได้</small></div>
+  </div>
+  <p>รวมกัน = วงจรที่ READ ออกมาได้ไม่ใช่แค่ “คำตอบหนึ่งตัว” แต่เป็น<b>ตัวเลขที่บอกว่ามีคำตอบกี่ตัว</b> → นี่คือ <b>Quantum Sum Estimation</b>
+    (รายละเอียดเต็มเรียนภายหลัง) · และรู้ m แล้วก็เอาไปแทนสูตร N<sub>AA</sub> ได้ = แก้ปัญหาไก่กับไข่</p>
+
+  <h3>เอา AA ไปใช้ ② เร่งอัลกอริทึมคลาสสิกแบบ quadratic (กำลังสอง)</h3>
+  <p>AA ใช้เป็น subroutine ได้กับโจทย์ที่ต้อง<b>เรียกตัวตรวจคำตอบซ้ำๆ</b> เช่น <b>boolean satisfiability</b>
+    (หาค่า true/false ที่ทำให้นิพจน์ตรรกะเป็นจริง) และการหา <b>global / local minima</b> (ค่าต่ำสุดรวม / ค่าต่ำสุดเฉพาะที่)</p>
+  <table class="cmp">
+    <thead><tr><th>ส่วนของ AA</th><th>บทบาทในงานจริง</th><th>เปลี่ยนตามโจทย์?</th></tr></thead>
+    <tbody>
+      <tr><td data-label="ส่วน"><b>flip</b></td><td data-label="บทบาท">encode <b>ตัวตรวจคำตอบ</b> (เทียบเท่า subroutine คลาสสิกที่เช็กว่าคำตอบใช้ได้ไหม)</td><td data-label="เปลี่ยน?">✅ เปลี่ยน</td></tr>
+      <tr><td data-label="ส่วน"><b>mirror</b></td><td data-label="บทบาท">แปลงเฟส → magnitude</td><td data-label="เปลี่ยน?">❌ เหมือนเดิมทุกงาน</td></tr>
+    </tbody>
+  </table>
+  <p>“quadratic” มาจาก √ ในสูตร: คลาสสิกต้องไล่ตรวจราว N ครั้ง · AA ใช้ราว (π/4)√N รอบ · N = 1,000,000 → ≈ 785 รอบ</p>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">ค้นคำตอบถูก 1 ตัวใน N = <b>10,000</b> ตัว — AA ต้องวนประมาณกี่รอบ?</div>
+    <button class="opt">ประมาณ 78 รอบ</button>
+    <button class="opt">ประมาณ 100 รอบ</button>
+    <button class="opt">ประมาณ 5000 รอบ</button>
+    <button class="opt">ประมาณ 7854 รอบ</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — √10,000 = 100 → × π/4 ≈ 78.5 → 78 รอบ · เทียบคลาสสิกที่อาจต้องตรวจเป็นหมื่นครั้ง</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — (π/4)·√10,000 = 0.785 × 100 ≈ <b>78</b> · (100 = ลืม π/4 · 7854 = ลืมถอดรูท · 5000 = ค่าเฉลี่ยของคลาสสิก)</div>
+  </div>
+
+  <details class="recall">
+    <summary>ทดสอบความจำ (ปิดหน้าจอก่อนแล้วตอบ)</summary>
+    <ol>
+      <li>โค้ด multi-flip ต่างจากโค้ดบท 0024 ตรงไหน?
+        <br><b>flip ทุกค่าใน <code class="code">n2f</code> (ลูปใน) แล้ว Grover() ครั้งเดียว · รวม peekProbability ทุกค่า</b></li>
+      <li>ความถี่ของคลื่นขึ้นกับอะไร และ<b>ไม่</b>ขึ้นกับอะไร?
+        <br><b>ขึ้นกับจำนวน m · ไม่ขึ้นกับว่า mark ค่าไหน</b></li>
+      <li>m = 4 จาก 16 ได้ความน่าจะเป็นรอบ 1–4 เท่าไร คาบเท่าไร?
+        <br><b>100 → 25 → 25 → 100% · คาบ 3 รอบ</b></li>
+      <li>ทำไมหลังรอบ 3 ของ m = 4 ถึงวนกลับ?
+        <br><b>วงเท่ากันและเฟสตรงกันหมด = สถานะเริ่มต้น</b></li>
+      <li>m = 8 จาก 16 ได้เท่าไร เพราะอะไร?
+        <br><b>50% ตลอด · relative phase: mark ครึ่งนี้ ≡ mark อีกครึ่ง</b></li>
+      <li>m = 12 จาก 16 คิดยังไง?
+        <br><b>เหมือน m = 4 แต่สลับ success/failure</b></li>
+      <li>เขียนสูตร N<sub>AA</sub> แบบมี m แล้วแทน n = 8, m = 4
+        <br><b>⌊(π/4)√(2ⁿ/m)⌋ → √64 = 8 → 6.28 → 6 รอบ</b></li>
+      <li>แกน x = 0 ในกราฟสไลด์ multi-flip หมายถึงอะไร?
+        <br><b>หลังทำ AA ไปแล้ว 1 รอบ (นับตาม i ในโค้ด)</b></li>
+      <li>AA + QFT อ่านอะไรออกมาได้ ชื่อเทคนิคว่าอะไร?
+        <br><b>จำนวนค่าที่ mark (m) · Quantum Sum Estimation</b></li>
+      <li>ใช้ AA เร่งอัลกอริทึมคลาสสิก ส่วนไหนเปลี่ยนตามโจทย์ ได้ speedup แบบไหน?
+        <br><b>flip = ตัวตรวจคำตอบ (mirror คงที่) · quadratic</b></li>
+    </ol>
+  </details>
+
+  <div class="part"><h2>สรุปบทนี้</h2></div>
+  <ul>
+    <li>multi-flip: <b>flip ทุกค่าใน n2f → Grover() 1 ครั้ง</b> ต่อรอบ · ความน่าจะเป็น = ผลรวมของทุกค่าที่ mark</li>
+    <li>m มากขึ้น → <b>คลื่นถี่ขึ้น</b> (คาบ 6.2 → 4.3 → 3.5 → 3) · ขึ้นกับ<b>จำนวน</b> ไม่ใช่<b>ค่าไหน</b></li>
+    <li>m = N/4 → <b>100% รอบแรก</b> วนทุก 3 รอบ · m = N/2 → <b>50% ตลอด</b> (relative phase) · m &gt; N/2 = สมมาตร</li>
+    <li><b>N<sub>AA</sub> = ⌊(π/4)√(2ⁿ/m)⌋</b> ต้องรู้ m → ไม่รู้ใช้ <b>AA + QFT = Quantum Sum Estimation</b></li>
+    <li>AA = subroutine เร่ง <b>quadratic</b> · <b>flip = ตัวตรวจคำตอบ (เปลี่ยน) · mirror = คงที่</b></li>
+    <li>⚠️ สไลด์: แกน x = 0 คือหลัง 1 รอบ · ทิศเข็มรูป p21–23 สลับไปมา (ดูขนาดวงเป็นหลัก)</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b> — <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia — บทที่ 6
+      <i>Amplitude Amplification</i> หัวข้อ <i>Multiple Flipped Entries</i> และ <i>Using Amplitude Amplification</i> ·
+      โค้ดรันเองได้ที่ <a href="https://oreilly-qc.github.io/#/toolkit">QCEngine</a>
+      (ลองตั้ง <code class="code">n2f</code> เป็น [4,7,8,14] แล้ว [0,1,2,3,4,5,6,7] ดูผล) ·
+      สไลด์ <code class="code">QuantumProg_Lec06.pdf</code> หน้า 20–34</p>
+    <p><b>บทที่เกี่ยวข้อง</b> —
+      <a href="0024-how-many-aa-iterations.html">0024 · วน AA กี่รอบ</a> ·
+      <a href="0023-flip-and-mirror.html">0023 · flip + mirror</a> ·
+      <a href="midterm/0003-amplitude-and-phase.html">0003 · amplitude และ phase</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> — จุดที่คนงงบ่อยในบทนี้:
+      ① ทำไม “mark ครึ่งนี้” กับ “mark อีกครึ่ง” ถึงเหมือนกัน ② ทำไม m มากขึ้นแล้วรอบน้อยลง
+      ③ QFT อ่าน “ความถี่” ได้ยังไง (บทหน้าจะปูให้ค่ะ)
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

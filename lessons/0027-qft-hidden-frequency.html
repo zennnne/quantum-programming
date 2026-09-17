@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0027 — QFT: อ่าน “ความถี่” ที่ซ่อนอยู่ในเฟส</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 07 · บทที่ 0027 (บทแรกของคาบ)</div>
+  <h1>QFT — อ่าน “ความถี่” ที่ซ่อนอยู่ในเฟส</h1>
+  <p class="lead">คาบที่แล้ว amplitude amplification (AA) ช่วยเราได้ตอนที่มี<b>ค่าเดียว</b>เฟสแปลกแยกจากเพื่อน
+    (<a href="0023-flip-and-mirror.html">0023</a>–<a href="0026-inside-the-mirror.html">0026</a>) ·
+    แต่ถ้าคำตอบไม่ได้อยู่ที่ค่าใดค่าหนึ่ง แต่ซ่อนอยู่ใน<b>“รูปแบบ” (pattern)</b> ที่เข็มเฟสหมุนไปทั้ง register ล่ะ?
+    บทนี้รู้จัก primitive ตัวที่สอง: <b>QFT</b></p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b> — จับหลัก 4 อย่าง:
+    ① ถ้าเข็มเฟส<b>หมุนเป็นจังหวะ</b>แต่ magnitude เท่ากันหมด → READ เฉยๆ ได้ค่าสุ่ม และ AA ก็ช่วยไม่ได้
+    ② ใส่ <b>QFT</b> ก่อน READ → ได้ค่าเดียวแน่นอน = <b>จำนวนรอบที่เข็มหมุนครบตลอด register</b> (ความถี่)
+    ③ หน้าตาวงจร QFT 4 สาย: <b>H + CPHASE มุมลบ (−90/−45/−22.5) เป็นขั้นบันได + SWAP ท้าย</b> (เรื่องสอบ)
+    ④ QFT เขียนผลลง<b>register เดิม</b> (in-place) เพราะตัวมัน reversible → เลยเรียกว่า “transform”
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · เกมทายสถานะ ที่ READ ธรรมดาแพ้</h2></div>
+
+  <div class="box aha">
+    <b>นิยามจากสไลด์ (p2)</b> — <b>QFT (Quantum Fourier Transform, การแปลงฟูเรียร์เชิงควอนตัม)</b> คือ primitive
+    ที่ให้เราเข้าถึง<b>รูปแบบและข้อมูลที่ซ่อนอยู่</b>ใน relative phase และ magnitude ของ register ·
+    AA ก็จัดการเฟสเหมือนกัน แต่ QFT <b>ใช้วิธีของตัวเองที่ต่างออกไป</b> ·
+    และ QFT ยังช่วย<b>เตรียม superposition ซับซ้อน</b>ได้ง่ายด้วย (เก็บไว้บท 0029)
+  </div>
+
+  <h3>โจทย์: register 4 qubit เป็นสถานะ A, B หรือ C สักอัน — อันไหน?</h3>
+  <p>ทุกวงขนาดเท่ากันหมด (1/16 = 6.25%) ต่างกันแค่<b>ทิศของเข็ม</b> (0° = ชี้ขึ้น · บวก = ทวนเข็มนาฬิกา)</p>
+  <div class="wide">
+    <p class="meta" style="margin:.5rem 0 0;"><b>สถานะ A</b> — เข็มสลับ 0° / 180° ทีละวง</p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625"
+         data-phase="0,180,0,180,0,180,0,180,0,180,0,180,0,180,0,180"></div>
+    <p class="meta" style="margin:.5rem 0 0;"><b>สถานะ B</b> — เข็มเพิ่มทีละ 90°</p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625"
+         data-phase="0,90,180,270,0,90,180,270,0,90,180,270,0,90,180,270"></div>
+    <p class="meta" style="margin:.5rem 0 0;"><b>สถานะ C</b> — เข็มเพิ่มทีละ 45°</p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625"
+         data-phase="0,45,90,135,180,225,270,315,0,45,90,135,180,225,270,315"></div>
+    <p class="src">Figure 7-1 (สไลด์ p3–4) · ⚠️ A/B/C ชุดนี้<b>คนละชุด</b>กับ A/B/C ของคาบ AA (สไลด์เตือนเอง)</p>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ตาเราเห็นชัดว่าสามแถวต่างกัน · แต่ถ้า <b>READ register ตรงๆ</b> 1 ครั้ง จะแยกได้ไหมว่าเป็นสถานะไหน?</div>
+    <button class="opt">ได้ เพราะแต่ละสถานะให้ค่าคนละชุด</button>
+    <button class="opt">ได้ ถ้าใช้ AA ขยายวงที่แปลกก่อน</button>
+    <button class="opt">ไม่ได้ ทั้งสามให้ค่าสุ่มแบบเดียวกัน</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — READ เห็นแค่ <b>magnitude</b> ซึ่งเท่ากันหมด 6.25% ทุกวงทั้งสามสถานะ →
+      ได้เลข 0–15 สุ่มเท่าๆ กัน · และ AA ก็ช่วยไม่ได้ เพราะ<b>ไม่มีวงไหนเฟสโดดเด่น</b>ต่างจากเพื่อน —
+      ทุกวงต่างจากวงข้างๆ เท่ากันหมด (p4)</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — READ มองไม่เห็นเฟส เห็นแค่ magnitude ที่เท่ากันหมด → สุ่ม 0–15 เท่าๆ กันทุกสถานะ ·
+      ส่วน AA ต้องมี<b>ค่าที่เฟสแปลกแยก (oddball)</b> แต่ที่นี่ไม่มีวงไหนแปลกกว่าเพื่อนเลย (p4)</div>
+  </div>
+
+  <h3>ใส่ QFT ก่อน READ → เหลือวงเดียว เต็ม 100%</h3>
+  <div class="wide">
+    <p class="meta" style="margin:.5rem 0 0;"><b>A หลัง QFT</b></p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0" data-hl="8"></div>
+    <p class="meta" style="margin:.5rem 0 0;"><b>C หลัง QFT</b></p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0" data-hl="2"></div>
+    <p class="src">Figure 7-2 (สไลด์ p5) · B ซ่อนไว้ก่อน ให้ทายในข้อถัดไป</p>
+  </div>
+
+  <p>สังเกตความเชื่อมโยง (p6): ไล่จาก |0⟩ ไป |15⟩ ใน <b>A</b> เข็มวนกลับมาที่ 0° ทั้งหมด <b>8 ครั้ง</b> → READ ได้ <b>8</b> ·
+    ใน <b>C</b> เข็มหมุนครบ <b>2 รอบ</b> → READ ได้ <b>2</b></p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q"><b>ทายก่อนดูสไลด์</b> — สถานะ <b>B</b> (เพิ่มทีละ 90°) หลัง QFT แล้ว READ จะได้เลขอะไรแน่นอน?</div>
+    <button class="opt">READ ได้ 90</button>
+    <button class="opt">READ ได้ 4</button>
+    <button class="opt">READ ได้ 1</button>
+    <button class="opt">READ ได้ 3</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! B หมุน 0→90→180→270 แล้ววนกลับ ทุก 4 วง → ครบ <b>16 ÷ 4 = 4 รอบ</b> → READ ได้ <b>|4⟩</b>
+      (Figure 7-2 แถวกลาง) · สิ่งที่ QFT เผยออกมาคือ <b>signal frequency (ความถี่สัญญาณ)</b> ที่ซ่อนอยู่ในเฟส</div>
+    <div class="fb no" data-for="no">ลองนับใหม่ค่ะ — ไม่ได้ถามมุม แต่ถามว่า<b>เข็มหมุนครบกี่รอบ</b>ตลอด 16 วง ·
+      B กลับมา 0° ทุก 4 วง (ที่ |0⟩ |4⟩ |8⟩ |12⟩) → ครบ 4 รอบ → READ ได้ 4</div>
+  </div>
+
+  <h3>ความถี่ ≠ คาบ — จุดที่สับสนง่ายที่สุด</h3>
+  <p>ในบทนี้ “<b>คาบ</b>” = กี่วงถึงจะวนกลับ · “<b>ความถี่</b>” = วนกลับกี่ครั้งตลอด register · สองตัวคูณกันได้ขนาด register เสมอ</p>
+  <table class="cmp">
+    <thead><tr><th>สถานะ</th><th>มุมเพิ่มทีละ</th><th>คาบ (วงต่อรอบ)</th><th>ความถี่ (รอบต่อ register)</th><th>QFT แล้ว READ ได้</th></tr></thead>
+    <tbody>
+      <tr><td data-label="สถานะ">A</td><td data-label="มุมเพิ่มทีละ">180°</td><td data-label="คาบ">2</td><td data-label="ความถี่"><b>8</b></td><td data-label="READ ได้"><b>8</b></td></tr>
+      <tr><td data-label="สถานะ">B</td><td data-label="มุมเพิ่มทีละ">90°</td><td data-label="คาบ">4</td><td data-label="ความถี่"><b>4</b></td><td data-label="READ ได้"><b>4</b></td></tr>
+      <tr><td data-label="สถานะ">C</td><td data-label="มุมเพิ่มทีละ">45°</td><td data-label="คาบ">8</td><td data-label="ความถี่"><b>2</b></td><td data-label="READ ได้"><b>2</b></td></tr>
+    </tbody>
+  </table>
+  <div class="eq">คาบ × ความถี่ = 16 (= 2<sup>จำนวน qubit</sup>) &nbsp;·&nbsp; มุมที่เพิ่มต่อวง = ความถี่ × 360° ÷ 16</div>
+  <div class="box warn">
+    <b>กับดัก</b> — A มี<b>คาบ 2</b> แต่ QFT ให้ <b>8</b> · อย่าตอบคาบ · QFT ตอบ<b>ความถี่</b>เสมอ
+    (B บังเอิญคาบ = ความถี่ = 4 เพราะ 4 × 4 = 16 · อย่าใช้ B จำกฎ)
+  </div>
+
+  <h3>โค้ดที่สร้าง A/B/C (Example 7-1, สไลด์ p7)</h3>
+<pre class="code-blk">var num_qubits = 4;
+qc.reset(num_qubits);
+var signal = qint.new(num_qubits, 'signal')
+var which_signal = 'A';
+// prepare the signal
+signal.write(0);
+signal.hadamard();              // 16 วงเท่ากัน เข็มชี้ขึ้นหมด
+if (which_signal == 'A') {
+    signal.phase(180, 1);
+} else if (which_signal == 'B') {
+    signal.phase(90, 1);
+    signal.phase(180, 2);
+} else if (which_signal == 'C') {
+    signal.phase(45, 1);
+    signal.phase(90, 2);
+    signal.phase(180, 4);
+}
+signal.QFT()</pre>
+
+  <div class="box mathref">
+    <b>refresher: <code class="code">phase(θ, mask)</code></b> (บท <a href="midterm/0008-multi-qubit-registers.html">0008</a>) —
+    ใส่เฟส θ ให้<b>ทุกวงที่บิตตาม mask เป็น 1</b> (ตัวเลขตัวหลังคือ <b>bitmask</b>) · หลายคำสั่งซ้อนกัน → มุม<b>บวกกัน</b> ·
+    ตัวอย่าง C วง |5⟩ = <code class="code">0101</code> → บิต 0x1 กับ 0x4 เป็น 1 → 45° + 180° = <b>225°</b> ตรงกับรูป ·
+    เคล็ด: มุมบนบิต 0x1, 0x2, 0x4 <b>เท่าตัวไปเรื่อยๆ</b> (45, 90, 180) → วง |k⟩ ได้ <b>45° × k</b> พอดี
+  </div>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">อยากได้สัญญาณ<b>ความถี่ 1</b> (เข็มหมุนครบ 1 รอบพอดีตลอด 16 วง) ต้องใส่ phase ชุดไหนหลัง <code class="code">hadamard()</code>?</div>
+    <button class="opt">phase(45,1) · phase(90,2) · phase(180,4) · phase(360,8)</button>
+    <button class="opt">phase(90,1) · phase(180,2) · phase(270,4) · phase(360,8)</button>
+    <button class="opt">phase(180,1) · phase(90,2) · phase(45,4) · phase(22.5,8)</button>
+    <button class="opt">phase(22.5,1) · phase(45,2) · phase(90,4) · phase(180,8)</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — มุมต่อวง = 1 × 360° ÷ 16 = <b>22.5°</b> · ใส่ให้บิต 0x1 แล้ว<b>เท่าตัว</b>ขึ้นไป → |k⟩ ได้ 22.5° × k ·
+      |15⟩ = 337.5° แล้ววนกลับ 360° พอดี = 1 รอบ → QFT แล้ว READ ได้ <b>1</b> (หนูจำลองวงจรเช็คแล้ว ได้ |1⟩ 100%)</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — มุมต่อวง = ความถี่ × 360° ÷ 16 = 22.5° · วง |k⟩ ต้องได้ 22.5° × k ·
+      ให้บิตน้อยสุด (mask 1) ได้ 22.5° แล้วเท่าตัวขึ้นไป: 45 บน mask 2 · 90 บน mask 4 · 180 บน mask 8 ·
+      (ชุดที่ใส่ 360° = ไม่ได้ใส่อะไรเลย เพราะ 360° ≡ 0°)</div>
+  </div>
+
+  <p><b>เรียก QFT ใน QCEngine ได้ 2 แบบ</b> (p7): <code class="code">qc.QFT()</code> — ระดับ global รับชุด qubit เป็น argument ·
+    <code class="code">qint.QFT()</code> — method ของ qint ทำกับทุก qubit ใน qint นั้น (อย่าง <code class="code">signal.QFT()</code> ข้างบน)</p>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · register “มีความถี่” แปลว่าอะไร และข้างในกล่อง QFT หน้าตาแบบไหน</h2></div>
+
+  <h3>มอง register เป็น “สัญญาณ” (p13–14)</h3>
+  <div class="analogy">
+    <div class="cell"><b>16 วงเรียงจาก |0⟩ ถึง |15⟩</b><small>อ่านทิศเข็มจากซ้ายไปขวา เหมือนดูภาพเฟรมต่อเฟรม
+      · สถานะ C เข็มหมุนทวนเข็มครบ 2 รอบ</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>ล้อจักรยานในคลิปวิดีโอ 16 เฟรม</b><small>ดูทีละเฟรมไม่รู้อะไร แต่ดูทั้งคลิปจะนับได้ว่าล้อหมุนกี่รอบ
+      · QFT คือคนที่ดูทั้งคลิปแล้วบอกตัวเลขนั้น</small></div>
+  </div>
+  <p>สไลด์เรียกสถานะ C ว่าสัญญาณที่มีความถี่ <b>“สองครั้งต่อ register”</b> · ข้อมูลนี้อยู่ใน <b>relative phase</b> ล้วนๆ
+    READ ตรงๆ จึงดึงออกมาไม่ได้ · ต้องผ่าน QFT ก่อน</p>
+  <div class="wide">
+    <p class="meta" style="margin:.5rem 0 0;"><b>input 4 qubit</b> (สถานะ C)</p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625"
+         data-phase="0,45,90,135,180,225,270,315,0,45,90,135,180,225,270,315" data-hl="0,8"></div>
+    <p class="meta" style="margin:.5rem 0 0;">↓ <b>QFT</b> ↓ &nbsp; <b>output 4 qubit</b></p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0" data-hl="2"></div>
+    <p class="src">Figure 7-3/7-4 (สไลด์ p13–14) · ไฮไลต์ |0⟩ กับ |8⟩ = จุดที่เข็มเริ่มรอบใหม่</p>
+  </div>
+
+  <h3>วงจรเต็ม: prep + QFT (Figure 7-5)</h3>
+  <div class="wide">
+    <div class="circuit" data-wires="4" data-names="signal,,," data-wire-labels="0x1,0x2,0x4,0x8"
+         data-groups="1-4:prep; 5-15:QFT"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2 + H:3; P:0:45; P:1:90; P:2:180;
+                   H:3; CP:2,3:-90; CP:1,3:-45; CP:0,3:-22.5; H:2; CP:1,2:-90; CP:0,2:-45; H:1; CP:0,1:-90; H:0;
+                   SWAP:0,3 + XWIRE:1,2"
+         data-cap="สไลด์ p15–16 · prep = hadamard + phase(45,1) phase(90,2) phase(180,4) ของสถานะ C"></div>
+  </div>
+
+  <p>บทนี้<b>ยังไม่ต้องเข้าใจว่าทำไม</b>แต่ละ gate ถึงทำงาน (นั่นคือบท 0030) · แต่ต้อง<b>จำหน้าตา</b>ให้ได้เพราะออกสอบ ·
+    อ่านกล่อง QFT จากซ้ายไปขวาจะเห็นเป็น<b>ขั้นบันได</b>:</p>
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> <b>H บนสาย 0x8</b> (สายบนสุดของบิตสูง) → CPHASE จาก 0x8 ไปหา 0x4, 0x2, 0x1 มุม <b>−90°, −45°, −22.5°</b></div>
+    <div class="step"><span class="lbl">②</span> <b>H บน 0x4</b> → CPHASE ไปหา 0x2, 0x1 มุม <b>−90°, −45°</b></div>
+    <div class="step"><span class="lbl">③</span> <b>H บน 0x2</b> → CPHASE ไปหา 0x1 มุม <b>−90°</b></div>
+    <div class="step"><span class="lbl">④</span> <b>H บน 0x1</b> (ไม่มีใครเหลือให้คุยด้วย)</div>
+    <div class="step"><span class="lbl">⑤</span> <b>SWAP กลับหัว</b>: 0x1↔0x8 และ 0x2↔0x4</div>
+    <div class="step">→ ทุกขั้น: มุมเริ่มที่ −90° แล้ว<b>หารครึ่ง</b>ทุกครั้งที่ไกลออกไปอีก 1 สาย · มุม<b>ติดลบ</b>ทั้งหมด</div>
+  </div>
+
+  <div class="box warn">
+    <b>สัญลักษณ์ SWAP 2 แบบในคอลัมน์เดียวกัน (จุดสอบ!)</b> — ท้ายวงจร 0x1↔0x8 วาดเป็น <b>×—×</b> ตามปกติ ·
+    แต่ 0x2↔0x4 วาดเป็น<b>เส้นสายไขว้กันเฉยๆ ไม่มี ×</b> · ความหมาย<b>เหมือนกันทุกอย่าง</b> คือสลับค่า 2 สาย
+    (น่าจะวาดแบบนี้เพราะเส้นตั้งของ ×—× พาดผ่าน 0x2 กับ 0x4 อยู่แล้ว ถ้าใส่ × ซ้อนจะอ่านไม่ออก)
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">ถ้า<b>ลืม SWAP ท้ายวงจร</b> สถานะ C (ความถี่ 2 = <code class="code">0010</code>) จะ READ ได้อะไร?</div>
+    <button class="opt">ได้ 4 เพราะลำดับบิตกลับหัว</button>
+    <button class="opt">ได้ 2 เพราะ SWAP ไม่มีผล</button>
+    <button class="opt">ได้ 8 เพราะบิตเลื่อนซ้าย</button>
+    <button class="opt">สุ่ม เพราะเฟสยังไม่ครบ</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — ก่อน SWAP ผลอยู่ในลำดับบิตกลับหัว: <code class="code">0010</code> อ่านกลับเป็น <code class="code">0100</code> = <b>4</b> ·
+      SWAP 0x1↔0x8 กับ 0x2↔0x4 คือการ<b>กลับลำดับบิต</b>ให้ถูก (หนูจำลองวงจรเช็คแล้ว) · เหตุผลที่ผลออกมากลับหัวจะเห็นในบท 0030</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — SWAP คู่ 0x1↔0x8 กับ 0x2↔0x4 = <b>กลับลำดับบิตทั้ง 4 ตัว</b> ·
+      ไม่มี SWAP ผลจะค้างในรูปกลับหัว: 0010 → 0100 = <b>4</b> · (ยังได้ค่าเดียวแน่นอน ไม่ได้สุ่ม แค่ค่าผิด)</div>
+  </div>
+
+  <h3>ทำไมเรียกว่า “transform” — QFT ทำงาน in-place (p16)</h3>
+  <p>นึกถึงวงจรเลขคณิตใน Lec 05 (บท <a href="midterm/0019-adding-two-quantum-integers-and-negative-numbers.html">0019</a>–<a href="midterm/0021-scratch-qubit-and-abs.html">0021</a>):
+    เรามักต้องมี register แยกไว้รับผล เพราะ QPU ต้อง <b>reversible (ย้อนกลับได้)</b> — ทำ <code class="code">a += b</code> ได้ แต่ทำ “a = b” ทับของเดิมทิ้งไม่ได้ ·
+    QFT ไม่ต้องทำแบบนั้น เพราะ<b>ตัววงจร reversible อยู่แล้วโดยธรรมชาติ</b> (มีแต่ H, CPHASE, SWAP ซึ่งย้อนกลับได้ทุกตัว) →
+    ผลลัพธ์ลง<b>register เดิม</b>ได้เลย = ทำงาน <b>in-place</b> → เลยได้ชื่อว่า <b>transform</b></p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ทำไม QFT ถึงเขียนผลทับลง register เดียวกับ input ได้ โดยไม่ต้องมี output register แยก?</div>
+    <button class="opt">เพราะผลลัพธ์มีขนาดเล็กกว่า input เสมอ</button>
+    <button class="opt">เพราะ QFT อ่านค่า input ออกมาก่อนแล้ว</button>
+    <button class="opt">เพราะวงจร QFT ย้อนกลับได้ในตัวมันเอง</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — ทุก gate ในวงจรย้อนกลับได้ (reversible) ข้อมูลไม่หาย → จึงแปลง register “ในที่” ได้ ·
+      แถมแปลว่า<b>มี inverse</b> ด้วย (invQFT ใช้ทำของเจ๋งๆ ในบท 0029)</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — QFT ไม่ได้ READ อะไรเลย (READ จะทำลายเฟส) และ input/output ใช้ 4 qubit เท่ากัน ·
+      เหตุผลจริงคือวงจร QFT <b>reversible ในตัว</b> ข้อมูลไม่หาย จึงเขียนทับที่เดิมได้ (p16)</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <details class="recall">
+    <summary>ทดสอบความจำ (ปิดหน้าจอก่อนแล้วตอบ)</summary>
+    <ol>
+      <li>ทำไมสถานะ A/B/C ถึงแยกด้วย READ ไม่ได้ และทำไม AA ช่วยไม่ได้?
+        <br><b>magnitude เท่ากันหมด → READ สุ่ม · ไม่มีเฟสไหนโดดเด่น (oddball) ให้ AA ขยาย</b></li>
+      <li>QFT แล้ว READ ได้เลขอะไร?
+        <br><b>ความถี่ = จำนวนรอบที่เข็มเฟสหมุนครบตลอด register (ไม่ใช่คาบ)</b></li>
+      <li>register 4 qubit เข็มเพิ่มทีละ 180° → คาบ? ความถี่? READ หลัง QFT?
+        <br><b>คาบ 2 · ความถี่ 8 · READ ได้ 8</b></li>
+      <li>เขียน phase ชุดที่ให้สถานะ C
+        <br><b>hadamard() แล้ว phase(45,1) · phase(90,2) · phase(180,4)</b></li>
+      <li>วาดวงจร QFT 4 สายจากความจำ
+        <br><b>H(0x8) → CP −90/−45/−22.5 · H(0x4) → CP −90/−45 · H(0x2) → CP −90 · H(0x1) · SWAP 0x1↔0x8 + 0x2↔0x4 (สายไขว้)</b></li>
+      <li>ทำไม QFT ถึงเรียกว่า transform?
+        <br><b>reversible ในตัว → เขียนผลลง register เดิม (in-place)</b></li>
+    </ol>
+  </details>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>สรุปบทนี้</h2></div>
+  <ul>
+    <li>เฟสที่<b>หมุนเป็นจังหวะ</b>ตลอด register = <b>สัญญาณ</b> · READ ตรงๆ ได้ค่าสุ่ม · AA ช่วยไม่ได้เพราะไม่มี oddball</li>
+    <li><b>QFT</b> แปลงสัญญาณนั้นเป็นค่าเดียวที่ READ ได้แน่นอน = <b>ความถี่</b> (A → 8 · B → 4 · C → 2)</li>
+    <li><b>คาบ × ความถี่ = 2<sup>n</sup></b> · มุมต่อวง = ความถี่ × 360° ÷ 2<sup>n</sup> · QFT ตอบความถี่ ไม่ใช่คาบ</li>
+    <li>วงจร QFT = <b>ขั้นบันได H + CPHASE มุมลบหารครึ่ง</b> เริ่มจากบิตสูง + <b>SWAP กลับลำดับบิต</b>ท้ายวงจร (มีแบบ × และแบบสายไขว้)</li>
+    <li>QFT <b>in-place</b> เพราะ reversible → เรียกว่า transform · ใช้ได้ทั้ง <code class="code">qc.QFT()</code> และ <code class="code">qint.QFT()</code></li>
+    <li>AA ดึงข้อมูล “<b>ค่าเฉพาะ</b>” · QFT ดึงข้อมูล “<b>รูปแบบ</b>”</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b> — <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia — บทที่ 7
+      <i>Quantum Fourier Transform</i> หัวข้อ <i>Hidden Patterns</i> และ <i>Frequencies in a QPU Register</i>
+      (ภาพ Figure 7-1 ถึง 7-5) ·
+      ลองเล่นใน <a href="https://oreilly-qc.github.io/#/toolkit">QCEngine</a> (ตัวอย่าง 7-1 เปลี่ยน <code class="code">which_signal</code> เป็น A/B/C แล้วดู circle notation ก่อน/หลัง <code class="code">QFT()</code>) ·
+      สไลด์ <code class="code">QuantumProg_Lec07.pdf</code> หน้า 1–7, 13–16</p>
+    <p><b>บทที่เกี่ยวข้อง</b> —
+      <a href="midterm/0003-amplitude-and-phase.html">0003 · amplitude และ phase</a> ·
+      <a href="midterm/0008-multi-qubit-registers.html">0008 · register หลาย qubit</a> ·
+      <a href="midterm/0010-cphase-cz-phase-kickback.html">0010 · CPHASE</a> ·
+      <a href="0023-flip-and-mirror.html">0023 · flip + mirror (AA)</a> ·
+      <a href="0026-inside-the-mirror.html">0026 · ข้างใน mirror</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> — จุดที่คนงงบ่อยในบทนี้:
+      ① ความถี่กับคาบต่างกันยังไง (ลองให้หนูยกสถานะแปลกๆ มาให้นับเล่นก็ได้) ② ถ้าเข็มหมุน<b>ตามเข็มนาฬิกา</b>แทนจะได้อะไร
+      (ใบ้: บท 0028 มีคำตอบ) ③ ทำไมมุมใน QFT ต้องติดลบและหารครึ่ง (ตอบเต็มๆ ในบท 0030 แต่ถามก่อนได้ค่ะ)
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

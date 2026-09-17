@@ -1,0 +1,579 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บทที่ 8+9 — รวม gate (X=HZH), no-cloning, RNOT (√NOT) และ Quantum Spy Hunter (QKD)</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/lesson-bits.css">
+<script defer src="../../assets/quiz.js"></script>
+<style>
+  /* เฉพาะบทนี้: แถบแบ่งครึ่งบท (ยืมสไตล์จากบท 6+7) */
+  .part { background:var(--accent); color:#fff; border-radius:10px; padding:.7rem 1.1rem;
+    margin:3rem 0 1.4rem; }
+  .part .n { font-size:.75rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;
+    font-weight:800; }
+  .part h2 { border:0; color:#fff; margin:.1rem 0 0; font-size:1.25rem; padding:0; }
+  /* กล่องวงจร spy hunter ที่ต้องเลื่อนแนวนอนบนจอเล็ก */
+  .wide { overflow-x:auto; background:#fff; border:1px solid var(--rule); border-radius:10px;
+    padding:1rem .8rem; margin:1.4rem 0; }
+  .wide .cap { text-align:center; font-size:.85rem; color:var(--ink-soft); margin-top:.5rem; }
+  .eq { text-align:center; font-size:1.25rem; font-weight:800; letter-spacing:.02em; margin:1.1rem 0; }
+</style>
+<div class="wrap">
+
+  <p class="kicker">Lesson 08 + 09 · จบ Lec 02</p>
+  <h1>เอา gate มา<em>ประกอบ</em>กัน: สร้าง NOT จาก H กับ Z, ทำไม COPY ถึงไม่มี, RNOT
+  ตัวประหลาด — แล้วปิดท้ายด้วยการ<em>จับสปาย</em>ด้วยควอนตัม</h1>
+  <p class="lead">บทนี้คือ 2 บทสุดท้ายของ Lec 02 ค่ะ ครึ่งแรกพี่จะเห็นว่า gate ที่เรียนมา
+  <b>เอามาต่อกันเป็น gate ตัวใหม่ได้</b> (และมีคำสั่งนึงที่ควอนตัม <b>ทำไม่ได้</b>เลย) ส่วนครึ่งหลัง
+  เราจะเอาทุกอย่างที่สะสมมาทั้งคอร์ส ไปประกอบเป็นโปรแกรมจริงที่ <b>ตรวจจับคนดักฟัง</b>ได้ค่ะ</p>
+
+  <div class="box why">
+    <span class="tag">บทนี้ยาว (รวม 2 บท) — จับหลัก 5 อย่างพอ</span>
+    <ol style="margin-bottom:0;">
+      <li><b>No-cloning</b> — ก๊อป qubit ที่ไม่รู้ค่าไม่ได้ นี่คือ "ข้อจำกัด" ที่กลายเป็น "อาวุธ"</li>
+      <li><b>gate ต่อกันได้</b> — X = HZH, Z = HXH (เอา H กับ Z มาสลับที่กันเฉยๆ)</li>
+      <li><b>RNOT (√NOT)</b> — ครึ่งหนึ่งของ NOT · ทำสองที = NOT เต็ม · <b>ไม่ใช่</b> its own inverse</li>
+      <li><b>สัญลักษณ์ RNOT = กล่องมี √</b> (เรื่องสอบ! ตัวสุดท้ายที่ต้องท่อง)</li>
+      <li><b>Spy Hunter</b> — เจอ HAD ตรงกันแต่ค่าไม่ตรง = มีสปาย เพราะ no-cloning บังคับให้สปายเดา</li>
+    </ol>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part">
+    <div class="n">ครึ่งแรก · บทที่ 8</div>
+    <h2>ประกอบ gate + คำสั่งที่หายไป (COPY) + RNOT</h2>
+  </div>
+
+  <h2>1. คำสั่งที่ควอนตัม "ทำไม่ได้": COPY</h2>
+
+  <p>ตั้งแต่เรียนคอมมา พี่ก๊อปข้อมูลจนเป็นเรื่องธรรมดา — <code class="code">b = a</code> ก็ได้ค่าซ้ำมาแล้ว
+  แต่กับ qubit มีเรื่องน่าตกใจค่ะ: <b>เราก๊อป qubit ที่ไม่รู้ค่าของมันไม่ได้เลย</b>
+  ข้อเท็จจริงนี้มีชื่อเป็นทางการว่า <b class="term">no-cloning theorem (ทฤษฎีบทห้ามโคลน)</b> (slide 73)</p>
+
+  <div class="reasons">
+    <div class="r"><b>ก๊อปได้</b><small>ค่าที่<em>รู้อยู่แล้ว</em>ว่าเป็น |0⟩ หรือ |1⟩ — ใช้ WRITE เขียนขึ้นใหม่เอาก็ได้</small></div>
+    <div class="r"><b>ก๊อปไม่ได้ ①</b><small>qubit ที่อยู่ใน <b>superposition</b></small></div>
+    <div class="r"><b>ก๊อปไม่ได้ ②</b><small>qubit ที่กำลัง<b>คำนวณอยู่</b> (ยังไม่รู้ค่า)</small></div>
+  </div>
+
+  <p>ทำไมล่ะ? เพราะวิธีเดียวที่จะ "ดึงค่า" ออกจาก qubit คือ <b>READ</b> — แต่จากบท 5 พี่รู้แล้วว่า
+  READ มัน<b>ยุบ superposition ทิ้ง</b> (collapse) พอพยายามจะก๊อป ก็เท่ากับบังคับให้วัด
+  ตัวต้นฉบับก็พังไปพร้อมกัน ได้มาแค่ 0 หรือ 1 ธรรมดา <em>ไม่ใช่ตัว qubit จริง</em>
+  เหมือนจะถ่ายเอกสารรูปสามมิติ แต่เครื่องถ่ายฉายได้แค่เงาแบนๆ ออกมา ตัวจริงก็ถูกทุบทิ้งด้วย</p>
+
+  <div class="box aha">
+    <span class="tag">ข้อจำกัด → อาวุธ (เก็บประโยคนี้ไว้ เดี๋ยวได้ใช้ในครึ่งหลัง)</span>
+    <p>ฟังดูเหมือนเป็นข้อเสียใช่ไหมคะ แต่เดี๋ยวในบท 9 พี่จะเห็นว่า <b>เพราะสปายก๊อป qubit ไม่ได้นี่แหละ</b>
+    เราถึง<b>จับสปายได้</b> — ข้อจำกัดของฟิสิกส์กลายเป็นระบบความปลอดภัยที่แฮกไม่ได้ สไลด์ 73 ปิดท้ายว่า
+    ควอนตัมมีคำสั่งทรงพลังอื่นๆ ที่ชดเชยการไม่มี COPY ได้สบายมาก</p>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">เช็คความเข้าใจ ① — ทำไมเราถึงก๊อป qubit ที่อยู่ใน superposition ไม่ได้?</div>
+    <button class="opt">เพราะ QPU ยังไม่มีคำสั่งนั้น แต่รุ่นต่อไปกำลังจะเพิ่มคำสั่ง COPY เข้ามาให้</button>
+    <button class="opt">เพราะการดึงค่าออกมาต้องวัด และการวัดยุบ superposition ตัวต้นฉบับพังไปด้วย</button>
+    <button class="opt">เพราะ qubit หนึ่งตัวเก็บข้อมูลมากเกินหน่วยความจำที่จะเก็บสำเนาไว้ได้พร้อมกัน</button>
+    <button class="opt">เพราะ superposition จะหมดอายุเร็วมาก ยังก๊อปไม่ทันมันก็สลายตัวไปเองก่อน</button>
+    <div class="fb ok" data-for="ok">ใช่เลยค่ะ! นี่คือหัวใจของ no-cloning: จะก๊อปต้องอ่านค่า จะอ่านต้อง READ
+    และ READ ก็ยุบ superposition ทิ้ง ตัวจริงเลยพังคามือ ได้มาแค่ bit ธรรมดา ไม่ใช่ qubit</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — ไม่ใช่เรื่องหน่วยความจำหรือคำสั่งที่ยังไม่มา แต่เป็น
+    <b>กฎของฟิสิกส์</b>: วิธีเดียวที่จะดึงค่าออกมาก๊อปคือ READ ซึ่ง<b>ยุบ superposition</b>
+    ตัวต้นฉบับทิ้ง จึงก๊อปไม่ได้โดยหลักการ ไม่ใช่แค่ยังทำไม่ได้</div>
+  </div>
+
+  <h2>2. ประกอบ gate — เอา H กับ Z มาต่อกันได้ NOT!</h2>
+
+  <p>เหมือน logic gate ธรรมดาที่เอา NAND มาต่อกันเป็นอะไรก็ได้ <b>quantum gate ก็เอามาต่อกันได้</b>
+  เพื่อสร้าง (ก) gate ที่มีอยู่แล้วตัวอื่น หรือ (ข) gate ใหม่ที่ไม่เคยมี (slide 74)
+  ตอนนี้พี่มีของเล่นในมือ 5 ตัว: NOT, HAD, PHASE, READ, WRITE</p>
+
+  <p>สไลด์เริ่มด้วยกรณีสวยๆ: <b>ถ้า QPU ไม่มีปุ่ม NOT ให้ เราสร้างเองได้จาก HAD กับ PHASE(180)</b>
+  หรือเขียนสั้นๆ ด้วยชื่อเล่นของ gate ว่า</p>
+
+  <div class="eq">X = H Z H</div>
+
+  <p>(จำไว้จากบท 7 นะคะ: <b>Z ก็คือ PHASE(180)</b> ส่วน <b>X ก็คือ NOT</b> — สไลด์แค่ใช้ชื่อสั้น)
+  ในรูปวงจร อ่านซ้าย→ขวาก็คือ ยิง H ก่อน แล้ว Z แล้ว H อีกที:</p>
+
+  <div class="circuit-syms">
+    <div class="sy" style="min-width:20rem;">
+      <svg width="330" height="66" viewBox="0 0 330 66" role="img" aria-label="วงจร X = H Z H">
+        <line x1="6" y1="33" x2="324" y2="33" stroke="#1a1a1a" stroke-width="2"/>
+        <!-- H -->
+        <rect x="40" y="16" width="34" height="34" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <text x="57" y="40" text-anchor="middle" font-size="19" font-weight="800" fill="#1a1a1a">H</text>
+        <!-- Z = PHASE(180) -->
+        <circle cx="165" cy="33" r="18" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="165" y1="15" x2="165" y2="51" stroke="#1a1a1a" stroke-width="2"/>
+        <path d="M157,25 A9,8 0 1 1 157,41" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+        <text x="165" y="11" text-anchor="middle" font-size="10" font-weight="800" fill="#4a4a4a">180°</text>
+        <!-- H -->
+        <rect x="256" y="16" width="34" height="34" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <text x="273" y="40" text-anchor="middle" font-size="19" font-weight="800" fill="#1a1a1a">H</text>
+      </svg>
+      <div class="cap"><b>H → PHASE(180) → H = NOT</b> เป๊ะ (slide 75–85)</div>
+    </div>
+  </div>
+
+  <p>อยากเชื่อว่ามันเท่ากับ NOT จริงๆ ก็คูณเมทริกซ์ตามได้เลยค่ะ สไลด์ไล่ทีละสเต็ป —
+  หนูสรุปให้ (คูณจากขวาไปซ้าย ตามกติกาเมทริกซ์ แต่ผลก็คือ HZH):</p>
+
+  <div class="work">
+    <div class="step"><span class="lbl">1)</span> จับคู่ในสุดก่อน: ZH =
+      <span class="mat"><span>1</span><span>0</span><span>0</span><span>−1</span></span> ·
+      <span class="frac"><span class="num">1</span><span class="den">√2</span></span>
+      <span class="mat"><span>1</span><span>1</span><span>1</span><span>−1</span></span> =
+      <span class="frac"><span class="num">1</span><span class="den">√2</span></span>
+      <span class="mat"><span>1</span><span>1</span><span>−1</span><span>1</span></span>
+      <span style="color:#3a5aa0;">(แถวล่างโดน −1 คูณ เลยเปลี่ยนเครื่องหมาย)</span></div>
+    <div class="step"><span class="lbl">2)</span> แล้วคูณ H เข้าไปอีกที: H(ZH) =
+      <span class="frac"><span class="num">1</span><span class="den">√2</span></span>
+      <span class="mat"><span>1</span><span>1</span><span>1</span><span>−1</span></span> ·
+      <span class="frac"><span class="num">1</span><span class="den">√2</span></span>
+      <span class="mat"><span>1</span><span>1</span><span>−1</span><span>1</span></span> =
+      <span class="frac"><span class="num">1</span><span class="den">2</span></span>
+      <span class="mat"><span>0</span><span>2</span><span>2</span><span>0</span></span></div>
+    <div class="step" style="color:#3a5aa0;"><span class="lbl">3)</span> ดึง ½ เข้าไป =
+      <span class="mat"><span>0</span><span>1</span><span>1</span><span>0</span></span>
+      — <b>นี่คือเมทริกซ์ของ NOT (X) เป๊ะ!</b> ✔</div>
+  </div>
+
+  <p>และมันทำงานทั้งสองทางค่ะ — สลับที่ H กับ Z กันเฉยๆ ก็ได้อีกสมการ (slide 86–90):</p>
+
+  <div class="eq">Z = H X H</div>
+
+  <p>อ่านเป็นภาษาคนว่า "<b>PHASE(180) ก็สร้างได้จาก HAD กับ NOT</b>" คู่กันสวยงามมาก
+  จำง่ายๆ ว่า <b>H เป็นตัว "สลับมุมมอง"</b> — พอเอา H ประกบหน้า-หลัง gate ตัวนึง
+  มันจะกลายเป็น gate อีกตัวที่ทำหน้าที่คล้ายกันแต่คนละแกน (X↔Z สลับกันได้ด้วย H)</p>
+
+  <div class="box aha">
+    <span class="tag">โยงกับ Bloch sphere (บท 7)</span>
+    <p>ทำไม H ถึงสลับ X กับ Z ได้? เพราะบนทรงกลม Bloch <b>HAD คือการหมุนที่สลับแกน X กับแกน Z เข้าหากัน</b>
+    พอสลับแกนแล้ว "หมุนรอบ Z" (=Z gate) ก็เลยกลายเป็น "หมุนรอบ X" (=X gate) พอเอา H มาเลิกสลับตอนท้าย
+    ทุกอย่างก็ลงตัว — ไม่ต้องท่องเมทริกซ์ก็เห็นภาพได้ค่ะ</p>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">เช็คความเข้าใจ ② — QPU ตัวหนึ่งมีปุ่ม HAD กับ PHASE ให้ แต่<b>ไม่มี</b>ปุ่ม NOT
+    พี่จะพลิก |0⟩ ให้เป็น |1⟩ ได้ยังไง?</div>
+    <button class="opt">ยิง HAD แล้วตามด้วย PHASE(180) แล้วปิดท้ายด้วย HAD อีกที เพราะ NOT เท่ากับ HZH</button>
+    <button class="opt">ทำไม่ได้เลยถ้าไม่มีปุ่ม NOT ต้องรอ QPU รุ่นใหม่ที่ใส่คำสั่งพลิกบิตนั้นมาให้ก่อน</button>
+    <button class="opt">ยิง PHASE(180) ตัวเดียวก็พอ เพราะการหมุนเฟสครึ่งรอบมันสลับศูนย์กับหนึ่งอยู่แล้ว</button>
+    <button class="opt">ยิง HAD สองครั้งติดกัน เพราะ HAD สองทีให้ผลเหมือนพลิกบิตจากศูนย์ไปเป็นหนึ่ง</button>
+    <div class="fb ok" data-for="ok">ถูกต้องค่ะ! X = HZH ก็คือ <code class="code">had() → phase(180) → had()</code>
+    ได้ NOT เต็มตัว — นี่คือพลังของการประกอบ gate: ขาดปุ่มไหนก็สร้างเองจากปุ่มที่มีได้</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — PHASE(180) ตัวเดียว<b>ไม่พลิกบิต</b> (มันแค่หมุนเข็มของวง |1⟩
+    และไม่มีผลกับ |0⟩ เลยด้วยซ้ำ) ส่วน HAD สองทีก็กลับที่เดิม สูตรที่ถูกคือ <b>X = HZH</b>:
+    HAD → PHASE(180) → HAD</div>
+  </div>
+
+  <h2>3. RNOT (√NOT) — "รากที่สองของ NOT" ที่คอมธรรมดาไม่มีวันมี</h2>
+
+  <p>ทีนี้ของแปลกจริงๆ มาแล้วค่ะ การประกอบ gate ไม่ได้สร้างแค่ของเดิม แต่สร้าง <b>ของใหม่ที่ไม่มีในโลกลอจิกปกติ</b>
+  ได้ด้วย ตัวอย่างเด็ดคือ <b class="term">RNOT — Root-of-NOT (รากที่สองของ NOT)</b> หรือเขียน <b>√NOT</b>
+  ความหมายตรงตัวเลยค่ะ: <b>ทำมันสองครั้ง = ได้ NOT หนึ่งที</b> (slide 91)</p>
+
+  <div class="eq">√NOT · √NOT = NOT</div>
+
+  <p>ลองคิดดูนะคะ ในโลกคอมธรรมดา "ครึ่งหนึ่งของการพลิกบิต" มันคืออะไร? พลิกครึ่งนึงเนี่ย?
+  <b>มันไม่มีความหมายเลย</b> บิตมีแค่ 0 กับ 1 จะครึ่งๆ กลางๆ ได้ไง — แต่ในควอนตัมมันมีจริง
+  เพราะ qubit เดินทางผ่าน superposition ได้ RNOT ก็คือ "พาไปหยุดครึ่งทาง" ระหว่าง |0⟩ กับ |1⟩ พอดี</p>
+
+  <h3>หน้าตาสัญลักษณ์ (ตัวสุดท้ายที่ต้องท่องสอบ!)</h3>
+
+  <p>สไลด์ 92 โชว์สัญลักษณ์ชัดเจน: <b>กล่องสี่เหลี่ยมที่มีเครื่องหมาย √ (รากที่สอง)</b> ข้างใน
+  และโชว์ 2 เอกลักษณ์สำคัญของมันด้วย:</p>
+
+  <div class="circuit-syms">
+    <div class="sy">
+      <svg width="120" height="60" viewBox="0 0 120 60" role="img" aria-label="สัญลักษณ์ RNOT กล่องมีราก">
+        <line x1="0" y1="30" x2="120" y2="30" stroke="#1a1a1a" stroke-width="2"/>
+        <rect x="42" y="12" width="36" height="36" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <path d="M50,32 l4,8 l6,-16 h10" fill="none" stroke="#1a1a1a" stroke-width="2"
+          stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+      <div class="cap"><b>RNOT (√NOT)</b><br><span class="src">กล่องมี √</span></div>
+    </div>
+    <div class="sy" style="min-width:16rem;">
+      <svg width="250" height="60" viewBox="0 0 250 60" role="img" aria-label="RNOT สองตัว เท่ากับ NOT">
+        <line x1="4" y1="30" x2="150" y2="30" stroke="#1a1a1a" stroke-width="2"/>
+        <rect x="24" y="14" width="30" height="32" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <path d="M30,32 l3,7 l5,-14 h9" fill="none" stroke="#1a1a1a" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+        <rect x="86" y="14" width="30" height="32" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <path d="M92,32 l3,7 l5,-14 h9" fill="none" stroke="#1a1a1a" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+        <text x="165" y="36" text-anchor="middle" font-size="18" font-weight="800" fill="#1a1a1a">=</text>
+        <line x1="182" y1="30" x2="246" y2="30" stroke="#1a1a1a" stroke-width="2"/>
+        <circle cx="214" cy="30" r="14" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="214" y1="16" x2="214" y2="44" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="200" y1="30" x2="228" y2="30" stroke="#1a1a1a" stroke-width="2"/>
+      </svg>
+      <div class="cap"><b>RNOT ต่อกัน 2 ตัว = NOT (⊕)</b></div>
+    </div>
+    <div class="sy" style="min-width:16rem;">
+      <svg width="250" height="66" viewBox="0 0 250 66" role="img" aria-label="RNOT เท่ากับ H PHASE 90 H">
+        <line x1="4" y1="36" x2="60" y2="36" stroke="#1a1a1a" stroke-width="2"/>
+        <rect x="20" y="20" width="28" height="30" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <path d="M25,38 l3,6 l5,-13 h8" fill="none" stroke="#1a1a1a" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+        <text x="72" y="42" text-anchor="middle" font-size="17" font-weight="800" fill="#1a1a1a">=</text>
+        <line x1="86" y1="36" x2="246" y2="36" stroke="#1a1a1a" stroke-width="2"/>
+        <rect x="96" y="21" width="28" height="30" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <text x="110" y="43" text-anchor="middle" font-size="16" font-weight="800" fill="#1a1a1a">H</text>
+        <circle cx="162" cy="36" r="15" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="162" y1="21" x2="162" y2="51" stroke="#1a1a1a" stroke-width="2"/>
+        <path d="M155,29 A7,7 0 1 1 155,43" fill="none" stroke="#1a1a1a" stroke-width="1.8"/>
+        <text x="162" y="17" text-anchor="middle" font-size="9" font-weight="800" fill="#4a4a4a">90°</text>
+        <rect x="200" y="21" width="28" height="30" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <text x="214" y="43" text-anchor="middle" font-size="16" font-weight="800" fill="#1a1a1a">H</text>
+      </svg>
+      <div class="cap"><b>RNOT = H → PHASE(90°) → H</b></div>
+    </div>
+  </div>
+
+  <p>เมทริกซ์ของมันตามสไลด์ 94 (ต่างจาก gate อื่นตรงมี <b>i</b> = จำนวนเชิงซ้อนโผล่มาเต็มๆ):</p>
+
+  <div class="eq">√NOT =
+    <span class="frac"><span class="num">1</span><span class="den">2</span></span>
+    <span class="mat"><span>1+<i>i</i></span><span>1−<i>i</i></span><span>1−<i>i</i></span><span>1+<i>i</i></span></span>
+  </div>
+
+  <div class="box mathref">
+    <span class="tag">Refresher — ตรวจว่า "ทำสองที = NOT" ได้ยังไง</span>
+    <p>เอา √NOT มาคูณตัวเอง (A·A) แล้วดูว่าได้ NOT ไหม สไลด์ไล่ทีละช่อง (slide 96–101) ยกช่องบนซ้ายมาให้ดู:
+    (1+<i>i</i>)(1+<i>i</i>) + (1−<i>i</i>)(1−<i>i</i>). กุญแจคือ <b><i>i</i>² = −1</b> ค่ะ:</p>
+    <p style="margin-bottom:0;">(1+<i>i</i>)² = 1 + 2<i>i</i> + <i>i</i>² = 1 + 2<i>i</i> − 1 = <b>2<i>i</i></b> · และ (1−<i>i</i>)² = 1 − 2<i>i</i> − 1 = <b>−2<i>i</i></b>
+    → รวมกัน = 2<i>i</i> + (−2<i>i</i>) = <b>0</b> พอทำครบทุกช่องด้วย ½·½ = ¼ จะได้
+    <span class="mat" style="font-size:.9rem;"><span>0</span><span>1</span><span>1</span><span>0</span></span> = NOT เป๊ะ ✔</p>
+  </div>
+
+  <p>ไล่ด้วย circle notation ให้เห็นภาพว่า "ครึ่งทาง" หน้าตาเป็นไง — ยิง RNOT ใส่ |0⟩ ได้ superposition
+  ที่<b>เข็มเอียง</b> (มี i อยู่ในนั้น) พอยิงอีกที ก็ไปถึง |1⟩ พอดี:</p>
+
+  <div class="circles">
+    <div class="circ">
+      <svg width="118" height="70" viewBox="0 0 118 70" role="img" aria-label="ก่อน: สถานะ 0">
+        <circle cx="28" cy="28" r="17" fill="#c9d6ef" stroke="#1a1a1a" stroke-width="1.5"/>
+        <line x1="28" y1="28" x2="28" y2="11" stroke="#3a5aa0" stroke-width="2"/>
+        <text x="28" y="60" text-anchor="middle" font-size="11" fill="#4a4a4a">|0⟩</text>
+        <circle cx="78" cy="28" r="17" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+        <text x="78" y="60" text-anchor="middle" font-size="11" fill="#4a4a4a">|1⟩</text>
+      </svg>
+      <div class="cap">เริ่มที่ |0⟩</div>
+    </div>
+    <div class="op-arrow">—√—→</div>
+    <div class="circ">
+      <svg width="118" height="70" viewBox="0 0 118 70" role="img" aria-label="ครึ่งทาง: สองวงทึบครึ่ง เข็มเอียง">
+        <circle cx="28" cy="28" r="17" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+        <circle cx="28" cy="28" r="12" fill="#c9d6ef"/>
+        <line x1="28" y1="28" x2="40" y2="16" stroke="#3a5aa0" stroke-width="2"/>
+        <text x="28" y="60" text-anchor="middle" font-size="11" fill="#4a4a4a">|0⟩</text>
+        <circle cx="78" cy="28" r="17" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+        <circle cx="78" cy="28" r="12" fill="#c9d6ef"/>
+        <line x1="78" y1="28" x2="66" y2="16" stroke="#3a5aa0" stroke-width="2"/>
+        <text x="78" y="60" text-anchor="middle" font-size="11" fill="#4a4a4a">|1⟩</text>
+      </svg>
+      <div class="cap"><b>ครึ่งทาง</b>: 50/50<br><em>(เข็มเอียง — มี i)</em></div>
+    </div>
+    <div class="op-arrow">—√—→</div>
+    <div class="circ">
+      <svg width="118" height="70" viewBox="0 0 118 70" role="img" aria-label="ถึง: สถานะ 1">
+        <circle cx="28" cy="28" r="17" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+        <text x="28" y="60" text-anchor="middle" font-size="11" fill="#4a4a4a">|0⟩</text>
+        <circle cx="78" cy="28" r="17" fill="#c9d6ef" stroke="#1a1a1a" stroke-width="1.5"/>
+        <line x1="78" y1="28" x2="78" y2="11" stroke="#3a5aa0" stroke-width="2"/>
+        <text x="78" y="60" text-anchor="middle" font-size="11" fill="#4a4a4a">|1⟩</text>
+      </svg>
+      <div class="cap">ถึง |1⟩ พอดี<br>= NOT เต็ม</div>
+    </div>
+  </div>
+
+  <h3>ทำไม RNOT = H–PHASE(90)–H (เกร็ดสวยๆ ที่สไลด์พิสูจน์ให้)</h3>
+
+  <p>จำ X = HZH = H–PHASE(<b>180</b>)–H ได้ไหมคะ? RNOT ก็หน้าตาเดียวกันเป๊ะ แค่ <b>เปลี่ยน 180 เป็น 90</b>
+  (ครึ่งนึงพอดี!): RNOT = H–PHASE(<b>90</b>)–H เพราะงั้นทำ RNOT สองที ก็คือ (slide 104–105):</p>
+
+  <div class="work">
+    <div class="step">RNOT · RNOT = H · P(90) · <b>H · H</b> · P(90) · H</div>
+    <div class="step" style="color:#3a5aa0;">ตรงกลาง <b>H·H = ตัวตน</b> (HAD ย้อนตัวเอง) → หายไป!</div>
+    <div class="step">= H · P(90) · P(90) · H = H · <b>P(180)</b> · H = HZH = <b>NOT</b> ✔</div>
+  </div>
+
+  <p>เห็นความสวยไหมคะ — "ครึ่งหนึ่งของ NOT" ก็คือ "ครึ่งหนึ่งของมุม PHASE ตรงกลาง" พอดี
+  180 หารสอง = 90 เป๊ะ เพราะ P(90) สองทีเท่ากับ P(180) นั่นเอง</p>
+
+  <div class="box warn">
+    <span class="tag">จุดที่ต่างจาก NOT — ออกสอบได้ 🪤</span>
+    <p><b>NOT เป็น its own inverse</b> (ทำสองทีกลับที่เดิม) แต่ <b>RNOT ไม่ใช่!</b> — เพราะทำสองที
+    ของ RNOT กลายเป็น NOT (ไม่ใช่กลับที่เดิม) จะย้อน RNOT ต้องใช้ <b>เฟสลบ</b>:
+    RNOT⁻¹ = H–PHASE(<b>−90</b>)–H (slide 106) เหมือน PHASE ในบท 7 เลยที่ต้องย้อนด้วยมุมลบ</p>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">เช็คความเข้าใจ ③ — qubit อยู่ที่ |0⟩ พี่ยิง RNOT ใส่<b>หนึ่งครั้ง</b> แล้ว READ เลย
+    โอกาสได้ 1 เท่าไหร่?</div>
+    <button class="opt">ศูนย์เปอร์เซ็นต์ เพราะ RNOT แค่ครึ่งเดียวยังพลิกบิตไม่ครบ ค่าจึงยังคงเป็นศูนย์อยู่</button>
+    <button class="opt">ร้อยเปอร์เซ็นต์ เพราะ RNOT ก็คือ NOT ที่พลิกศูนย์ให้กลายเป็นหนึ่งเรียบร้อยแล้ว</button>
+    <button class="opt">ห้าสิบเปอร์เซ็นต์ เพราะ RNOT พาไปหยุดครึ่งทาง เป็นซูเปอร์โพซิชันห้าสิบห้าสิบพอดี</button>
+    <button class="opt">ยี่สิบห้าเปอร์เซ็นต์ เพราะครึ่งหนึ่งของการพลิกคือหนึ่งในสี่ของโอกาสที่จะได้หนึ่ง</button>
+    <div class="fb ok" data-for="ok">เป๊ะค่ะ! RNOT ทีเดียว = พาไป "ครึ่งทาง" = superposition 50/50 พอดี
+    (เหมือน HAD แต่ phase ต่างกัน มี i) ต้องทำ<b>สองที</b>ถึงจะถึง |1⟩ เต็ม แล้วได้ 1 แน่นอน 100%</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — RNOT ทีเดียวคือ "<b>ครึ่งทาง</b>" ระหว่าง |0⟩ กับ |1⟩ = superposition
+    50/50 ดังนั้น READ ได้ 1 ที่ <b>50%</b> ไม่ใช่ 0% หรือ 100% (ต้องทำสองทีถึงจะเป็น NOT เต็มแล้วได้ 1 แน่นอน)</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part">
+    <div class="n">ครึ่งหลัง · บทที่ 9</div>
+    <h2>Quantum Spy Hunter — เอา no-cloning มาจับคนดักฟัง</h2>
+  </div>
+
+  <h2>4. ปัญหา: จะรู้ได้ยังไงว่ามีคนแอบฟังสายอยู่?</h2>
+
+  <p>ครึ่งหลังนี้คือ <b>capstone</b> ของทั้ง Lec 02 ค่ะ — เอาทุกอย่างที่เรียนมา (WRITE, HAD, READ, no-cloning)
+  มาประกอบเป็นโปรแกรมจริงที่ทำเรื่องที่คอมธรรมดาทำไม่ได้: <b class="term">QKD — Quantum Key Distribution
+  (การแจกกุญแจเชิงควอนตัม)</b> ระบบส่งข้อมูลที่ <b>พิสูจน์ได้ทางฟิสิกส์ว่าปลอดภัย</b> (slide 107)</p>
+
+  <p>ตัวละครมาตรฐานของวงการเข้ารหัส: <b>Alice</b> อยากส่งข้อมูลลับให้ <b>Bob</b> ผ่านสายควอนตัม
+  แต่กลัวมี <b>สปาย (eavesdropper)</b> แอบดักฟังกลางทาง คำถามคือ — จะ<b>รู้ตัว</b>ได้ยังไงว่าโดนดักฟัง?</p>
+
+  <div class="analogy">
+    <div class="cell"><b>สายธรรมดา (บิต)</b><small>สปายก๊อปบิตไปเงียบๆ<br>ต้นทาง-ปลายทาง<b>ไม่มีทางรู้</b></small></div>
+    <div class="arrow">≠</div>
+    <div class="cell"><b>สายควอนตัม (qubit)</b><small>สปายก๊อปไม่ได้ (no-cloning!)<br>ต้อง READ = <b>ทิ้งร่องรอย</b></small></div>
+  </div>
+
+  <div class="box aha">
+    <span class="tag">นี่แหละ "ข้อจำกัดกลายเป็นอาวุธ" ที่พูดไว้ตอนต้นบท</span>
+    <p>บนสายบิตธรรมดา สปายแค่ก๊อปบิตผ่านไป ไม่มีใครรู้ แต่บนสายควอนตัม <b>no-cloning บังคับว่าสปายก๊อปไม่ได้</b>
+    สิ่งเดียวที่สปายทำได้คือ <b>READ</b> qubit แล้วพยายามส่งตัวใหม่ให้ Bob — แต่ READ มัน<b>ยุบ state</b>
+    และสปาย<b>ไม่รู้ว่า Alice ใส่ HAD มาหรือเปล่า</b> เลยเดาผิดบ่อยๆ แล้วส่งของผิดต่อไป = ทิ้งร่องรอยให้จับได้</p>
+  </div>
+
+  <h2>5. วงจร Spy Hunter — อ่านทีละช่วง</h2>
+
+  <p>นี่คือวงจรเต็มจากสไลด์ 110/120 ค่ะ มี <b>3 เส้น</b> (alice / connection = สาย / bob) อ่านซ้าย→ขวา
+  ตามเวลา หนูวาดตามสไตล์ QCEngine ให้ (เลื่อนดูแนวนอนได้ถ้าจอแคบ):</p>
+
+  <div class="wide">
+    <svg width="720" height="210" viewBox="0 0 720 210" role="img"
+      aria-label="วงจร Quantum Spy Hunter สามเส้น alice connection bob">
+      <!-- stage label bg boxes -->
+      <g fill="#f4f2ee" stroke="#e3ded3">
+        <rect x="70" y="12" width="120" height="150" rx="10"/>
+        <rect x="210" y="12" width="70" height="150" rx="10"/>
+        <rect x="300" y="12" width="70" height="150" rx="10"/>
+        <rect x="392" y="12" width="120" height="150" rx="10"/>
+        <rect x="590" y="12" width="60" height="150" rx="10"/>
+      </g>
+      <!-- stage labels -->
+      <g font-size="10" fill="#6a3fb5" font-weight="700" text-anchor="middle">
+        <text x="130" y="26">สุ่ม 2 บิต</text>
+        <text x="245" y="26">set value</text>
+        <text x="335" y="26">apply had</text>
+        <text x="452" y="26">SPY</text>
+        <text x="620" y="26">apply had</text>
+        <text x="690" y="26">read</text>
+      </g>
+      <!-- wire labels -->
+      <g font-size="12" fill="#1a1a1a" font-weight="700" text-anchor="end">
+        <text x="60" y="62">alice</text>
+        <text x="60" y="97">สาย</text>
+        <text x="60" y="132">bob</text>
+      </g>
+      <!-- wires -->
+      <line x1="66" y1="58" x2="360" y2="58" stroke="#1a1a1a" stroke-width="2"/>
+      <line x1="360" y1="58" x2="392" y2="93" stroke="#1a1a1a" stroke-width="2"/>
+      <line x1="392" y1="93" x2="512" y2="93" stroke="#1a1a1a" stroke-width="2"/>
+      <line x1="512" y1="93" x2="560" y2="128" stroke="#1a1a1a" stroke-width="2"/>
+      <line x1="560" y1="128" x2="700" y2="128" stroke="#1a1a1a" stroke-width="2"/>
+      <!-- alice: get two random bits (H + detector) x2 -->
+      <g>
+        <rect x="86" y="45" width="24" height="26" fill="#fff" stroke="#1a1a1a" stroke-width="1.8"/>
+        <text x="98" y="64" text-anchor="middle" font-size="13" font-weight="800">H</text>
+        <path d="M118,45 A13,13 0 0 1 118,71" fill="#efe9fb" stroke="#1a1a1a" stroke-width="1.8"/>
+        <line x1="118" y1="45" x2="118" y2="71" stroke="#1a1a1a" stroke-width="1.8"/>
+        <rect x="146" y="45" width="24" height="26" fill="#fff" stroke="#1a1a1a" stroke-width="1.8"/>
+        <text x="158" y="64" text-anchor="middle" font-size="13" font-weight="800">H</text>
+        <path d="M178,45 A13,13 0 0 1 178,71" fill="#efe9fb" stroke="#1a1a1a" stroke-width="1.8"/>
+        <line x1="178" y1="45" x2="178" y2="71" stroke="#1a1a1a" stroke-width="1.8"/>
+      </g>
+      <!-- set value: NOT (if A1) -->
+      <circle cx="245" cy="58" r="12" fill="#fff" stroke="#1a1a1a" stroke-width="1.8"/>
+      <line x1="245" y1="46" x2="245" y2="70" stroke="#1a1a1a" stroke-width="1.8"/>
+      <line x1="233" y1="58" x2="257" y2="58" stroke="#1a1a1a" stroke-width="1.8"/>
+      <!-- apply had: H (if A2) -->
+      <rect x="323" y="45" width="24" height="26" fill="#fff" stroke="#1a1a1a" stroke-width="1.8"/>
+      <text x="335" y="64" text-anchor="middle" font-size="13" font-weight="800">H</text>
+      <!-- spy on connection: read (H+detector) then rewrite (NOT + H) -->
+      <g>
+        <rect x="404" y="80" width="24" height="26" fill="#fff" stroke="#1a1a1a" stroke-width="1.8"/>
+        <text x="416" y="99" text-anchor="middle" font-size="13" font-weight="800">H</text>
+        <path d="M436,80 A13,13 0 0 1 436,106" fill="#fbe3e6" stroke="#b23a48" stroke-width="1.8"/>
+        <line x1="436" y1="80" x2="436" y2="106" stroke="#b23a48" stroke-width="1.8"/>
+        <circle cx="470" cy="93" r="12" fill="#fff" stroke="#b23a48" stroke-width="1.8"/>
+        <line x1="470" y1="81" x2="470" y2="105" stroke="#b23a48" stroke-width="1.8"/>
+        <line x1="458" y1="93" x2="482" y2="93" stroke="#b23a48" stroke-width="1.8"/>
+        <rect x="488" y="80" width="22" height="26" fill="#fff" stroke="#b23a48" stroke-width="1.8"/>
+        <text x="499" y="99" text-anchor="middle" font-size="12" font-weight="800" fill="#b23a48">H</text>
+      </g>
+      <!-- bob: apply had (if B2) then read -->
+      <rect x="608" y="115" width="24" height="26" fill="#fff" stroke="#1a1a1a" stroke-width="1.8"/>
+      <text x="620" y="134" text-anchor="middle" font-size="13" font-weight="800">H</text>
+      <path d="M678,115 A13,13 0 0 1 678,141" fill="#efe9fb" stroke="#1a1a1a" stroke-width="1.8"/>
+      <line x1="678" y1="115" x2="678" y2="141" stroke="#1a1a1a" stroke-width="1.8"/>
+      <!-- annotations -->
+      <g font-size="9.5" fill="#b23a48" text-anchor="middle">
+        <text x="98" y="86">บิต A₁</text>
+        <text x="158" y="86">บิต A₂</text>
+        <text x="245" y="88">ถ้า A₁</text>
+        <text x="335" y="86">ถ้า A₂</text>
+        <text x="620" y="156">ถ้า B₂</text>
+      </g>
+      <text x="690" y="156" font-size="8.5" fill="#b23a48" text-anchor="middle">ควรตรง A₁</text>
+    </svg>
+    <div class="cap"><b>Quantum Spy Hunter</b> — สีแดง = ส่วนของสปายบนสาย (slide 110)</div>
+  </div>
+
+  <p>ไล่เป็นเรื่องเล่าทีละช่วงนะคะ (slide 113–119):</p>
+
+  <ol>
+    <li><b>Alice สุ่ม 2 บิตลับ</b> — <code class="code">send_val</code> (จะเข้ารหัสค่าอะไร)
+    กับ <code class="code">send_had</code> (จะใส่ HAD หรือไม่) เอา QRNG จากบท 6 มาสุ่มนี่แหละ</li>
+    <li><b>เตรียม qubit "สายลับ"</b> — <code class="code">write(0)</code> แล้วถ้า send_val=1 ก็ <code class="code">not()</code>
+    แล้วถ้า send_had=1 ก็ <code class="code">had()</code> → ได้ qubit เป็น 1 ใน 4 สถานะ: |0⟩, |1⟩, |+⟩, |−⟩
+    <b>โดยยังไม่บอกใครว่าเป็นตัวไหน</b></li>
+    <li><b>ส่งข้ามสายไป Bob</b> — <code class="code">fiber.exchange(a)</code></li>
+    <li><b>สปาย (ถ้ามี) ดักกลางทาง</b> — ก๊อปไม่ได้ ทำได้แค่ READ แล้วส่งตัวใหม่ต่อ
+    <b>แต่สปายไม่รู้ว่า Alice ใส่ HAD ไหม</b> เลยไม่รู้ว่าควร READ ในฐานไหน → เดามั่ว</li>
+    <li><b>Bob สุ่มบิต recv_had ของตัวเอง</b> — ถ้า recv_had=1 ก็ใส่ HAD ก่อน READ (เพื่อ "ถอด" HAD ของ Alice)
+    แล้ว READ ออกมาเป็น <code class="code">recv_val</code></li>
+  </ol>
+
+  <h2>6. หัวใจ: กติกาจับสปาย</h2>
+
+  <p>หลังส่งเสร็จ Alice กับ Bob <b>คุยกันเปิดเผยผ่านสายธรรมดา</b>ได้เลย (ไม่ต้องเข้ารหัส!) —
+  แต่คุยแค่ว่า "ตาไหนบ้างที่เราบังเอิญเลือก HAD ตรงกัน" <b>ไม่บอกค่าจริง</b> เฉพาะตาที่ HAD ตรงกัน
+  (send_had = recv_had, เกิดประมาณครึ่งนึง) ค่าที่ได้<b>ต้องตรงกัน</b>ถ้าไม่มีใครยุ่ง กติกาคือ (slide 120):</p>
+
+  <div class="box why">
+    <span class="tag">ประโยคที่ต้องจำไปสอบ 🎯</span>
+    <p style="text-align:center; font-size:1.05rem;"><b>ถ้า HAD ตรงกัน แต่ค่าไม่ตรงกัน → มีสปาย!</b></p>
+    <div class="work" style="background:#fff; margin:.6rem 0 0;">
+      <div class="step"><code class="code">if (send_had == recv_had)</code> <span style="color:#3a5aa0;">// เลือก HAD เหมือนกัน</span></div>
+      <div class="step" style="padding-left:1.5rem;"><code class="code">if (send_val != recv_val)</code> <span style="color:#3a5aa0;">// แต่ค่าดันไม่ตรง</span></div>
+      <div class="step" style="padding-left:3rem;"><code class="code">qc.print('Caught a spy!');</code></div>
+    </div>
+  </div>
+
+  <p>ทำไมกฎนี้ถึงจับได้? เพราะถ้า HAD ตรงกันแล้วไม่มีสปาย ค่า<b>ต้อง</b>ตรงกัน 100% (Bob ถอดรหัสถูกพอดี)
+  การที่มันไม่ตรง แปลว่า<b>มีบางอย่างไปยุ่ง state ระหว่างทาง</b> — ก็คือสปายที่ READ แล้วส่งของผิดมาให้ Bob นั่นเอง
+  สปายมีโอกาส <b>25%</b> ที่จะถูกจับได้ต่อ qubit หนึ่งตัวที่เอามาตรวจ (slide 107)
+  ยิ่งตรวจหลายตัว โอกาสรอดของสปายยิ่งเข้าใกล้ศูนย์</p>
+
+  <div class="box mathref">
+    <span class="tag">25% มาจากไหน (เกร็ด ไม่ออกสอบลึก)</span>
+    <p>สปายจะถูกจับได้เมื่อของ 2 อย่างเกิดพร้อมกัน: (1) ตานั้น Alice-Bob เลือก HAD ตรงกัน (โอกาส ½)
+    <b>และ</b> (2) การที่สปายเดา HAD ผิดแล้ว READ ทำให้ค่าเพี้ยน (โอกาส ½ ในตาที่ HAD ตรงกัน)
+    → ½ × ½ = <b>¼ = 25%</b> ต่อ qubit หนึ่งตัว</p>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">เช็คความเข้าใจ ④ — ทำไมสปายที่ฉลาดมากๆ ถึงยัง "ก๊อป qubit เก็บไว้ แล้วส่งตัวจริงต่อ" ไม่ได้?</div>
+    <button class="opt">เพราะสายควอนตัมส่งได้ทีละตัว ก๊อปแล้วสายจะรับน้ำหนักสองตัวพร้อมกันไม่ไหวเลยพัง</button>
+    <button class="opt">เพราะ no-cloning ห้ามก๊อป qubit ที่ไม่รู้ค่า สปายทำได้แค่ READ ซึ่งยุบ state ทิ้ง</button>
+    <button class="opt">เพราะ Alice ใส่รหัสผ่านล็อก qubit ไว้ สปายต้องรู้กุญแจก่อนถึงจะแตะ qubit ได้</button>
+    <button class="opt">เพราะ qubit เดินทางเร็วเท่าแสง สปายไล่จับมาก๊อปไม่ทันก่อนที่มันจะถึงมือ Bob พอดี</button>
+    <div class="fb ok" data-for="ok">ใช่เลยค่ะ! นี่คือจุดที่บท 8 (no-cloning) กับบท 9 มาบรรจบกัน:
+    ก๊อปไม่ได้ = ต้อง READ = ยุบ state + สปายไม่รู้ฐาน HAD ของ Alice เลยเดาผิด ส่งของเพี้ยนต่อ = โดนจับ</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — ไม่เกี่ยวกับความเร็ว น้ำหนักสาย หรือรหัสผ่าน
+    แต่เป็น <b>no-cloning theorem</b> จากบท 8: ก๊อป qubit ที่ไม่รู้ค่าไม่ได้เลย สปายเลยทำได้แค่ READ
+    ซึ่งยุบ state และเดาฐานผิด → ทิ้งร่องรอย</div>
+  </div>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">เช็คความเข้าใจ ⑤ — ในตาหนึ่ง Alice ส่งมาโดย <b>ไม่</b>ใส่ HAD (send_had=0)
+    แต่ Bob <b>ใส่</b> HAD ก่อน READ (recv_had=1) แล้วค่าที่ได้ไม่ตรงกัน สรุปว่ามีสปายไหม?</div>
+    <button class="opt">มีสปายแน่นอน เพราะค่าที่ Alice ส่งกับค่าที่ Bob อ่านได้มันไม่ตรงกันชัดเจนอยู่แล้ว</button>
+    <button class="opt">มีสปาย เพราะการที่ Bob ต้องใส่ HAD เพิ่มเองแปลว่ามีคนไปแก้ qubit กลางทางมาก่อน</button>
+    <button class="opt">สรุปไม่ได้ ต้องให้ Alice ส่ง qubit เดิมซ้ำอีกรอบให้ Bob ลองอ่านใหม่ก่อนถึงจะรู้ผล</button>
+    <button class="opt">สรุปไม่ได้ ตานี้ HAD ไม่ตรงกันเลยต้องทิ้งไป ใช้ตัดสินเรื่องสปายไม่ได้ตั้งแต่แรก</button>
+    <div class="fb ok" data-for="ok">ถูกต้องค่ะ! กฎจับสปายใช้ได้<b>เฉพาะตาที่ HAD ตรงกัน</b>เท่านั้น
+    ตานี้ HAD ไม่ตรง (0 vs 1) ค่าที่เพี้ยนจึงเป็นเรื่อง "ปกติ" ของ superposition ไม่ใช่หลักฐานสปาย — ทิ้งตานี้ไป</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — กับดักคือกฎจับสปายใช้ได้<b>เฉพาะเมื่อ send_had == recv_had</b>
+    ตานี้ HAD ไม่ตรงกัน (0 vs 1) ค่าที่ไม่ตรงจึงอธิบายได้ด้วย superposition ธรรมดา <b>ไม่ใช่</b>หลักฐานสปาย
+    ตาแบบนี้ต้องโยนทิ้ง</div>
+  </div>
+
+  <details class="recall">
+    <summary>🧠 ลองเล่าเองก่อนเปิด — "no-cloning ทำให้ระบบจับสปายทำงานได้ยังไง เล่าเป็นขั้นๆ"</summary>
+    <p>ตัวอย่างคำตอบที่ดี: <em>"บนสายบิตธรรมดา สปายก๊อปบิตผ่านไปเงียบๆ ได้ ไม่มีใครรู้ แต่บนสายควอนตัม
+    <b>no-cloning ห้ามก๊อป qubit ที่ไม่รู้ค่า</b> สปายเลยทำได้แค่ READ — ซึ่ง (1) ยุบ superposition ทิ้ง
+    และ (2) สปายไม่รู้ว่า Alice ใส่ HAD มาหรือเปล่า เลยไม่รู้ว่าต้อง READ ในฐานไหน → เดาผิดประมาณครึ่งนึง
+    พอเดาผิดแล้วส่ง qubit ตัวใหม่ต่อให้ Bob มันก็เป็นสถานะที่เพี้ยน ทีนี้ Alice กับ Bob เอาเฉพาะตาที่
+    <b>เลือก HAD ตรงกัน</b> มาเทียบค่า ถ้าไม่มีสปายค่าต้องตรง 100% ถ้าเจอค่าไม่ตรงในตาพวกนี้
+    = มีสปายแน่นอน โอกาสจับได้ 25% ต่อ qubit ยิ่งตรวจเยอะยิ่งหนีไม่รอด"</em></p>
+    <p class="src">นึกเองก่อนเปิดเฉลย (retrieval practice) จำได้นานกว่าอ่านซ้ำเยอะค่ะ</p>
+  </details>
+
+  <div class="box aha">
+    <span class="tag">ทำไมเรื่องนี้ถึงสำคัญในโลกจริง (slide 114)</span>
+    <p>QKD ใช้ QPU เล็กมาก (qubit ตัวเดียวก็พอ!) ไม่ต้องรอ quantum computer ยักษ์ที่รัน Shor ได้
+    เพราะงั้น <b>quantum cryptography เลยเริ่มมีขายเชิงพาณิชย์แล้วจริงๆ</b> ตั้งแต่ตอนที่ QPU ทั่วไปยังทำอะไรใหญ่ๆ ไม่ได้
+    — เป็นการประยุกต์ควอนตัมตัวแรกๆ ที่ออกจากห้องแล็บมาสู่ตลาดค่ะ</p>
+  </div>
+
+  <h2>🏁 ปิด Lec 02 — สไลด์สรุปเอง (slide 121)</h2>
+  <div class="reasons">
+    <div class="r"><b>1 qubit + คำสั่งพื้นฐาน</b><small>NOT, HAD, PHASE, READ, WRITE</small></div>
+    <div class="r"><b>ความสุ่มของ READ</b><small>→ สร้าง QRNG</small></div>
+    <div class="r"><b>เล่นกับ relative phase</b><small>→ ทำ quantum cryptography ได้</small></div>
+    <div class="r"><b>Circle notation</b><small>เครื่องมือมองสถานะ 1 qubit</small></div>
+    <div class="r"><b>ต่อไป (Lec 03)</b><small>ขยาย circle notation ไป <b>หลาย qubit</b> + gate ข้าม qubit</small></div>
+  </div>
+
+  <h2>ลองรันจริงใน QCEngine 🖥️</h2>
+  <p>เปิด <a href="https://oreilly-qc.github.io">oreilly-qc.github.io</a> แล้วลองสองอันนี้ค่ะ:</p>
+  <div class="work">
+    <div class="step" style="color:#3a5aa0;"><b>ก) RNOT สองที = NOT:</b> รันแล้วดู circle notation
+    หลังบรรทัดที่ 3 (ครึ่งทาง เข็มเอียง) เทียบกับหลังบรรทัดที่ 4 (ถึง |1⟩)</div>
+    <div class="step"><code class="code">qc.reset(1); qc.write(0);</code></div>
+    <div class="step"><code class="code">qc.rootnot(); // ครึ่งทาง — READ ตรงนี้จะได้ 50/50</code></div>
+    <div class="step"><code class="code">qc.rootnot(); // ครบสอง — กลายเป็น NOT เต็ม</code></div>
+    <div class="step"><code class="code">qc.print(qc.read()); // ได้ 1 แน่นอน</code></div>
+    <div class="step" style="color:#3a5aa0; margin-top:1rem;"><b>ข) Spy Hunter ตัวเต็ม:</b> ในเมนูตัวอย่างของเว็บ
+    มี <em>"Quantum Spy Hunter"</em> ให้เลือกอยู่แล้ว ลองสลับตัวแปร <code class="code">spy_is_present</code>
+    ระหว่าง true/false แล้วกด Run หลายๆ รอบ ดูว่าตอนมีสปาย มันขึ้น "Caught a spy!" บ่อยแค่ไหน</div>
+  </div>
+
+  <div class="box warn">
+    <span class="tag">อัปเดต Cheat Sheet + Glossary แล้ว 📐</span>
+    <p>หนูย้าย <b>RNOT (√NOT)</b> จากช่อง "จะเรียนทีหลัง" ขึ้นมาช่อง "เรียนแล้ว" ใน
+    <a href="../../reference/circuit-cheatsheet.html"><b>Cheat Sheet วงจร</b></a> เรียบร้อย —
+    ตอนนี้พี่<b>ท่องครบทั้ง 8 สัญลักษณ์แล้วค่ะ</b> (WRITE, NOT, READ, HAD, PHASE, ROTX, ROTY, RNOT)
+    และเพิ่มศัพท์ no-cloning, X=HZH, RNOT, QKD ลง <a href="../../reference/glossary.html">Glossary</a> ให้แล้ว</p>
+  </div>
+
+  <h2>อ่าน/ดูต่อ (แหล่งหลัก)</h2>
+  <p>แหล่งที่ตรงที่สุดคือ <b>slide Lec 02 หน้า 73–121</b> (รวม gate/no-cloning/RNOT = 73–106,
+  Spy Hunter = 107–120) ประกอบกับ <b>หนังสือ "Programming Quantum Computers" (O'Reilly) บทที่ 2–3</b> —
+  หัวข้อ <em>"ROOT-of-NOT"</em> และ <em>"Quantum Spy Hunter"</em> ซึ่งมีโค้ดตัวอย่างเต็มให้กดรัน QCEngine
+  ในหน้าเดียวกันที่ <a href="https://oreilly-qc.github.io">oreilly-qc.github.io</a></p>
+
+  <div class="ask">
+    <p><b>หนูเป็นครูของพี่นะคะ 🙋‍♀️</b> บทนี้ปิด Lec 02 พอดี ถ้าตรงไหนสะดุด — การคูณเมทริกซ์ HZH,
+    ทำไม RNOT ถึงมี i, หรือ logic จับสปายยังไม่คลิก — บอกหนูให้ขยายได้เลยค่ะ
+    อยากได้โจทย์ฝึกวาดวงจร spy hunter เองก็บอกนะ</p>
+    <p style="margin-bottom:0;"><b>เป้าหมายถัดไป:</b> พี่พึ่งเอา <code class="code">slides/QuantumProg_Lec03.pdf</code>
+    มาลงแล้ว — พร้อมเมื่อไหร่บอกหนู เดี๋ยวเปิด Lec 03 (multi-qubit + entanglement ของจริง!) ให้ค่ะ
+    แต่ก่อนไปต่อ ลองกด quiz 5 ข้อในบทนี้แล้วบอกหนูว่าพลาดข้อไหนบ้างนะคะ 🥺</p>
+  </div>
+
+  <div class="footer">
+    <span class="pill">บทที่ 8+9</span>
+    <a href="0006-qrng-phase-rotations.html">← บทที่ 6+7 (QRNG, PHASE/ROT)</a> &nbsp;·&nbsp;
+    <a href="0005-hadamard.html">บทที่ 5 (HAD)</a> &nbsp;·&nbsp;
+    <a href="../../reference/glossary.html">📖 Glossary</a> &nbsp;·&nbsp;
+    <a href="../../reference/circuit-cheatsheet.html">📐 Cheat Sheet วงจร</a>
+    <p class="src" style="margin-top:.8rem;"><b>จบ Lec 02 แล้ว! 🎉</b> บทถัดไปเข้า <b>Lec 03</b>:
+    ขยาย circle notation ไปหลาย qubit และเจอ gate ที่ทำงานข้าม qubit — ประตูสู่ entanglement ของจริง</p>
+  </div>
+
+</div>

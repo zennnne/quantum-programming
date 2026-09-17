@@ -37,8 +37,11 @@
                         control คุม gate อื่น: "CTRL:0 + H:1"
      SWAP:a,b         ×—×
      CSWAP:c,a,b      control c + swap a,b
+     XWIRE:a,b        SWAP แบบ "สายไขว้" (ไม่มี ×) — เส้นสาย a กับ b ไขว้กันในคอลัมน์นั้น
+                      ใช้คู่ SWAP ในคอลัมน์เดียวกันได้ เช่น "SWAP:0,3 + XWIRE:1,2" (QFT Lec07 p15 · เพิ่มตอนบท 0027)
      READ:w           detector (อ่านค่า)
      WRITE:w          สัญลักษณ์ write ▷ หัวสาย (เส้นก่อนหน้านี้จะจางลงอัตโนมัติ)
+     WRITE:w:1        write 1 = สามเหลี่ยมเหลืองทึบ (ไม่ใส่ :1 = write 0 วงฟ้า) · เพิ่มตอนบท 0029
      BOX:wlo,whi:?:2  กล่องโปร่งคร่อมสาย wlo..whi มีข้อความข้างใน (เพิ่มตอนบท 0021)
                       พารามิเตอร์ที่ 4 = กว้างกี่คอลัมน์ (ไม่ใส่ = 1) — ต้องเว้น "_" ต่อท้ายให้ครบ
      CC:src,tgt       ควบคุมด้วยบิตคลาสสิก = ลูกศรประฟ้าจากสาย src ลงไปที่ gate บนสาย tgt
@@ -103,11 +106,15 @@
       stroke: "#1a1a1a", "stroke-width": 1.8 }));
   }
   /* สัญลักษณ์ write ▷ — วงกลมเล็กสีฟ้า + สามเหลี่ยมเปิด (QCEngine วางไว้หัวสาย) */
-  function write(g, x, y) {
-    g.appendChild(el("circle", { cx: x - 13, cy: y, r: 3.2, fill: "#fff",
+  /* one = true → เขียน 1: สามเหลี่ยมเหลืองทึบ + ขีดฟ้า (สไตล์ QCEngine Lec07 p49) · ไม่ใส่ = เขียน 0: วงฟ้า + สามเหลี่ยมโปร่ง */
+  function write(g, x, y, one) {
+    if (one) g.appendChild(el("line", { x1: x - 13, y1: y - 5, x2: x - 13, y2: y + 5,
+      stroke: "#29a3d9", "stroke-width": 3 }));
+    else g.appendChild(el("circle", { cx: x - 13, cy: y, r: 3.2, fill: "#fff",
       stroke: "#29a3d9", "stroke-width": 2 }));
     g.appendChild(el("path", { d: "M" + (x - 8) + "," + (y - 11) + " L" + (x + 7) + "," + y +
-      " L" + (x - 8) + "," + (y + 11), fill: "none", stroke: "#1a1a1a", "stroke-width": 2 }));
+      " L" + (x - 8) + "," + (y + 11) + (one ? " Z" : ""), fill: one ? "#f3ef9a" : "none",
+      stroke: one ? "#8a8a3a" : "#1a1a1a", "stroke-width": one ? 1.4 : 2 }));
   }
 
   /* ควบคุมด้วยบิตคลาสสิก — ลูกศรประสีฟ้าชี้ลงจากสายที่ถูก READ ไปยัง gate */
@@ -178,10 +185,17 @@
       case "CCNOT":
         link(g, x, y); ctrl(g, x, y[0]); ctrl(g, x, y[1]); xor(g, x, y[2]); break;
       case "SWAP": link(g, x, y); cross(g, x, y[0]); cross(g, x, y[1]); break;
+      case "XWIRE":
+        [[y[0], y[1]], [y[1], y[0]]].forEach(function (p) {
+          g.appendChild(el("path", { d: "M" + (x - COLW / 2) + "," + p[0] + " L" + (x - 12) + "," + p[0] +
+            " L" + (x + 12) + "," + p[1] + " L" + (x + COLW / 2) + "," + p[1],
+            fill: "none", stroke: "#1a1a1a", "stroke-width": 2 }));
+        });
+        break;
       case "CSWAP":
         link(g, x, y); ctrl(g, x, y[0]); cross(g, x, y[1]); cross(g, x, y[2]); break;
       case "READ": detector(g, x, y[0]); break;
-      case "WRITE": write(g, x, y[0]); break;
+      case "WRITE": y.forEach(function (yy) { write(g, x, yy, arg === "1"); }); break;
       case "BOX":
         wideBox(g, x, y[0], y[y.length - 1], arg || "?", parseInt(arg2, 10) || 1); break;
       case "CC": cclassic(g, x, y[0], y[1]); break;
@@ -256,7 +270,7 @@
     }
 
     /* หาจุด write / read ของแต่ละสาย → ช่วงนอกนั้นวาดเป็นเส้นจาง */
-    var wCol = [], rCol = [];
+    var wCol = [], rCol = [], gaps = [];
     ops.forEach(function (col, j) {
       col.split(COLSEP).forEach(function (spec) {
         var q = spec.trim().split(":");
@@ -265,11 +279,25 @@
         if (isNaN(w)) return;
         if (nm === "WRITE") wCol[w] = j;
         if (nm === "READ") rCol[w] = j;
+        if (nm === "XWIRE") (q[1] || "").split(",").forEach(function (v) {
+          var wi = parseInt(v, 10);
+          if (!isNaN(wi)) (gaps[wi] = gaps[wi] || []).push(j);
+        });
       });
     });
 
-    function wire(x1, x2, y, faint) {
+    function wire(x1, x2, y, faint, gp) {
       if (x2 <= x1) return;
+      if (gp && gp.length) {   /* เว้นช่องคอลัมน์ XWIRE ให้เส้นไขว้วาดแทน */
+        var cut = gp.map(function (j) { return xOf(j); }).sort(function (a, b) { return a - b; })
+          .filter(function (cx) { return cx - COLW / 2 < x2 && cx + COLW / 2 > x1; });
+        if (cut.length) {
+          var cx = cut[0];
+          wire(x1, cx - COLW / 2, y, faint);
+          wire(cx + COLW / 2, x2, y, faint, gp.filter(function (j) { return xOf(j) !== cx; }));
+          return;
+        }
+      }
       svg.appendChild(el("line", { x1: x1, y1: y, x2: x2, y2: y,
         stroke: faint ? "#c9ced6" : "#1a1a1a", "stroke-width": faint ? 1.5 : 2 }));
     }
@@ -280,9 +308,9 @@
       var wc = wCol[i], rc = rCol[i];
       var solidA = wc === undefined ? xs : xOf(wc) - 14;
       var solidB = rc === undefined ? xe : xOf(rc) + 13;
-      wire(xs, solidA, y, true);
-      wire(solidA, solidB, y, false);
-      wire(solidB, xe, y, true);
+      wire(xs, solidA, y, true, gaps[i]);
+      wire(solidA, solidB, y, false, gaps[i]);
+      wire(solidB, xe, y, true, gaps[i]);
       if (names && names[i]) {
         var tn = txt(nameW - 4, y + 4, names[i].trim(), 12, 800, "end");
         tn.setAttribute("fill", "#1a1a1a");

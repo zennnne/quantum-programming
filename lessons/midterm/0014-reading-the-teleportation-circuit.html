@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="th">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บทที่ 0014 — อ่านวงจร teleportation ให้ขาด</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/lesson-bits.css">
+<script defer src="../../assets/quiz.js"></script>
+<script defer src="../../assets/circuit.js"></script>
+<script defer src="../../assets/circles.js"></script>
+
+<div class="wrap">
+  <p class="kicker">Quantum Programming · Lec 04 · บทที่ 0014</p>
+  <h1>★ อ่านวงจร teleportation ให้ขาด</h1>
+  <p class="lead">บท <a href="0013-what-teleportation-is.html">0013</a> เล่า<b>เรื่องราว</b>ของ teleportation
+  ครบแล้ว — Alice วัด 2 บิต ส่งไปให้ Bob แก้ · บทนี้คือ<b>บทอ่านแผนที่</b> เราจะเรียน “ภาษา” สองภาษา
+  ที่บท 0015 จะใช้พร้อมกันตลอด: ภาษาแรกคือ<b>ตัววงจร</b> (gate อะไร เรียงยังไง แบ่งเป็นกล่องอะไรบ้าง)
+  ภาษาที่สองคือ<b>ผัง circle notation 8 วง</b> ที่ใช้ดูสถานะของ 3 qubit ค่ะ</p>
+
+  <div class="box why">
+    <span class="tag">ทำไมบทนี้สำคัญเป็นพิเศษ</span>
+    <p>หน้า 15 ของสไลด์คือ<b>หน้าที่สำคัญที่สุดของ Lec 04</b> — และมีสัญลักษณ์ที่พี่ Zen
+    <b>ยังไม่เคยเจอมาก่อน 3 ตัว</b> โผล่มาพร้อมกันหมดในหน้าเดียว โดยเฉพาะ
+    <b>ลูกศรประสีฟ้า = การควบคุม gate ด้วยบิตคลาสสิก</b> ซึ่งเป็นหัวใจของ teleportation
+    (และเป็นเรื่อง<b>ออกสอบ</b> เพราะอาจารย์ออกสอบ “หน้าตาวงจร”)</p>
+    <p style="margin-bottom:0;">บทนี้จับ <b>3 อย่าง</b> เท่านั้น: ① สัญลักษณ์ใหม่ 3 ตัว
+    ② วงจรเต็ม 5 กล่องว่ากล่องไหนทำอะไร ③ ผัง 8 วงอ่านยังไง (บิตไหนคุมแถว บิตไหนคุมคอลัมน์)</p>
+  </div>
+
+  <!-- ============================ PART 1 ============================ -->
+  <div class="part">
+    <div class="n">ส่วนที่ 1</div>
+    <h2>วงจรฉบับเต็ม 5 กล่อง + สัญลักษณ์ใหม่ 3 ตัว</h2>
+  </div>
+
+  <h2>1.1 ก่อนอื่น — สัญลักษณ์ใหม่ 3 ตัว</h2>
+  <p>ทั้งสามตัวนี้<b>ไม่ใช่ gate</b> (ไม่ได้เปลี่ยนสถานะ qubit เอง) แต่เป็น “เครื่องหมายวรรคตอน”
+  ของวงจร — บอกว่าสายเริ่มตรงไหน จบตรงไหน และอะไรสั่งอะไร</p>
+
+  <div class="circuit-syms">
+    <div class="sy">
+      <div class="circuit" data-wires="1" data-ops="WRITE:0; _"></div>
+      <div class="cap"><b>write ▷</b><br>“สายเริ่มที่นี่” — ตั้งค่า qubit เป็น |0⟩<br>ก่อนหน้านี้เส้นจาง = ยังไม่ถูกใช้</div>
+    </div>
+    <div class="sy">
+      <div class="circuit" data-wires="1" data-ops="_; READ:0"></div>
+      <div class="cap"><b>READ ⌓</b> (ตัวเก่า)<br>วัดค่า → ได้บิตคลาสสิก 1 บิต<br>หลังจากนี้เส้นจาง = qubit ถูกทำลาย</div>
+    </div>
+    <div class="sy">
+      <div class="circuit" data-wires="2" data-ops="READ:0; CC:0,1 + X:1"></div>
+      <div class="cap"><b>ลูกศรประสีฟ้า</b><br>บิตคลาสสิกจากสายบน<br><b>คุม</b> gate บนสายล่าง</div>
+    </div>
+    <div class="sy">
+      <div class="circuit" data-wires="1" data-groups="0-1:ชื่อกล่อง:45°" data-ops="H:0; P:0"></div>
+      <div class="cap"><b>กล่องมีชื่อ</b><br>จัดกลุ่ม gate ที่ทำงานร่วมกัน<br>ตัวเลขบนกล่อง = มุมของ φ ข้างใน</div>
+    </div>
+  </div>
+
+  <div class="box aha">
+    <span class="tag">แยกให้ขาด — เส้นสองแบบ ลูกศรสองแบบ</span>
+    <p><b>เส้นตั้งทึบสีดำ</b> (ที่เคยเจอตั้งแต่บท <a href="0009-cnot-and-entanglement.html">0009</a>)
+    = การควบคุม<b>แบบควอนตัม</b> — ● กับ ⊕ อยู่ในวงจรเดียวกัน ทำงาน “ทุกกิ่งของ superposition พร้อมกัน”
+    และ<b>สร้าง entanglement ได้</b></p>
+    <p style="margin-bottom:0;"><b>ลูกศรประสีฟ้าชี้ลง</b> (ตัวใหม่ของบทนี้)
+    = การควบคุม<b>แบบคลาสสิก</b> — ต้นทางถูก <b>READ ไปแล้ว</b> เหลือเป็นบิตธรรมดา 0/1 หนึ่งตัว
+    แล้วเอาบิตนั้นมาตัดสินว่า “จะทำ gate ปลายทางไหม” · เขียนเป็นโค้ดคือ
+    <code class="code">if (bit) { bob.not(); }</code> ตรงๆ เลย · <b>ไม่สร้าง entanglement</b>
+    และวิ่งเร็วกว่าแสงไม่ได้ เพราะบิตนั้นต้องเดินทางผ่านสายธรรมดา</p>
+  </div>
+
+  <h2>1.2 วงจรฉบับเต็ม (สไตล์ QCEngine — สไลด์หน้า 15)</h2>
+  <p>นี่คือทั้งโปรแกรมในรูปเดียว อ่านซ้ายไปขวา 3 สาย: <b>alice</b> กับ <b>ep</b> อยู่กับ Alice ·
+  <b>bob</b> อยู่กับ Bob (ป้าย <code class="code">0x1</code> ข้างชื่อ = แต่ละสายเป็น register ขนาด 1 qubit)</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="3" data-names="alice,ep,bob" data-wire-labels="0x1,0x1,0x1"
+         data-groups="1-2:entangle; 4-6:prep payload:45°; 7-9:send; 10-11:receive:180°; 12-15:verify:−45°"
+         data-ops="WRITE:1 + WRITE:2; H:1; CNOT:1,2; WRITE:0; H:0; P:0; H:0; CNOT:0,1; H:0;
+                   READ:0 + READ:1; CC:1,2 + X:2; CC:0,2 + P:2; H:2; P:2; H:2; READ:2"></div>
+    <div class="cap">วงจร teleportation ฉบับเต็ม — วาดตามสไลด์ <code class="code">Lec04 หน้า 15</code>
+      · สังเกตว่าสาย alice/ep <b>จางลง</b>หลัง READ = ถูกทำลายแล้ว (นี่คือหน้าตาของ no-cloning ในวงจร)</div>
+  </div>
+
+  <table class="cmp">
+    <tr><th>กล่อง</th><th>ใครทำ</th><th>ทำอะไร</th><th>โค้ด QCEngine</th></tr>
+    <tr><td><b>entangle</b></td><td>เตรียมไว้ล่วงหน้า</td>
+      <td>สร้าง Bell pair ระหว่าง ep กับ bob = “สายเคเบิลควอนตัม”</td>
+      <td><code class="code">ep.had(); bob.cnot(ep);</code></td></tr>
+    <tr><td><b>prep payload</b><br>45°</td><td>Alice</td>
+      <td>ปั้น qubit ที่จะส่ง (ในของจริงคือข้อมูลที่มีอยู่แล้ว — ที่นี่ปั้นเองเพื่อจะได้รู้คำตอบไว้ตรวจ)</td>
+      <td><code class="code">alice.had(); alice.phase(45); alice.had();</code></td></tr>
+    <tr><td><b>send</b></td><td>Alice</td>
+      <td>ผูก payload เข้ากับคู่ entangled แล้ว <b>READ ทั้งสองสาย</b> → ได้บิตคลาสสิก 2 บิต</td>
+      <td><code class="code">ep.cnot(alice); alice.had();<br>bit_p=alice.read(); bit_n=ep.read();</code></td></tr>
+    <tr><td><b>receive</b><br>180°</td><td>Bob</td>
+      <td>เอา 2 บิตนั้นมาแก้ qubit ของตัวเอง — <b>ทั้งสอง gate ถูกคุมด้วยลูกศรประ</b></td>
+      <td><code class="code">if(bit_n){bob.not();}<br>if(bit_p){bob.phase(180);}</code></td></tr>
+    <tr><td><b>verify</b><br>−45°</td><td>Bob</td>
+      <td>ทำ prep <b>ย้อนกลับ</b> แล้ววัด — ถ้า teleport สำเร็จต้องได้ <b>0 เสมอ</b></td>
+      <td><code class="code">bob.had(); bob.phase(-45); bob.had();<br>check = bob.read();</code></td></tr>
+  </table>
+
+  <div class="box aha">
+    <span class="tag">ประโยคที่ต้องอ่านออกจากรูปให้ได้</span>
+    <p style="margin-bottom:0;"><b>ลูกศรจากสาย ep → ไปที่ ⊕</b> (คุม NOT) ·
+    <b>ลูกศรจากสาย alice → ไปที่ φ</b> (คุม PHASE 180°) — จำเป็นคู่:
+    “<b>บิตจาก ep คุมการพลิก · บิตจาก alice คุมการหมุน</b>”
+    ตัวไหนไปคุมอะไร เป็นจุดที่ข้อสอบชอบสลับให้งงค่ะ</p>
+  </div>
+
+  <div class="box warn">
+    <span class="tag">⚠️ สไลด์ปน 2 เวอร์ชัน (จุดที่ 7 ของคอร์ส) — ต้องรู้ก่อนเจอบท 0016</span>
+    <p style="margin-bottom:0;">วงจรหน้า 15 นี้ prep payload = <b>H → φ(45°) → H</b>
+    แต่โค้ด OpenQASM ที่หน้า 6 เขียน <code class="code">x; h; t;</code> (= X → H → φ45)
+    และวงจรบน IBM หน้า 16 เขียน <b>H → T → H</b> · <b>ไม่ใช่ชุดเดียวกัน</b> —
+    สไลด์หยิบมาจากคนละที่ · <b>บทเรียนของเรา (0014–0015) เดินตามเวอร์ชันวงจรหน้า 15</b>
+    เพราะเป็นตัวที่ให้ payload = 85.4% / 14.6% ตรงกับ walkthrough ทุกหน้า
+    ส่วนเวอร์ชัน IBM ค่อยไปว่ากันในบท 0016 ค่ะ</p>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q"><b>ข้อ 1.</b> สมมติมีคนลบ<b>ลูกศรประสีฟ้าทั้งสองเส้น</b>ออกจากวงจร
+      แล้วให้ Bob ทำ ⊕ และ φ(180°) <b>ทุกครั้งไม่สนบิตที่ได้รับ</b> — ผลจะเป็นยังไง</div>
+    <button class="opt">Bob จะได้ payload ผิดทุกรอบ เพราะโดนแก้เกินไปเป็นสองชั้นเสมอ</button>
+    <button class="opt">Bob จะได้ payload ถูกเฉพาะรอบที่ Alice วัดได้ 1 ทั้งสองบิต</button>
+    <button class="opt">Bob จะได้ payload ถูกทุกรอบ เพราะ gate ทั้งสองหักล้างกันเอง</button>
+    <div class="fb ok" data-for="ok">ถูกต้องค่ะ — ลูกศรประคือ “ทำก็ต่อเมื่อบิตเป็น 1”
+      ถ้าทำทุกรอบ ก็จะถูกเฉพาะรอบที่บิตทั้งสองเป็น 1 อยู่แล้ว (คือ 1 ใน 4 ของรอบทั้งหมด)
+      · นี่คือสิ่งที่เกิดขึ้นจริงบน IBM QX ในบท 0016 เพราะเครื่องนั้นเขียน <code class="code">if</code> ไม่ได้
+      → ต้องมาคัดรอบที่ใช้ได้ทีหลัง เรียกว่า <b>post-selection</b></div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — ลองคิดแบบนี้: gate ที่ถูกลูกศรคุมจะทำงาน
+      “เมื่อบิต = 1” เท่านั้น · ถ้าทำทุกรอบโดยไม่ดูบิต แล้วรอบไหนล่ะที่ผลออกมาเหมือนเดิมพอดี?</div>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q"><b>ข้อ 2.</b> ถ้าตัดกล่อง <b>entangle</b> ทิ้ง (ไม่สร้าง Bell pair เลย
+      แต่กล่องอื่นเหมือนเดิมทุกอย่าง) จะเกิดอะไรขึ้น</div>
+    <button class="opt">Alice จะวัดไม่ได้เลย เพราะสาย ep ไม่มีค่าอะไรให้อ่านออกมา</button>
+    <button class="opt">Bob ยังได้ payload ครบเหมือนเดิม แต่ช้าลงเพราะขาดทางลัด</button>
+    <button class="opt">Alice ยังวัดได้ 2 บิตเหมือนเดิม แต่ Bob กู้ payload ไม่ได้</button>
+    <div class="fb ok" data-for="ok">ใช่เลยค่ะ — Alice ยังได้บิตสุ่ม 2 บิตอยู่ดี (READ ให้ค่าเสมอ)
+      แต่บิตพวกนั้นจะ<b>ไม่เกี่ยวอะไรกับ qubit ของ Bob</b> เลย · entanglement คือ “สายที่ต่อไว้ก่อน”
+      ทำให้ 2 บิตนั้นกลายเป็น<b>คำสั่งที่มีความหมายกับ Bob</b> · เชื่อมกับบท 0013:
+      ส่วนที่ขาดของข้อมูลถูกจ่ายไปแล้วตอนแชร์ entanglement</div>
+    <div class="fb no" data-for="no">ลองแยกสองคำถามค่ะ: (1) Alice ยัง READ ได้ค่าออกมาไหม —
+      ได้เสมอ เพราะ READ ให้ 0/1 เสมอ · (2) แล้วค่านั้น<b>เกี่ยวอะไรกับ qubit ของ Bob</b> ไหม
+      ถ้าไม่มีสายเชื่อมไว้ก่อน?</div>
+  </div>
+
+  <!-- ============================ PART 2 ============================ -->
+  <div class="part">
+    <div class="n">ส่วนที่ 2</div>
+    <h2>ผัง circle notation 8 วง + สารบัญ Step 1–5</h2>
+  </div>
+
+  <p>วงจรบอกว่า “ทำอะไรบ้าง” แต่ไม่ได้บอกว่า “<b>ข้างในเป็นยังไง</b>” · ตัวที่บอกคือ circle notation
+  ที่พี่ Zen ใช้มาตั้งแต่บท <a href="0008-multi-qubit-registers.html">0008</a> —
+  แต่ครั้งนี้เป็น <b>3 qubit</b> จึงมี 2³ = <b>8 วง</b> ค่ะ</p>
+
+  <h2>2.1 น้ำหนักบิต: ใครเป็นบิตไหน</h2>
+  <p>สามสายในวงจร ประกอบกันเป็นเลขฐานสอง 3 บิตหนึ่งตัว โดยตกลงกันไว้ว่า</p>
+  <div class="eq">alice = 1 (บิตต่ำสุด) &nbsp;·&nbsp; ep = 2 &nbsp;·&nbsp; bob = 4</div>
+  <p>เพราะฉะนั้น “วง |5⟩” หมายถึงสถานะที่ 5 = 4 + 1 = <b>bob = 1, ep = 0, alice = 1</b>
+  (เขียนเป็นบิตเรียง <b>bob · ep · alice</b> ได้ <code class="code">101</code>)</p>
+
+  <div class="wide">
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 0" data-labels="0,1,2,3"
+         data-mag="1,0,0,0" data-sub="000,001,010,011"></div>
+    <div class="crow" data-n="4" data-r="19" data-lab="bob = 1" data-labels="4,5,6,7"
+         data-mag="0,0,0,0" data-sub="100,101,110,111"></div>
+    <div class="cap">ผังมาตรฐานของบทนี้ (สไลด์หน้า 20–22) — ตัวเลขใต้วงคือบิตเรียง <b>bob · ep · alice</b>
+      · ภาพนี้คือ<b>สถานะเริ่มต้น</b>: ทุก qubit เป็น |0⟩ → วง |0⟩ เต็มวงเข็มชี้ขึ้น (phase 0) อีก 7 วงว่าง</div>
+  </div>
+
+  <table class="cmp">
+    <tr><th>ทิศทางในผัง</th><th>ควบคุมโดย</th><th>อ่านยังไง</th></tr>
+    <tr><td><b>แถว</b> (บน / ล่าง)</td><td>bob (น้ำหนัก 4)</td>
+      <td>แถวบน = bob 0 (|0⟩–|3⟩) · แถวล่าง = bob 1 (|4⟩–|7⟩)</td></tr>
+    <tr><td><b>ครึ่งซ้าย / ครึ่งขวา</b></td><td>ep (น้ำหนัก 2)</td>
+      <td>2 คอลัมน์ซ้าย = ep 0 · 2 คอลัมน์ขวา = ep 1</td></tr>
+    <tr><td><b>คอลัมน์คู่ / คี่</b></td><td>alice (น้ำหนัก 1)</td>
+      <td>สลับทีละคอลัมน์: alice = 0, 1, 0, 1</td></tr>
+  </table>
+
+  <div class="box why">
+    <span class="tag">ทำไมต้องจัด 2 แถว × 4 คอลัมน์ (ไม่เรียงยาว 8 วงรวด)</span>
+    <p style="margin-bottom:0;">เพราะจัดแบบนี้แล้ว <b>“qubit ตัวหนึ่ง = ทิศทางหนึ่งในผัง”</b> พอดี →
+    เวลามี gate ทำงานกับ qubit ตัวไหน เราจะเห็นเป็น<b>การจับคู่วงตามทิศนั้น</b>ทันที
+    เช่น gate บน bob = จับคู่บน–ล่าง · gate บน alice = จับคู่ซ้าย–ขวาติดกัน ·
+    บท 0015 จะใช้ประโยชน์จากข้อนี้ทุกขั้นตอนเลยค่ะ</p>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q"><b>ข้อ 3.</b> ระหว่างเดินโปรแกรม มีอยู่จังหวะหนึ่งที่เหลือแค่ <b>4 วง</b>ที่มีค่า คือ
+      <b>|0⟩ |3⟩ |5⟩ |6⟩</b> · ลองถอดเป็นบิต (bob·ep·alice) ทั้งสี่วงดู แล้วเลือกข้อที่บรรยาย
+      “กติกาที่วงพวกนี้มีร่วมกัน” ได้ถูกต้อง</div>
+    <button class="opt">จำนวนบิตที่เป็น 1 ในแต่ละวงเป็นเลขคู่เสมอ</button>
+    <button class="opt">บิตของ bob เท่ากับบิตของ alice เสมอในทุกๆ วง</button>
+    <button class="opt">บิตของ ep จะเป็น 1 เสมอเมื่อบิตของ bob เป็น 0</button>
+    <div class="fb ok" data-for="ok">เยี่ยมค่ะ! 000 · 011 · 101 · 110 — ทุกตัวมีจำนวนเลข 1 เป็นคู่
+      พูดอีกแบบคือ <b>alice XOR ep XOR bob = 0</b> · นี่คือสถานะหลัง Step 3.1 พอดี
+      (พัวพันกันครบทั้งสามตัว) ที่บท 0015 จะเจอ — จำหน้าตานี้ไว้ก่อนได้เลย</div>
+    <div class="fb no" data-for="no">ลองเขียนออกมาเรียงกันดูค่ะ: |0⟩=000 · |3⟩=011 · |5⟩=101 · |6⟩=110
+      แล้วนับ “จำนวนเลข 1” ในแต่ละแถว — ได้ 0, 2, 2, 2 · อะไรที่เหมือนกันทุกแถว?</div>
+  </div>
+
+  <h2>2.2 สารบัญ Step 1–5 — แผนที่ของบท 0015</h2>
+  <p>สไลด์หน้า 23–26 ค่อยๆ แปะป้าย step ลงบนวงจรเดิม แล้วหน้าถัดจากนั้นอีกครึ่งบท
+  ก็คือการ<b>เลื่อนเส้นประสีแดงไปทีละ step</b> แล้วดูว่าผัง 8 วงเปลี่ยนยังไง
+  นี่คือสารบัญที่ต้องจำเป็นโครงค่ะ</p>
+
+  <div class="work">
+    <div class="step"><span class="lbl">1</span> <b>Create an Entangled Pair</b> — กล่อง
+      <b>entangle</b> · <code class="code">ep.had(); bob.cnot(ep);</code></div>
+    <div class="step"><span class="lbl">2</span> <b>Prepare the Payload</b> — กล่อง
+      <b>prep payload</b> · ปั้น payload 85.4% / 14.6% ที่ phase −90°</div>
+    <div class="step"><span class="lbl">3.1</span> <b>Link the Payload to the Entangled Pair</b> —
+      ตัว CNOT ในกล่อง <b>send</b> (● ที่ alice → ⊕ ที่ ep)</div>
+    <div class="step"><span class="lbl">3.2</span> <b>Put the Payload into a Superposition</b> —
+      ตัว H ในกล่อง <b>send</b> (บนสาย alice)</div>
+    <div class="step"><span class="lbl">3.3</span> <b>READ Both of Alice's Qubits</b> —
+      detector สองตัวท้ายกล่อง <b>send</b> → ได้ <code class="code">bit_p</code>, <code class="code">bit_n</code></div>
+    <div class="step"><span class="lbl">4</span> <b>Receive and Transform</b> — กล่อง
+      <b>receive</b> · Bob แก้ตามลูกศรประสองเส้น</div>
+    <div class="step"><span class="lbl">5</span> <b>Verify the Result</b> — กล่อง
+      <b>verify</b> · ต้องอ่านได้ 0 ถ้าสำเร็จ</div>
+  </div>
+
+  <p>สังเกตว่า Step 3 ถูกแตกเป็น 3.1 / 3.2 / 3.3 — เพราะกล่อง <b>send</b> กล่องเดียว
+  มีสามจังหวะที่ความหมายต่างกันมาก (ผูก → กระจาย → วัด) และเป็นช่วงที่ยากที่สุดของทั้งโปรแกรมค่ะ</p>
+
+  <details class="recall">
+    <summary>ทดสอบความจำก่อนปิดบท (ลองตอบในใจก่อนกดดู)</summary>
+    <ol>
+      <li><b>ลูกศรประสีฟ้าต่างจากเส้นตั้งทึบยังไง?</b> → ประ = ควบคุมด้วย<b>บิตคลาสสิก</b>
+        (ต้นทางถูก READ แล้ว ไม่สร้าง entanglement, ช้ากว่าแสงไม่ได้) ·
+        ทึบ = ควบคุมแบบควอนตัม ทำงานทุกกิ่ง superposition และสร้าง entanglement ได้</li>
+      <li><b>ในวงจร ลูกศรจาก ep ไปคุม gate อะไร? จาก alice ล่ะ?</b> → ep คุม <b>⊕ (NOT)</b> ·
+        alice คุม <b>φ (PHASE 180°)</b></li>
+      <li><b>ทำไมสาย alice กับ ep ถึงวาดเป็นเส้นจางในครึ่งหลังของวงจร?</b> →
+        เพราะถูก READ ไปแล้ว = qubit ถูกทำลาย เหลือแค่บิตคลาสสิก (หน้าตาของ no-cloning)</li>
+      <li><b>5 กล่องชื่ออะไร เรียงยังไง?</b> → entangle · prep payload · send · receive · verify</li>
+      <li><b>|6⟩ คือ alice/ep/bob เท่าไหร่?</b> → 6 = 4+2 → bob 1, ep 1, alice 0
+        (แถวล่าง คอลัมน์ที่ 3)</li>
+      <li><b>กล่อง verify ทำอะไร?</b> → prep payload แบบย้อนกลับ (φ เป็น −45°) แล้ววัด →
+        ถ้า teleport สำเร็จต้องได้ 0 เสมอ</li>
+    </ol>
+  </details>
+
+  <div class="box why">
+    <span class="tag">สรุปบทนี้ · บทหน้า</span>
+    <p style="margin-bottom:0;">ตอนนี้พี่ Zen อ่านแผนที่ได้ทั้งสองภาษาแล้ว — <b>วงจร 5 กล่อง</b>
+    (พร้อมสัญลักษณ์ write ▷, ลูกศรประคลาสสิก, กล่องมีชื่อ) และ <b>ผัง 8 วง</b>
+    (alice=1 · ep=2 · bob=4) · บท <b>0015</b> คือบทที่หนักที่สุดของ Lec 04:
+    เราจะเอาเส้นประสีแดงไปวางทีละจุดบนวงจร แล้วดูผัง 8 วงเปลี่ยนไปทีละ step
+    ตั้งแต่ Step 1 จนถึง Step 5 — ถ้าบทนี้แน่น บทหน้าจะเป็นแค่ “การเดินตามแผนที่” ค่ะ</p>
+  </div>
+
+  <div class="footer">
+    <p><span class="pill">อ่านต่อจากแหล่งต้นทาง</span>
+    <a href="https://oreilly-qc.github.io/">Programming Quantum Computers — ตัวอย่างโค้ดบท 4 (O'Reilly, ตำราของวิชา)</a>
+    — เปิดตัวอย่าง <em>4-1 quantum teleportation</em> ใน QCEngine แล้วเทียบวงจรบนจอกับรูปในบทนี้ทีละกล่อง
+    จะเห็นสัญลักษณ์ทั้งหมดของจริง (กดรันได้เลย ยังไม่ต้องอ่านโค้ดบรรทัดต่อบรรทัด)</p>
+    <p><span class="pill">อ้างอิงในคอร์ส</span> <code class="code">slides/QuantumProg_Lec04.pdf</code> หน้า 15, 20–26</p>
+    <p><span class="pill">เอกสารอ้างอิง</span>
+      <a href="../../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> (เพิ่ม 3 สัญลักษณ์ใหม่ของบทนี้แล้ว) ·
+      <a href="../../reference/glossary.html">อภิธานศัพท์</a></p>
+    <p><span class="pill">บทก่อนหน้า</span>
+      <a href="0013-what-teleportation-is.html">บท 0013 — teleportation คืออะไร</a> ·
+      <a href="0009-cnot-and-entanglement.html">บท 0009 — CNOT กับ entanglement</a> ·
+      <a href="0008-multi-qubit-registers.html">บท 0008 — register หลาย qubit</a></p>
+
+    <div class="ask">
+      <p style="margin-bottom:0;"><b>ถามคาโฮะได้ตลอดนะคะ 🙋‍♀️</b> จุดที่คนติดบ่อยในบทนี้คือ
+      <b>“แล้วทำไมต้องมีกล่อง verify ด้วย ในเมื่อ Bob ได้ของครบแล้ว”</b> —
+      คำใบ้คือ Bob เปิดดูของที่ได้ไม่ได้ (READ ครั้งเดียวบอกสถานะไม่ได้) ·
+      อยากให้หนูขยายเรื่องนี้ หรืออยากซ้อม<b>วาดวงจรนี้จากความจำ</b>แล้วให้หนูตรวจให้ ก็บอกได้เลยค่ะ</p>
+    </div>
+  </div>
+
+</div>
+</html>

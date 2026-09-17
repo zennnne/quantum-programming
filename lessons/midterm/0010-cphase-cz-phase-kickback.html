@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="th">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บทที่ 0010 — CPHASE, CZ และ phase kickback</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/lesson-bits.css">
+<script defer src="../../assets/quiz.js"></script>
+<style>
+  /* เฉพาะบทนี้ */
+  .part { background:var(--accent); color:#fff; border-radius:10px; padding:.7rem 1.1rem;
+    margin:3rem 0 1.4rem; }
+  .part .n { font-size:.75rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;
+    font-weight:800; }
+  .part h2 { border:0; color:#fff; margin:.1rem 0 0; font-size:1.25rem; padding:0; }
+  .wide { overflow-x:auto; background:#fff; border:1px solid var(--rule); border-radius:10px;
+    padding:1rem .8rem; margin:1.4rem 0; }
+  .wide .cap { text-align:center; font-size:.85rem; color:var(--ink-soft); margin-top:.5rem; }
+  .eq { text-align:center; font-size:1.2rem; font-weight:800; margin:1.1rem 0; }
+  .row8 { display:flex; gap:.35rem; justify-content:center; align-items:flex-end; flex-wrap:nowrap; }
+  .row8 .c { text-align:center; }
+  .row8 .c small { display:block; font-size:.72rem; color:var(--ink-soft); }
+  .row8 .lab { min-width:5.4rem; font-size:.8rem; font-weight:800; color:var(--accent);
+    text-align:right; padding-right:.4rem; align-self:center; }
+  pre.code-blk { background:#f2f4f8; border:1px solid #d5dbe6; border-radius:10px;
+    padding:.9rem 1.1rem; overflow-x:auto; font-size:.9rem; line-height:1.6; margin:1.2rem 0; }
+  .twocol { display:grid; grid-template-columns:1fr 1fr; gap:.9rem; margin:1.3rem 0; }
+  .twocol .c { border:1px solid var(--rule); border-radius:10px; background:#fff; padding:.8rem 1rem; }
+  .twocol .c b { display:block; color:var(--accent); margin-bottom:.25rem; }
+  @media (max-width:34rem){ .twocol { grid-template-columns:1fr; } }
+</style>
+<div class="wrap">
+
+  <p class="kicker">Lesson 0010 · Lec 03 ต่อ · conditional gate ที่ “ไม่ขยับวง แต่หมุนเข็ม”</p>
+  <h1>CPHASE, CZ และ <em>phase kickback</em>: เงื่อนไขคือ “ตัวกรอง” ที่เลือกได้ว่าวงไหนจะโดนหมุน</h1>
+  <p class="lead">บท 0009 เราได้ <b>CNOT</b> — conditional gate ที่ <em>สลับวง</em> บทนี้เจอญาติของมันที่
+  <b>ไม่สลับอะไรเลย แค่หมุนเข็ม (phase) แบบมีเงื่อนไข</b> คือ <b>CPHASE</b> กับ <b>CZ</b>
+  แล้วครึ่งหลังจะเจอผลข้างเคียงสุดแปลกของมัน — <b>phase kickback</b> — ที่กลายเป็นฐานของอัลกอริทึม
+  ดังๆ แทบทุกตัว (QFT, Grover, phase estimation) ค่ะ</p>
+
+  <div class="box why">
+    <span class="tag">จับหลัก 5 อย่างพอ</span>
+    <ol style="margin-bottom:0;">
+      <li><b>CPHASE(θ)</b> หมุน phase เฉพาะสถานะที่ <b>ทั้งสอง qubit เป็น 1</b> เท่านั้น</li>
+      <li>มัน <b>สมมาตร</b> — ไม่มีใครเป็น control ไม่มีใครเป็น target (ต่างจาก CNOT ชัดเจน)</li>
+      <li>กฎตัวกรอง: <b>k เงื่อนไข → กระทบ 1/2<sup>k+1</sup> ของทุกวง</b></li>
+      <li><b>CZ = CPHASE(180°)</b> = พลิกเครื่องหมาย |11⟩ · สัญลักษณ์ <b>●—●</b> · เท่ากับ H→CNOT→H</li>
+      <li><b>Phase kickback</b>: หมุน phase ของ register 2 โดยมีเงื่อนไขจาก register 1
+        → phase ไป<b>โผล่ที่ register 1</b> แทน และ<b>ไม่เกิด entanglement</b></li>
+    </ol>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part">
+    <div class="n">ครึ่งแรก</div>
+    <h2>CPHASE &amp; CZ — เงื่อนไขในฐานะ “ตัวกรอง”</h2>
+  </div>
+
+  <h2>1. ต่อยอดจากของที่รู้แล้ว 2 อัน</h2>
+
+  <p>บทนี้ไม่มีอะไรใหม่จากอากาศเลยค่ะ มันคือ <b>สองอย่างที่พี่รู้แล้วเอามาต่อกัน</b>:</p>
+
+  <div class="twocol">
+    <div class="c"><b>PHASE(θ) จากบท 0006</b>
+      หมุนเข็มของสถานะที่ qubit นั้นเป็น <b>1</b> ทั้งหมด →
+      ในทะเบียน 3 qubit (8 วง) จะกระทบ <b>ครึ่งหนึ่ง = 4 วง</b> เสมอ</div>
+    <div class="c"><b>“เงื่อนไข” จากบท 0009</b>
+      CNOT บอกว่า “ทำก็ต่อเมื่อ control เป็น 1” →
+      ทำให้ operation เลือกได้ว่าจะกระทบวงไหน ไม่ใช่ทุกวงเหมือนเดิม</div>
+  </div>
+
+  <p>เอามารวมกัน: <b>“หมุน phase — แต่ทำก็ต่อเมื่ออีก qubit เป็น 1 ด้วย”</b> นั่นแหละคือ <b>CPHASE</b></p>
+
+  <div class="box aha">
+    <span class="tag">นิยามจากสไลด์ 63</span>
+    <p style="margin-bottom:0;">CPHASE(θ) หมุน phase <b>เฉพาะสถานะ |11⟩</b> เท่านั้น
+    (คือทั้ง qubit เงื่อนไขและ qubit เป้าหมายต้องเป็น 1 พร้อมกัน) — ผลคือ |11⟩ ได้ตัวคูณ e<sup>iθ</sup>
+    ส่วน |00⟩, |01⟩, |10⟩ ไม่ขยับ</p>
+  </div>
+
+  <h3>ข้อที่คนพลาดบ่อย: CPHASE <em>สมมาตร</em></h3>
+
+  <p>CNOT มีบทบาทชัด — ● คือคนสั่ง, ⊕ คือคนถูกกระทำ สลับที่แล้วผลคนละเรื่อง
+  แต่ CPHASE <b>สลับที่แล้วผลเหมือนเดิมเป๊ะ</b> เพราะเงื่อนไขของมันคือ “ทั้งคู่ต้องเป็น 1”
+  ซึ่งเป็นประโยคที่<em>สมมาตร</em>อยู่แล้ว (สไลด์ 63 ย้ำเรื่องนี้เอง)</p>
+
+  <p>นี่คือเหตุผลที่สัญลักษณ์ของมันวาดเป็น <b>จุดสองจุดเหมือนกันทั้งบนและล่าง</b> ไม่ใช่จุดกับกากบาท —
+  รูปวาดสะท้อนความสมมาตรตรงๆ ค่ะ</p>
+
+  <h2>2. สัญลักษณ์วงจร (ข้อสอบชอบออก!)</h2>
+
+  <div class="circuit-syms">
+    <div class="sy">
+      <svg width="130" height="86" role="img" aria-label="สัญลักษณ์ CPHASE">
+        <text x="65" y="12" text-anchor="middle" font-size="12" font-weight="700">θ</text>
+        <line x1="12" y1="30" x2="118" y2="30" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="12" y1="66" x2="118" y2="66" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="65" y1="30" x2="65" y2="66" stroke="#1a1a1a" stroke-width="2.4"/>
+        <circle cx="65" cy="30" r="10" fill="#fff" stroke="#1a1a1a" stroke-width="2.2"/>
+        <text x="65" y="35" text-anchor="middle" font-size="13" font-weight="700">φ</text>
+        <circle cx="65" cy="66" r="10" fill="#fff" stroke="#1a1a1a" stroke-width="2.2"/>
+        <text x="65" y="71" text-anchor="middle" font-size="13" font-weight="700">φ</text>
+      </svg>
+      <div class="cap"><b>CPHASE(θ)</b><br><small>φ ทั้งสองเส้น · มุมกำกับด้านบน</small></div>
+    </div>
+    <div class="sy">
+      <svg width="130" height="86" role="img" aria-label="สัญลักษณ์ CZ">
+        <line x1="12" y1="30" x2="118" y2="30" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="12" y1="66" x2="118" y2="66" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="65" y1="30" x2="65" y2="66" stroke="#1a1a1a" stroke-width="3"/>
+        <circle cx="65" cy="30" r="7" fill="#1a1a1a"/>
+        <circle cx="65" cy="66" r="7" fill="#1a1a1a"/>
+      </svg>
+      <div class="cap"><b>CZ</b> = CPHASE(180°)<br><small>จุดทึบ ● ทั้งสองข้าง</small></div>
+    </div>
+    <div class="sy">
+      <svg width="180" height="86" role="img" aria-label="CZ สร้างจาก HAD และ CNOT">
+        <line x1="8" y1="30" x2="172" y2="30" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="8" y1="66" x2="172" y2="66" stroke="#1a1a1a" stroke-width="2"/>
+        <rect x="28" y="54" width="24" height="24" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <text x="40" y="71" text-anchor="middle" font-size="13" font-weight="700">H</text>
+        <line x1="90" y1="30" x2="90" y2="66" stroke="#1a1a1a" stroke-width="2.4"/>
+        <circle cx="90" cy="30" r="6" fill="#1a1a1a"/>
+        <circle cx="90" cy="66" r="10" fill="#fff" stroke="#1a1a1a" stroke-width="2.2"/>
+        <line x1="80" y1="66" x2="100" y2="66" stroke="#1a1a1a" stroke-width="2.2"/>
+        <line x1="90" y1="56" x2="90" y2="76" stroke="#1a1a1a" stroke-width="2.2"/>
+        <rect x="128" y="54" width="24" height="24" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <text x="140" y="71" text-anchor="middle" font-size="13" font-weight="700">H</text>
+      </svg>
+      <div class="cap"><b>CZ</b> แบบสร้างเอง<br><small>H → CNOT → H (H คร่อมเส้นเดียวกัน)</small></div>
+    </div>
+  </div>
+
+  <div class="box warn">
+    <span class="tag">⚠️ สไลด์ 71 เขียนผิด (จุดที่ 3 ที่เจอในคอร์สนี้)</span>
+    <p>สไลด์ 71 หัวข้อ <em>Symbol</em> เขียนว่า CZ มีสัญลักษณ์ <b>(●—⊕)</b> —
+    <b>ผิดค่ะ</b> ●—⊕ คือสัญลักษณ์ของ <b>CNOT</b> ส่วน CZ ของจริงคือ <b>●—●</b> (จุดทึบทั้งสองข้าง)</p>
+    <p>ที่ยืนยันได้แน่นอนคือ <b>สไลด์ 70 ของอาจารย์เองวาด ●—● ไว้ชัดเจน</b> ในหัวข้อ
+    “three representations of CPHASE(180)” — สไลด์สองหน้าติดกันขัดกันเอง แปลว่าหน้า 71 พิมพ์พลาด</p>
+    <p style="margin-bottom:0;"><b>วิธีรับมือตอนสอบ</b> (เหมือนที่ตกลงกันไว้ตั้งแต่บท 0006):
+    ถ้าโจทย์ให้วาด CZ → วาด <b>●—●</b> ตามรูปสไลด์ 70 ซึ่งเป็นของถูกและเป็นมาตรฐานสากล
+    ถ้าเจอตัวเลือกที่ลอกประโยคหน้า 71 มาเป๊ะๆ ค่อยว่ากันอีกที แต่ให้รู้ไว้ว่าอันไหนคือของจริง</p>
+  </div>
+
+  <p>“สามหน้าตา” ของ CPHASE(180) ตามสไลด์ 70 คือสิ่งเดียวกันหมด เขียนแบบไหนก็ได้:</p>
+  <div class="eq">●—● &nbsp;=&nbsp; φ—φ (180°) &nbsp;=&nbsp; H → ⊕ → H</div>
+
+  <h2>3. ดูของจริงในภาษา circle notation</h2>
+
+  <p>สไลด์ 64–66 ใช้ทะเบียน 3 qubit (0x1, 0x2, 0x4 → มี 2³ = 8 วง) วางเทียบให้เห็นสามกรณี
+  ด้วยมุม 36° เท่ากันหมด — ต่างกันแค่ “ใครโดน”:</p>
+
+  <div class="wide">
+    <div class="row8" style="margin-bottom:.9rem;">
+      <div class="lab">PHASE<br>บน 0x1</div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="20" cy="20" r="9" fill="#b9d4ee"/><line x1="20" y1="20" x2="20" y2="6" stroke="#2b6cb0" stroke-width="2"/></svg><small>|0⟩</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#e07a3f" stroke-width="2.2"/><circle cx="20" cy="20" r="9" fill="#f6c9a8"/><line x1="20" y1="20" x2="11.8" y2="8.7" stroke="#2b6cb0" stroke-width="2"/></svg><small><b>|1⟩</b> ↺</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="20" cy="20" r="9" fill="#b9d4ee"/><line x1="20" y1="20" x2="20" y2="6" stroke="#2b6cb0" stroke-width="2"/></svg><small>|2⟩</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#e07a3f" stroke-width="2.2"/><circle cx="20" cy="20" r="9" fill="#f6c9a8"/><line x1="20" y1="20" x2="11.8" y2="8.7" stroke="#2b6cb0" stroke-width="2"/></svg><small><b>|3⟩</b> ↺</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="20" cy="20" r="9" fill="#b9d4ee"/><line x1="20" y1="20" x2="20" y2="6" stroke="#2b6cb0" stroke-width="2"/></svg><small>|4⟩</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#e07a3f" stroke-width="2.2"/><circle cx="20" cy="20" r="9" fill="#f6c9a8"/><line x1="20" y1="20" x2="11.8" y2="8.7" stroke="#2b6cb0" stroke-width="2"/></svg><small><b>|5⟩</b> ↺</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="20" cy="20" r="9" fill="#b9d4ee"/><line x1="20" y1="20" x2="20" y2="6" stroke="#2b6cb0" stroke-width="2"/></svg><small>|6⟩</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#e07a3f" stroke-width="2.2"/><circle cx="20" cy="20" r="9" fill="#f6c9a8"/><line x1="20" y1="20" x2="11.8" y2="8.7" stroke="#2b6cb0" stroke-width="2"/></svg><small><b>|7⟩</b> ↺</small></div>
+    </div>
+
+    <div class="row8" style="margin-bottom:.9rem;">
+      <div class="lab">PHASE<br>บน 0x4</div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="20" cy="20" r="9" fill="#b9d4ee"/><line x1="20" y1="20" x2="20" y2="6" stroke="#2b6cb0" stroke-width="2"/></svg><small>|0⟩</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="20" cy="20" r="9" fill="#b9d4ee"/><line x1="20" y1="20" x2="20" y2="6" stroke="#2b6cb0" stroke-width="2"/></svg><small>|1⟩</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="20" cy="20" r="9" fill="#b9d4ee"/><line x1="20" y1="20" x2="20" y2="6" stroke="#2b6cb0" stroke-width="2"/></svg><small>|2⟩</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="20" cy="20" r="9" fill="#b9d4ee"/><line x1="20" y1="20" x2="20" y2="6" stroke="#2b6cb0" stroke-width="2"/></svg><small>|3⟩</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#e07a3f" stroke-width="2.2"/><circle cx="20" cy="20" r="9" fill="#f6c9a8"/><line x1="20" y1="20" x2="11.8" y2="8.7" stroke="#2b6cb0" stroke-width="2"/></svg><small><b>|4⟩</b> ↺</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#e07a3f" stroke-width="2.2"/><circle cx="20" cy="20" r="9" fill="#f6c9a8"/><line x1="20" y1="20" x2="11.8" y2="8.7" stroke="#2b6cb0" stroke-width="2"/></svg><small><b>|5⟩</b> ↺</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#e07a3f" stroke-width="2.2"/><circle cx="20" cy="20" r="9" fill="#f6c9a8"/><line x1="20" y1="20" x2="11.8" y2="8.7" stroke="#2b6cb0" stroke-width="2"/></svg><small><b>|6⟩</b> ↺</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#e07a3f" stroke-width="2.2"/><circle cx="20" cy="20" r="9" fill="#f6c9a8"/><line x1="20" y1="20" x2="11.8" y2="8.7" stroke="#2b6cb0" stroke-width="2"/></svg><small><b>|7⟩</b> ↺</small></div>
+    </div>
+
+    <div class="row8">
+      <div class="lab" style="color:#c0392b;">CPHASE<br>0x1 &amp; 0x4</div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="20" cy="20" r="9" fill="#b9d4ee"/><line x1="20" y1="20" x2="20" y2="6" stroke="#2b6cb0" stroke-width="2"/></svg><small>|0⟩</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="20" cy="20" r="9" fill="#b9d4ee"/><line x1="20" y1="20" x2="20" y2="6" stroke="#2b6cb0" stroke-width="2"/></svg><small>|1⟩</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="20" cy="20" r="9" fill="#b9d4ee"/><line x1="20" y1="20" x2="20" y2="6" stroke="#2b6cb0" stroke-width="2"/></svg><small>|2⟩</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="20" cy="20" r="9" fill="#b9d4ee"/><line x1="20" y1="20" x2="20" y2="6" stroke="#2b6cb0" stroke-width="2"/></svg><small>|3⟩</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="20" cy="20" r="9" fill="#b9d4ee"/><line x1="20" y1="20" x2="20" y2="6" stroke="#2b6cb0" stroke-width="2"/></svg><small>|4⟩</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#e07a3f" stroke-width="2.2"/><circle cx="20" cy="20" r="9" fill="#f6c9a8"/><line x1="20" y1="20" x2="11.8" y2="8.7" stroke="#2b6cb0" stroke-width="2"/></svg><small><b>|5⟩</b> ↺</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="20" cy="20" r="9" fill="#b9d4ee"/><line x1="20" y1="20" x2="20" y2="6" stroke="#2b6cb0" stroke-width="2"/></svg><small>|6⟩</small></div>
+      <div class="c"><svg width="42" height="46"><circle cx="20" cy="20" r="16" fill="#fff" stroke="#e07a3f" stroke-width="2.2"/><circle cx="20" cy="20" r="9" fill="#f6c9a8"/><line x1="20" y1="20" x2="11.8" y2="8.7" stroke="#2b6cb0" stroke-width="2"/></svg><small><b>|7⟩</b> ↺</small></div>
+    </div>
+    <div class="cap">วาดตามสไลด์ 66 · วงสีส้ม = โดนหมุน 36° <b>ทวนเข็ม</b> (มุมบวก = ทวนเข็ม ตามที่ยึดมาทุกบท)</div>
+  </div>
+
+  <p>อ่านตารางนี้ด้วย “เลขฐานสอง” จะเห็นทันทีว่าทำไม:</p>
+  <ul>
+    <li><b>PHASE บน 0x1</b> → โดนทุกวงที่บิต 0x1 = 1 → 1, 3, 5, 7 (<b>4 วง = ครึ่งหนึ่ง</b>)</li>
+    <li><b>PHASE บน 0x4</b> → โดนทุกวงที่บิต 0x4 = 1 → 4, 5, 6, 7 (<b>4 วง = ครึ่งหนึ่ง</b>)</li>
+    <li><b>CPHASE ระหว่าง 0x1 กับ 0x4</b> → ต้องเป็น 1 <b>ทั้งคู่</b> → เหลือแค่ 5 (101) และ 7 (111)
+      = <b>2 วง = หนึ่งในสี่</b></li>
+  </ul>
+
+  <div class="box warn">
+    <span class="tag">จุดเล็กๆ ในสไลด์ 66</span>
+    <p style="margin-bottom:0;">แถวบนสุดของรูปในสไลด์ <b>ระบายสีไฮไลต์ไว้แค่ |3⟩ |5⟩ |7⟩ ตกวง |1⟩ ไป</b>
+    — แต่ถ้าดูซูมๆ จะเห็นว่า <b>เข็มของ |1⟩ เอียงไปแล้วเหมือนกัน</b> ค่ะ ของจริงคือ 4 วง (1, 3, 5, 7)
+    ถูกต้องตามกฎ “ครึ่งหนึ่ง” ไม่ใช่ 3 วง — เป็นแค่การระบายสีตกหล่น ไม่ใช่เนื้อหาผิด</p>
+  </div>
+
+  <h2>4. กฎที่ควรจำ: เงื่อนไข = ตัวกรอง</h2>
+
+  <div class="box aha">
+    <span class="tag">ประโยคทองจากสไลด์ 67</span>
+    <p style="margin-bottom:0;">“<b>Conditioning is like adding filters</b> — each control qubit narrows down
+    which quantum states are allowed to <em>feel</em> the phase rotation.”<br>
+    แปลไทย: <b>การใส่เงื่อนไขก็เหมือนใส่ตัวกรองทีละชั้น — control แต่ละตัวจะบีบให้เหลือสถานะน้อยลงเรื่อยๆ
+    ที่จะ “รู้สึก” ถึงการหมุน phase</b></p>
+  </div>
+
+  <div class="wide">
+    <table class="cmp" style="margin:0;">
+      <tr><th>gate</th><th>จำนวน control (k)</th><th>สัดส่วนวงที่โดน</th><th>ในทะเบียน 8 วง</th></tr>
+      <tr><td><b>PHASE</b> เดี่ยว</td><td>0</td><td>1/2</td><td>4 วง</td></tr>
+      <tr><td><b>CPHASE</b></td><td>1</td><td>1/4</td><td>2 วง</td></tr>
+      <tr><td><b>CCPHASE</b></td><td>2</td><td>1/8</td><td>1 วง</td></tr>
+      <tr><td>ทั่วไป</td><td>k</td><td><b>1 / 2<sup>k+1</sup></b></td><td>8 / 2<sup>k+1</sup> วง</td></tr>
+    </table>
+    <div class="cap">สูตรจากสไลด์ 68 — บท 0009 แง้มไว้แล้วตอนบอกว่า CNOT กระทบ “1 ใน 4”</div>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">① ทะเบียน 3 qubit (8 วง) ทุกวงมี amplitude เท่ากัน ถ้าทำ <b>CPHASE ระหว่าง 0x2 กับ 0x4</b>
+      วงไหนบ้างที่จะถูกหมุน? <em>(ลองเขียนเลขฐานสองของ 0–7 ก่อนตอบนะคะ)</em></div>
+    <button class="opt">วง |6⟩ กับวง |7⟩</button>
+    <button class="opt">วง |4⟩ กับวง |5⟩</button>
+    <button class="opt">วง |2⟩ กับวง |3⟩</button>
+    <button class="opt">วง |3⟩ กับวง |7⟩</button>
+    <div class="fb ok" data-for="ok">ถูกต้องค่ะ! ต้องมีบิต 0x2 และ 0x4 เป็น 1 พร้อมกัน →
+      110 = 6 และ 111 = 7 (บิต 0x1 จะเป็นอะไรก็ได้ เลยได้ 2 วง = 1/4 ตามสูตร)</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — เงื่อนไขคือ <b>ทั้ง 0x2 และ 0x4 ต้องเป็น 1</b>
+      เลขที่ผ่านคือ 110 (=6) กับ 111 (=7) ส่วนบิต 0x1 อิสระ → ตอบ |6⟩ กับ |7⟩</div>
+  </div>
+
+  <h2>5. CZ — กรณีพิเศษที่เจอบ่อยที่สุด</h2>
+
+  <p>ถ้าตั้ง θ = 180° การหมุนจะกลายเป็น “หมุนครึ่งรอบ” ซึ่งก็คือ <b>คูณด้วย −1</b> พอดี
+  กรณีนี้เจอบ่อยมากจนได้ชื่อของตัวเอง: <b>CZ (Controlled-Z)</b></p>
+
+  <div class="eq">CZ = CPHASE(180°) &nbsp;→&nbsp; พลิกเครื่องหมายของ <b>|11⟩</b> ตัวเดียว</div>
+
+  <p>เขียนเป็นเมทริกซ์ (สไลด์ 71) ก็คือ identity ที่มุมล่างขวาเป็น −1:</p>
+
+  <div class="wide" style="text-align:center;">
+    <table class="cmp" style="margin:0 auto; width:auto; display:inline-table;">
+      <tr><th></th><th>|00⟩</th><th>|01⟩</th><th>|10⟩</th><th>|11⟩</th></tr>
+      <tr><th>|00⟩</th><td>1</td><td>0</td><td>0</td><td>0</td></tr>
+      <tr><th>|01⟩</th><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+      <tr><th>|10⟩</th><td>0</td><td>0</td><td>1</td><td>0</td></tr>
+      <tr><th>|11⟩</th><td>0</td><td>0</td><td>0</td><td><b>−1</b></td></tr>
+    </table>
+    <div class="cap">CZ = diag(1, 1, 1, −1)</div>
+  </div>
+
+  <h3>ความสัมพันธ์ที่ต้องจำคู่กัน</h3>
+
+  <p>บท 0005/0006 พี่เจอมาแล้วว่า <b>Z = H → X → H</b> (Hadamard เปลี่ยน “การพลิกวง” ให้กลายเป็น “การพลิกเครื่องหมาย”)
+  ระดับสอง qubit ก็ใช้ตรรกะเดียวกันเป๊ะ (สไลด์ 72):</p>
+
+  <div class="eq">CZ(q₀, q₁) = H(q₁) → CNOT(q₀, q₁) → H(q₁)</div>
+
+  <p>สังเกตว่า <b>H สองตัวคร่อมอยู่บนเส้นเดียวกัน</b> คือเส้น target ของ CNOT — ไม่ใช่คร่อมทั้งสองเส้น
+  นี่คือจุดที่ข้อสอบชอบหลอกค่ะ</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">② สถานะ |++⟩ (คือ HAD ทั้งสอง qubit → ทั้ง 4 วงเท่ากันหมด) ถูกทำ <b>CZ</b>
+      แล้วไป READ ทันที — โอกาสได้ผลแต่ละค่าจะเปลี่ยนไปไหม?</div>
+    <button class="opt">เปลี่ยน — |11⟩ จะหายไปเลย</button>
+    <button class="opt">เปลี่ยน — |11⟩ จะมีโอกาสมากขึ้น</button>
+    <button class="opt">ไม่เปลี่ยน — ยังคง 25% เท่ากัน</button>
+    <button class="opt">ไม่เปลี่ยน — แต่ต้องอ่านสองครั้ง</button>
+    <div class="fb ok" data-for="ok">ใช่ค่ะ! phase ไม่แตะ <b>ขนาด</b> ของ amplitude เลย —
+      −1 ยกกำลังสองก็ยังได้ 1 เท่าเดิม ผล READ จึงเหมือนเดิมเป๊ะ 25% ทุกค่า
+      แต่สถานะนี้ <b>entangled แล้วจริงๆ</b> และความต่างจะโผล่เมื่อเอาไป interfere ต่อ (เช่นใน Grover)</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — จำหลักจากบท 0003: <b>phase ไม่มีผลต่อ probability โดยตรง</b>
+      |−1|² = 1 เท่าเดิม → ยัง 25% ทั้งสี่ค่า · phase จะ “ออกฤทธิ์” ก็ต่อเมื่อเอาไป interfere ต่อภายหลัง</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part">
+    <div class="n">ครึ่งหลัง</div>
+    <h2>Phase kickback — ของที่เด้งกลับมาโดยไม่ได้ตั้งใจ</h2>
+  </div>
+
+  <h2>6. วงจรที่ทำให้ทุกคนงงครั้งแรก</h2>
+
+  <p>สไลด์ 73 วางวงจรง่ายๆ ไว้ ตั้งใจจะ “หมุน phase ของ register 2 โดยมีเงื่อนไขจาก register 1”:</p>
+
+  <div class="wide" style="text-align:center;">
+    <svg width="430" height="150" role="img" aria-label="วงจรสาธิต phase kickback">
+      <text x="8" y="30" font-size="12" font-weight="700">Reg1 0x1</text>
+      <text x="8" y="66" font-size="12" font-weight="700">Reg1 0x2</text>
+      <text x="8" y="112" font-size="12" font-weight="700">Reg2 0x1</text>
+      <line x1="80" y1="26" x2="410" y2="26" stroke="#1a1a1a" stroke-width="2"/>
+      <line x1="80" y1="62" x2="410" y2="62" stroke="#1a1a1a" stroke-width="2"/>
+      <line x1="80" y1="108" x2="410" y2="108" stroke="#1a1a1a" stroke-width="2"/>
+      <text x="92" y="22" font-size="11" fill="#666">|0⟩</text>
+      <text x="92" y="58" font-size="11" fill="#666">|0⟩</text>
+      <text x="92" y="104" font-size="11" fill="#666">|1⟩</text>
+      <rect x="130" y="14" width="24" height="24" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+      <text x="142" y="31" text-anchor="middle" font-size="13" font-weight="700">H</text>
+      <rect x="130" y="50" width="24" height="24" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+      <text x="142" y="67" text-anchor="middle" font-size="13" font-weight="700">H</text>
+      <text x="222" y="8" text-anchor="middle" font-size="12" font-weight="700">45°</text>
+      <line x1="222" y1="26" x2="222" y2="108" stroke="#1a1a1a" stroke-width="2.4"/>
+      <circle cx="222" cy="26" r="10" fill="#fff" stroke="#1a1a1a" stroke-width="2.2"/>
+      <text x="222" y="31" text-anchor="middle" font-size="13" font-weight="700">φ</text>
+      <circle cx="222" cy="108" r="10" fill="#fff" stroke="#1a1a1a" stroke-width="2.2"/>
+      <text x="222" y="113" text-anchor="middle" font-size="13" font-weight="700">φ</text>
+      <text x="310" y="44" text-anchor="middle" font-size="12" font-weight="700">90°</text>
+      <line x1="310" y1="62" x2="310" y2="108" stroke="#1a1a1a" stroke-width="2.4"/>
+      <circle cx="310" cy="62" r="10" fill="#fff" stroke="#1a1a1a" stroke-width="2.2"/>
+      <text x="310" y="67" text-anchor="middle" font-size="13" font-weight="700">φ</text>
+      <circle cx="310" cy="108" r="10" fill="#fff" stroke="#1a1a1a" stroke-width="2.2"/>
+      <text x="310" y="113" text-anchor="middle" font-size="13" font-weight="700">φ</text>
+    </svg>
+    <div class="cap">วาดตามสไลด์ 73 · Register 1 = 2 qubit เขียน 0 แล้ว HAD ทั้งคู่ ·
+      <b>Register 2 = 1 qubit เขียน 1</b> (สำคัญมาก!)</div>
+  </div>
+
+  <pre class="code-blk">qc.reset(3);
+var reg1 = qint.new(2, 'Register 1');
+var reg2 = qint.new(1, 'Register 2');
+reg1.write(0);
+reg2.write(1);          // ← ต้องเป็น 1 ไม่งั้นไม่เกิดอะไรเลย
+reg1.had();             // reg1 = superposition ของ 0,1,2,3
+// หมุน phase ของ reg2 โดยมีเงื่อนไขจาก qubit ของ reg1
+qc.phase(45, 0x4, 0x1);
+qc.phase(90, 0x4, 0x2);</pre>
+
+  <p>อ่าน <code class="code">qc.phase(มุม, เป้าหมาย, เงื่อนไข)</code> — ตรงนี้ <code class="code">0x4</code>
+  คือ qubit ของ reg2 (บิตที่ 3 ของทั้งเครื่อง) ส่วน <code class="code">0x1</code> และ
+  <code class="code">0x2</code> คือ qubit สองตัวของ reg1 ที่ทำหน้าที่เป็นเงื่อนไข</p>
+
+  <h2>7. ผลที่ออกมา — ผิดคาดตรงไหน</h2>
+
+  <div class="wide">
+    <div class="row8" style="gap:1rem; margin-bottom:1rem;">
+      <div class="lab">Register 1</div>
+      <div class="c"><svg width="46" height="50"><circle cx="22" cy="22" r="18" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="22" cy="22" r="12" fill="#b9d4ee"/><line x1="22" y1="22" x2="22" y2="6" stroke="#2b6cb0" stroke-width="2"/></svg><small><b>|0⟩</b> 0°</small></div>
+      <div class="c"><svg width="46" height="50"><circle cx="22" cy="22" r="18" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="22" cy="22" r="12" fill="#b9d4ee"/><line x1="22" y1="22" x2="10.7" y2="10.7" stroke="#2b6cb0" stroke-width="2"/></svg><small><b>|1⟩</b> 45°</small></div>
+      <div class="c"><svg width="46" height="50"><circle cx="22" cy="22" r="18" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="22" cy="22" r="12" fill="#b9d4ee"/><line x1="22" y1="22" x2="6" y2="22" stroke="#2b6cb0" stroke-width="2"/></svg><small><b>|2⟩</b> 90°</small></div>
+      <div class="c"><svg width="46" height="50"><circle cx="22" cy="22" r="18" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="22" cy="22" r="12" fill="#b9d4ee"/><line x1="22" y1="22" x2="10.7" y2="33.3" stroke="#2b6cb0" stroke-width="2"/></svg><small><b>|3⟩</b> 135°</small></div>
+    </div>
+    <div class="row8" style="gap:1rem;">
+      <div class="lab">Register 2</div>
+      <div class="c"><svg width="46" height="50"><circle cx="22" cy="22" r="18" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/></svg><small>|0⟩ 0</small></div>
+      <div class="c"><svg width="46" height="50"><circle cx="22" cy="22" r="18" fill="#fff" stroke="#1a1a1a" stroke-width="1.5"/><circle cx="22" cy="22" r="18" fill="#b9d4ee" opacity=".85"/><line x1="22" y1="22" x2="22" y2="4" stroke="#2b6cb0" stroke-width="2"/></svg><small><b>|1⟩</b> 100%</small></div>
+    </div>
+    <div class="cap">วาดตามสไลด์ 74 — <b>register 2 ไม่ขยับเลยสักนิด</b> ทั้งที่เราตั้งใจจะหมุนมัน
+      แต่ phase ไปโผล่ที่ <b>register 1</b> ทั้งหมด</div>
+  </div>
+
+  <p>ไล่ดูทีละวงของ register 1 จะเห็น pattern ชัดมาก (สไลด์ 75):</p>
+
+  <div class="work">
+    <div class="step"><span class="lbl">|0⟩</span> = 00 → ไม่มีบิตไหนติด → <b>0°</b></div>
+    <div class="step"><span class="lbl">|1⟩</span> = 01 → บิต 0x1 ติด → ได้ 45° → <b>45°</b></div>
+    <div class="step"><span class="lbl">|2⟩</span> = 10 → บิต 0x2 ติด → ได้ 90° → <b>90°</b></div>
+    <div class="step"><span class="lbl">|3⟩</span> = 11 → ติดทั้งคู่ → 45° + 90° = <b>135°</b></div>
+  </div>
+
+  <p>เห็นไหมคะว่า <b>การหมุนที่เรา “สั่งใส่ register 2” ไปลงเอยที่ค่าใน register 1 ที่ตรงกับเงื่อนไข</b> —
+  นี่แหละที่เรียกว่า <b>phase kickback (การเด้งกลับของเฟส)</b></p>
+
+  <h2>8. ทำไมมันเป็นแบบนั้น — คำอธิบายสั้นที่สุด</h2>
+
+  <div class="box aha">
+    <span class="tag">กุญแจอยู่ที่ “CPHASE สมมาตร”</span>
+    <p style="margin-bottom:0;">จำหัวข้อ 1 ได้ไหมคะว่า CPHASE <b>ไม่มีใครเป็น control ไม่มีใครเป็น target</b> —
+    เงื่อนไขจริงๆ ของมันคือ “<b>ทั้งสอง qubit เป็น 1 หรือเปล่า</b>” เท่านั้น<br><br>
+    ดังนั้นตอนที่เราคิดว่า “เอา reg1 มาคุม แล้วหมุน reg2” ธรรมชาติไม่ได้มองแบบนั้นเลย —
+    มันแค่หมุน phase ของ <b>สถานะร่วมที่ทั้งคู่เป็น 1</b> · พอ <b>reg2 เป็น |1⟩ ตลอดเวลา</b>
+    เงื่อนไขก็เหลือขึ้นกับ reg1 ตัวเดียว → phase เลย “ไปเกาะ” ค่าใน reg1 แทน</p>
+  </div>
+
+  <p>และเพราะเหตุนี้ สไลด์ 79 จึงระบุ <b>เงื่อนไขที่ขาดไม่ได้</b>:</p>
+
+  <div class="reasons">
+    <div class="r"><b>reg2 ต้องเป็น |1⟩</b><small>ถ้าเขียน 0 ไว้ เงื่อนไข “ทั้งคู่เป็น 1” ไม่มีทางเป็นจริง →
+      ไม่มีอะไรเกิดขึ้นเลย</small></div>
+    <div class="r"><b>reg2 ต้องไม่ superposition</b><small>เพราะมันคงที่ phase ที่มันได้จึงเป็น
+      <em>global phase</em> ซึ่งมองไม่เห็น/ไม่มีผล</small></div>
+    <div class="r"><b>ไม่เกิด entanglement</b><small>สถานะสุดท้ายยัง <b>separable</b> (แยกกันได้)
+      สองทะเบียนยังคิดแยกกันได้ตามปกติ</small></div>
+  </div>
+
+  <div class="box warn">
+    <span class="tag">กับดักความเข้าใจ</span>
+    <p style="margin-bottom:0;">บท 0009 เพิ่งเรียนว่า CNOT + superposition → entanglement
+    หลายคนเลยเหมาว่า “<b>ใช้ two-qubit gate เมื่อไหร่ = ได้ entanglement</b>” — <b>ไม่จริงค่ะ</b>
+    สไลด์ 80 ยกเรื่อง phase kickback มาเป็นตัวอย่างค้านโดยตรง:
+    ใช้ gate สอง qubit เต็มๆ แต่ผลลัพธ์ยังแยกกันได้ ไม่พัวพันเลย</p>
+  </div>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">③ ถ้าแก้โค้ดบรรทัดเดียว จาก <code class="code">reg2.write(1)</code> เป็น
+      <code class="code">reg2.write(0)</code> แล้วรันวงจรเดิม — register 1 จะออกมาหน้าตายังไง?</div>
+    <button class="opt">phase กลับทิศเป็น −45° และ −90°</button>
+    <button class="opt">phase เพิ่มเป็นสองเท่า 90° และ 180°</button>
+    <button class="opt">amplitude เหลือแค่วง |0⟩ วงเดียว</button>
+    <button class="opt">ทุกวงเข็มชี้ขึ้น 0° ไม่มีอะไรหมุน</button>
+    <div class="fb ok" data-for="ok">ถูกต้องค่ะ! เงื่อนไขคือ “ทั้งสองต้องเป็น 1” พอ reg2 = 0 ตลอด
+      เงื่อนไขไม่เคยเป็นจริง → CPHASE ไม่ทำอะไรเลย → reg1 ยังเป็น superposition เท่ากันหมด phase 0°
+      นี่คือเหตุผลที่สไลด์ 79 บอกว่า “initialize เป็น |1⟩ is essential”</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — ลองย้อนไปที่นิยาม: CPHASE หมุนเฉพาะตอน
+      <b>ทั้งสอง qubit เป็น 1</b> ถ้า reg2 ค้างที่ 0 ตลอด เงื่อนไขไม่เคยจริงสักครั้ง → ไม่เกิดอะไรเลย
+      register 1 ยังเข็มชี้ขึ้นทุกวง</div>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">④ ถ้าเปลี่ยนสองบรรทัดท้ายเป็น <code class="code">qc.phase(90, 0x4, 0x3)</code>
+      บรรทัดเดียว (0x3 = ทั้ง 0x1 และ 0x2 เป็นเงื่อนไขพร้อมกัน) — วงไหนของ register 1 ที่จะได้ phase 90°?
+      <em>(ลองไล่ 00, 01, 10, 11 เองก่อนนะคะ)</em></div>
+    <button class="opt">วง |1⟩ กับวง |2⟩ เท่านั้น</button>
+    <button class="opt">วง |3⟩ เพียงวงเดียวเท่านั้น</button>
+    <button class="opt">วง |1⟩ ถึงวง |3⟩ ทั้งหมด</button>
+    <button class="opt">ทั้งสี่วงได้เท่ากันหมดเลย</button>
+    <div class="fb ok" data-for="ok">เยี่ยมค่ะ! ตอนนี้มี 2 เงื่อนไข (k = 2) → กระทบ 1/2³ = 1/8 ของทะเบียน 3 qubit
+      = <b>1 วง</b> พอดี คือค่าที่ทั้ง 0x1, 0x2 (และ 0x4) เป็น 1 → ในสายตา reg1 คือวง |3⟩ (11) วงเดียว
+      — สูตร 1/2<sup>k+1</sup> จากครึ่งแรกใช้ได้ตรงๆ</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — เงื่อนไขตอนนี้คือ “0x1 <b>และ</b> 0x2 <b>และ</b> 0x4 เป็น 1 พร้อมกัน”
+      ในสายตา reg1 มีแค่ค่า 11 = |3⟩ ค่าเดียวที่ผ่าน · เช็กกับสูตรได้: k = 2 → 1/2³ ของ 8 วง = 1 วง</div>
+  </div>
+
+  <h2>9. ทำไมเรื่องนี้ถึงสำคัญมาก</h2>
+
+  <p>อ่านสไลด์ 77 กลับด้าน จะเห็นว่า phase kickback ไม่ใช่ “ผลข้างเคียงน่ารำคาญ” แต่เป็น
+  <b>เครื่องมือ</b>: ถ้าเราอยากใส่ phase ให้ <em>บางค่าที่เจาะจง</em> ในทะเบียนที่เราสนใจ
+  เราก็ไปหมุน phase ของทะเบียน<em>อื่น</em> โดยตั้งเงื่อนไขจาก qubit ของทะเบียนที่เราสนใจ —
+  แล้ว phase จะเด้งกลับมาลงตรงที่เราต้องการพอดี</p>
+
+  <p>เหตุผลที่มันทรงพลัง: <b>เราเลือก qubit เงื่อนไขได้ = เราเลือกได้ว่าค่าไหนจะโดน</b>
+  และเนื่องจากผลลัพธ์เป็น phase (ไม่ใช่ probability) มันจึงเป็นวัตถุดิบชั้นดีสำหรับ
+  <b>interference</b> ในขั้นถัดไปของอัลกอริทึม</p>
+
+  <div class="reasons">
+    <div class="r"><b>QFT</b><small>Quantum Fourier Transform ใช้ CPHASE เป็นหัวใจ</small></div>
+    <div class="r"><b>QPE</b><small>Quantum Phase Estimation = kickback แบบเต็มสูบ</small></div>
+    <div class="r"><b>Grover</b><small>“ทำเครื่องหมาย” คำตอบด้วยการพลิก phase</small></div>
+    <div class="r"><b>Simon / oracle</b><small>อัลกอริทึมกลุ่ม oracle ใช้หลักเดียวกัน</small></div>
+  </div>
+
+  <p>และสไลด์ 83 เพิ่มว่า kickback <b>ไม่ได้จำกัดอยู่แค่ CPHASE</b> — <em>conditional operation ใดๆ
+  ที่ทำให้เกิดการเปลี่ยน phase</em> ก็ให้ผลแบบนี้ได้หมด</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">⑤ ข้อความไหน<b>ผิด</b>เกี่ยวกับ phase kickback?</div>
+    <button class="opt">ต้องตั้ง register 2 เป็น |1⟩ ก่อน</button>
+    <button class="opt">phase ไปปรากฏบน register 1</button>
+    <button class="opt">ทำให้สอง register พัวพันกัน</button>
+    <button class="opt">ใช้เป็นฐานของ QFT กับ Grover</button>
+    <div class="fb ok" data-for="ok">ถูกต้องค่ะ! ข้อนี้คือข้อที่ผิด — สไลด์ 79–80 ย้ำชัดว่า
+      <b>No Entanglement Is Created</b> สถานะยัง separable (เขียนเป็น tensor product ได้)
+      เป็นตัวอย่างค้านว่า “two-qubit gate ≠ entanglement เสมอไป”</div>
+    <div class="fb no" data-for="no">ข้อที่พี่เลือกเป็นเรื่องจริงค่ะ · ข้อที่ <b>ผิด</b> คือ
+      “ทำให้สอง register พัวพันกัน” — สไลด์ 79–80 บอกตรงข้ามเลยว่า
+      <b>ไม่เกิด entanglement</b> สถานะยังแยกกันได้ (separable)</div>
+  </div>
+
+  <h2>10. ลองรันเองบน QCEngine</h2>
+
+  <p>เปิด <a href="https://oreilly-qc.github.io/">oreilly-qc.github.io</a> แล้ววางโค้ดข้างบน
+  (หรือเปิดตัวอย่างบทที่ 3 ของหนังสือ) ลองสามอย่างนี้ดูค่ะ แล้วดู circle notation ที่มันวาดให้:</p>
+  <ol>
+    <li>รันตามโค้ดเดิม → ควรเห็น register 1 มีเข็มเอียง 0°/45°/90°/135°</li>
+    <li>เปลี่ยนเป็น <code class="code">reg2.write(0)</code> → เข็มควรตั้งตรงหมด (ตรงกับ quiz ③)</li>
+    <li>เปลี่ยนมุมเป็น <code class="code">qc.phase(180, 0x4, 0x1)</code> → ดูว่า |1⟩ กับ |3⟩ กลับหัว</li>
+  </ol>
+
+  <details class="recall">
+    <summary>🧠 ทดสอบความจำก่อนปิดหน้า (เปิดดูเฉลยทีหลัง)</summary>
+    <ol>
+      <li><b>วาดจากความจำ</b>: สัญลักษณ์ CPHASE(θ) และสัญลักษณ์ CZ — ต่างจาก CNOT ตรงไหน?</li>
+      <li>ทะเบียน 4 qubit (16 วง) ทำ CPHASE 1 คู่ → กระทบกี่วง? แล้วถ้ามี 3 control ล่ะ?</li>
+      <li>อธิบายด้วยคำพูดตัวเองใน 2 ประโยค ว่าทำไม phase ถึง “เด้งกลับ” มาที่ register 1</li>
+      <li>เงื่อนไข 2 ข้อที่ทำให้ phase kickback ทำงานได้คืออะไร?</li>
+      <li>ยกตัวอย่างค้านของประโยค “ใช้ gate สอง qubit = ได้ entanglement”</li>
+    </ol>
+    <p style="margin-bottom:0;"><b>เฉลยย่อ:</b> ① CPHASE = φ—φ, CZ = ●—● (สมมาตรทั้งคู่) ส่วน CNOT = ●—⊕ (ไม่สมมาตร)
+    ② 1 คู่ → 16/4 = 4 วง · 3 control → 1/2⁴ = 1 วง
+    ③ เพราะ CPHASE สมมาตร มันหมุน “สถานะร่วมที่ทั้งคู่เป็น 1” และ reg2 เป็น 1 ตลอด เงื่อนไขจึงเหลือแค่ reg1
+    ④ reg2 ต้องเป็น |1⟩ และต้องไม่อยู่ใน superposition
+    ⑤ phase kickback นี่แหละ — ใช้ CPHASE แต่ไม่เกิด entanglement</p>
+  </details>
+
+  <h2>11. สรุปก่อนไปบทหน้า</h2>
+  <ul>
+    <li><b>CPHASE(θ)</b> หมุน phase เฉพาะ |11⟩ · <b>สมมาตร</b> ไม่มี control/target · สัญลักษณ์ φ—φ</li>
+    <li><b>เงื่อนไข = ตัวกรอง</b> → k control กระทบ <b>1/2<sup>k+1</sup></b> ของทุกวง</li>
+    <li><b>CZ = CPHASE(180°)</b> = พลิกเครื่องหมาย |11⟩ · <b>●—●</b> · = H → CNOT → H (คู่ขนานกับ Z = H→X→H)</li>
+    <li><b>Phase kickback</b>: หมุน reg2 โดยมีเงื่อนไขจาก reg1 → phase ไปโผล่ที่ reg1
+      (ต้องมี reg2 = |1⟩ และไม่ superposition)</li>
+    <li>kickback <b>ไม่สร้าง entanglement</b> — แต่เป็นฐานของ QFT / QPE / Grover</li>
+  </ul>
+
+  <div class="box why">
+    <span class="tag">บทหน้า (0011)</span>
+    <p style="margin-bottom:0;">บทนี้เราเพิ่มเงื่อนไขให้ PHASE บทหน้าจะเพิ่มเงื่อนไขให้ NOT บ้าง →
+    <b>CCNOT (Toffoli)</b> ที่มี 2 control แล้วต่อด้วย <b>SWAP</b> กับ <b>CSWAP</b>
+    ปิดท้ายด้วย <b>SWAP test</b> — เทคนิคเทียบว่าสองสถานะเหมือนกันแค่ไหนโดยไม่ต้องอ่านมันค่ะ</p>
+  </div>
+
+  <div class="footer">
+    <p><span class="pill">อ่านต่อจากแหล่งต้นทาง</span>
+    <a href="https://oreilly-qc.github.io/">Programming Quantum Computers — ตัวอย่างโค้ดบท 3 (O'Reilly, ตำราของวิชา)</a>
+    — ตัวอย่าง <em>3-3 (phase kickback)</em> คือโค้ดชุดเดียวกับในสไลด์เป๊ะๆ</p>
+    <p><span class="pill">อ้างอิงในคอร์ส</span> <code class="code">slides/QuantumProg_Lec03.pdf</code> หน้า 63–84</p>
+    <p><span class="pill">เอกสารอ้างอิง</span>
+      <a href="../../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../../reference/glossary.html">อภิธานศัพท์</a></p>
+    <p><span class="pill">บทก่อนหน้า</span>
+      <a href="0009-cnot-and-entanglement.html">บท 0009 — CNOT กับ entanglement</a> ·
+      <a href="0006-qrng-phase-rotations.html">บท 0006 — PHASE และการหมุน</a></p>
+
+    <div class="ask">
+      <p style="margin-bottom:0;"><b>ถามคาโฮะได้ตลอดนะคะ 🙋‍♀️</b> บทนี้มีจุดที่สไลด์เขียนผิดเรื่องสัญลักษณ์ CZ
+      (หัวข้อ 2) — ถ้าอยากให้หนูอธิบายเพิ่มว่าทำไม ●—● ถึงเป็นของถูก หรืออยากได้โจทย์ซ้อม
+      “นับวงที่โดนกระทบ” เพิ่ม บอกได้เลยค่ะ</p>
+    </div>
+  </div>
+
+</div>
+</html>

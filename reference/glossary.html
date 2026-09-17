@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Glossary — Quantum Programming</title>
 <link rel="stylesheet" href="../assets/style.css">
 <div class="wrap">
@@ -788,9 +789,184 @@
   <p>“the NAND gates in Figure <b>an</b> have any number of inputs” ที่ถูกคือ
   <b>“can have”</b> · ความหมายไม่เปลี่ยน: NAND มีขาเข้ากี่ขาก็ได้</p>
 
+  <h2>บท 0023 — flip + mirror (Lec 06 หน้า 2–10)</h2>
+
+  <h3>quantum primitive (ท่าพื้นฐานของ QPU)</h3>
+  <p>ท่าสำเร็จรูปที่<b>จัดรูป superposition ให้ READ ได้คำตอบอย่างเชื่อถือได้</b> ·
+  มีหลายตัว เหมาะกับโจทย์คนละแบบ · ตัวแรกที่เรียนคือ amplitude amplification (p2)</p>
+
+  <h3>amplitude amplification (AA — การขยายแอมพลิจูด)</h3>
+  <p>แปลง<b>ความต่างของเฟส (READ ไม่เห็น) → ความต่างของ magnitude (READ เห็น)</b> และย้อนกลับได้ ·
+  ชื่อที่ตรงกว่าคือ “magnitude amplification” แต่วงการใช้ชื่อนี้จนเป็นมาตรฐาน (p3)</p>
+
+  <h3>marked value (ค่าที่ถูกทำเครื่องหมาย)</h3>
+  <p>ค่าที่โดนพลิกเฟส 180° ต่างจากค่าอื่น · READ ตรงๆ แยกไม่ออก (ทุกค่า 6.25% เท่ากันใน 4 qubit)
+  และ READ ยังทำลายเฟสทิ้ง (p4–5)</p>
+
+  <h3>flip</h3>
+  <p>ทำเครื่องหมายค่า n ด้วยเฟส 180°: <code>reg.not(~n); reg.cphase(180); reg.not(~n)</code>
+  · ⊕ ตกที่บิตที่เป็น 0 ของ n → CZ คร่อมทุกสาย → ⊕ คืน · <b>เปลี่ยนตามค่าที่ mark</b> (p6–7)</p>
+
+  <h3>mirror</h3>
+  <p><code>reg.Grover()</code> = H → ⊕ → CZ → ⊕ → H ทุกสาย · <b>หน้าตาเดิมทุกโจทย์</b> ·
+  หลัง flip + mirror 1 รอบ (4 qubit): marked <b>6.25% → ≈47.3%</b> ค่าอื่น ≈3.5% ·
+  เฟสทุกวงเท่ากันหมด (ความต่างย้ายไปอยู่ที่ขนาด) (p8–9)</p>
+
+  <h3>Grover iteration · Grover's algorithm</h3>
+  <p>สไลด์ p10: <b>mirror = Grover iteration</b> (ตอบตามนี้ตอนสอบ) · Grover's algorithm =
+  อัลกอริทึม<b>ค้นข้อมูลแบบไม่มีโครงสร้าง (unstructured database search)</b> ที่ใช้ flip-mirror เป็นตัวแรก ·
+  AA คือรุ่นขยาย (generalization) ของมัน · ⚠️ ตำราทั่วไปมักเรียก flip+mirror รวมกันว่า Grover iteration
+  และเรียก mirror ว่า diffusion operator</p>
+
+  <h2>บท 0024 — วน AA กี่รอบดี? (Lec 06 หน้า 11–19)</h2>
+
+  <h3>AA iteration (รอบของการขยายแอมพลิจูด)</h3>
+  <p><b>flip + mirror</b> 1 ชุด · สไลด์วาดเป็นกรอบมุมมนป้าย “AA” บน-ล่าง (p12) · mirror ซ้ำเฉยๆ โดยไม่ flip
+  = <b>ย้อนกลับ</b>ที่เดิม → ต้อง flip ใหม่ทุกรอบ (p11)</p>
+
+  <h3>phase logic (ลอจิกบนเฟส)</h3>
+  <p>subroutine ที่พลิกเฟสหลายค่าตามตรรกะของโจทย์ ใช้แทน flip ในงานจริง (flip เป็นแค่ตัวอย่างง่ายสุด)
+  · ต่อกับ mirror แล้วยังแปลงเฟส → magnitude ได้เหมือนเดิม (p13)</p>
+
+  <h3>oscillation (การแกว่ง) ของความน่าจะเป็น</h3>
+  <p>วน AA ไปเรื่อยๆ % ของ marked value <b>ขึ้นลงเป็นคลื่นคาดเดาได้</b> (4 qubit คาบ ≈ 6 รอบ) ·
+  6.25 → 47.3 → 90.8 → 96.1 → 58.2% · ร่วงเพราะที่ B₃ marked สวนเฟส → flip ทำให้เฟสตรงกัน → mirror ย้อนทาง (p14–17)
+  · ⚠️ สไลด์ p17 “ยอด 99.9563% ที่รอบ 9 หรือ 15” — จริงๆ รอบ 9 = 99.22%</p>
+
+  <h3>N<sub>AA</sub> (จำนวนรอบ AA ที่ดีที่สุด, mark 1 ค่า)</h3>
+  <p><b>N<sub>AA</sub> = ⌊π√(2ⁿ)/4⌋</b> (n = จำนวน qubit, ปัดลง) = ยอดของลูกคลื่นแรก · n=4 → 3 · n=6 → 6 ·
+  กลยุทธ์ p18: หยุดยอดแรก ถ้าพลาดรันใหม่ → 2 ครั้งสำเร็จ 99.848% ใช้ ≤ 6 รอบ (p18–19)</p>
+
+  <h3><code>reg.peekProbability(n)</code></h3>
+  <p>แอบดู % ของค่า n โดยไม่ READ — ทำได้เฉพาะบน simulator (p14)</p>
+
+  <h2>บท 0025 — mark หลายค่า และ AA เอาไปใช้ทำอะไร (Lec 06 หน้า 20–34)</h2>
+
+  <h3>multiple flipped entries (mark หลายค่า) · m</h3>
+  <p>ลิสต์ <code>n2f</code> → flip ทีละค่า แล้ว <code>Grover()</code> ครั้งเดียวต่อรอบ · m = จำนวนค่าที่ mark ·
+  สำเร็จ = READ ได้ค่าใดค่าหนึ่งในกลุ่ม · <b>ความถี่คลื่นขึ้นกับจำนวน m ไม่ใช่ค่าไหน</b>
+  (คาบ m=1,2,3,4 ≈ 6.2 / 4.3 / 3.5 / 3) · ⚠️ แกน x=0 ของกราฟสไลด์ = หลัง AA 1 รอบ (p20–25)</p>
+
+  <h3>กรณีพิเศษ m = N/4 · m = N/2 · m &gt; N/2</h3>
+  <p><b>m = 4/16</b> → รอบแรก 100% แล้ว 25, 25, 100… (คาบ 3) ·
+  <b>m = 8/16</b> → 50% ตลอดกาล เพราะมีแต่ relative phase: mark ครึ่งนี้ ≡ mark อีกครึ่ง ·
+  <b>m &gt; N/2</b> สมมาตร เช่น 12/16 = 4/16 แค่สลับ success/failure (p24–29)</p>
+
+  <h3>N<sub>AA</sub> แบบหลาย marked</h3>
+  <p><b>N<sub>AA</sub> = ⌊(π/4)√(2ⁿ/m)⌋</b> · n=4: m=2 → 2 · m=4 → 1 · n=6, m=4 → 3 · ใช้ได้ต่อเมื่อรู้ m (p30–31)</p>
+
+  <h3>Quantum Sum Estimation (การประมาณผลรวมเชิงควอนตัม)</h3>
+  <p><b>AA + QFT</b>: AA ทำให้แกว่งด้วยความถี่ที่ขึ้นกับ m · QFT อ่านความถี่ได้ → READ ได้ว่า<b>มีกี่ค่า</b>ที่ถูก mark (p32–33)</p>
+
+  <h3>quadratic speedup (เร่งแบบกำลังสอง)</h3>
+  <p>AA เป็น subroutine ของโจทย์ที่ตรวจคำตอบซ้ำๆ — <b>boolean satisfiability</b>, <b>global / local minima</b> ·
+  คลาสสิก ~N ครั้ง vs AA ~(π/4)√N รอบ · <b>flip = ตัวตรวจคำตอบ (เปลี่ยนตามโจทย์) · mirror = คงที่</b> (p34)</p>
+
+  <h2>บท 0026 — ข้างใน mirror: สะท้อนรอบค่าเฉลี่ย (Lec 06 หน้า 35–45)</h2>
+
+  <h3>reflect about the average (สะท้อนรอบค่าเฉลี่ย)</h3>
+  <p>มองแต่ละวงเป็นจุด <b>[x, y] = [−mag·sinθ, mag·cosθ]</b> · ① เฉลี่ย x, y ทุกวง (<b>วงว่างนับเป็น [0, 0]</b>)
+  ② ค่าใหม่ = <b>2 × avg − ค่าเดิม</b> · ค่าเฉลี่ยไม่ขยับ → <b>mirror เป็น inverse ของตัวเอง</b> (p37–41) ·
+  ตัวอย่าง 0.707|0⟩ + 0.707e<sup>i120°</sup>|3⟩ → avg [−0.153, 0.088] → mag 0.612 / 0.353 / 0.353 / 0.612 ·
+  ⚠️ ชื่อรูป “Flipping about the average” = งานของ <b>mirror</b> ไม่ใช่ขั้น flip</p>
+
+  <h3>oddball phase · slingshot (เหวี่ยงแบบหนังสติ๊ก)</h3>
+  <p>ค่าส่วนใหญ่ดึง avg เข้าหาตัว · oddball (ต่าง 180°) อยู่ไกล avg → สะท้อนแล้วถูกเหวี่ยงไปไกล ·
+  0.5,0.5,0.5,−0.5 → avg <b>[0, 0.25]</b> (⚠️ สไลด์ p42 เขียนผิดเป็น [0.25, 0]) → 0, 0, 0, <b>1.0</b> (p42–43) ·
+  16 วง mark 1: avg 0.21875 → marked 0.6875 = <b>47.3%</b> · m = N/2 → avg = 0 → ไม่ขยับ</p>
+
+  <h3>mirror + flip all phases (เคล็ด implement)</h3>
+  <p>วงจรจริงทำ <b>สะท้อน + พลิกเฟสทุกวง</b> (ได้ ค่าเดิม − 2×avg) ง่ายกว่า · ผลวัดเหมือนกันเพราะวัดได้แต่ <b>relative phase</b> (p44)</p>
+
+  <h2>บท 0027 — QFT: อ่านความถี่ที่ซ่อนอยู่ในเฟส (Lec 07 หน้า 1–7, 13–16)</h2>
+
+  <h3>QFT (Quantum Fourier Transform, การแปลงฟูเรียร์เชิงควอนตัม)</h3>
+  <p>primitive ที่เข้าถึง<b>รูปแบบ</b>ที่ซ่อนใน relative phase/magnitude ของ register (p2) · state ที่เข็มหมุนเป็นจังหวะ
+  magnitude เท่ากันหมด → READ สุ่ม · ใส่ QFT ก่อน READ → ได้ค่าเดียวแน่นอน · AA ดึง “ค่าเฉพาะ” · QFT ดึง “รูปแบบ” ·
+  QCEngine: <code>qc.QFT()</code> (รับชุด qubit) / <code>qint.QFT()</code> (ทั้ง qint)</p>
+
+  <h3>signal frequency (ความถี่สัญญาณ)</h3>
+  <p>จำนวนรอบที่เข็มเฟส<b>หมุนครบ</b>ไล่จาก |0⟩ ถึง |2ⁿ−1⟩ = ค่าที่ READ ได้หลัง QFT (p6, p13) ·
+  <b>คาบ</b> = กี่วงต่อรอบ · <b>คาบ × ความถี่ = 2ⁿ</b> · มุมต่อวง = ความถี่ × 360° ÷ 2ⁿ ·
+  4 qubit: เพิ่มทีละ 180°/90°/45° → ความถี่ 8/4/2 (⚠️ ไม่ใช่คาบ 2/4/8)</p>
+
+  <h3>transform · in-place</h3>
+  <p>QFT เขียนผลลง<b>register เดิม</b> ไม่ต้องมี output register แยก เพราะวงจร <b>reversible ในตัว</b> → จึงเรียกว่า transform (p16)</p>
+
+  <h2>บท 0028 — DFT ญาติฝั่งคลาสสิก: peak สะท้อน (Lec 07 หน้า 8–12, 22–31)</h2>
+
+  <h3>DFT (Discrete Fourier Transform) · FFT (Fast Fourier Transform)</h3>
+  <p><b>DFT</b> = การแปลงคลาสสิก ดึงความถี่ออกจาก sample ไม่ต่อเนื่อง (รับจำนวนเชิงซ้อนได้) · <b>FFT</b> = อัลกอริทึมคำนวณ DFT
+  ที่เร็วที่สุดที่รู้จัก ผลเหมือนกันเป๊ะ = <b>คู่แข่งของ QFT</b> · <b>QFT</b> = DFT บนสัญญาณใน quantum register · ความยาวต้องเป็นกำลัง 2 (p9–12)</p>
+
+  <h3>frequency space (ปริภูมิความถี่)</h3>
+  <p>โลกหลังแปลง: ช่อง j = ความถี่ j · <b>magnitude</b> = ความถี่นั้นแรงแค่ไหน · <b>phase</b> = offset (p25, p27) ·
+  peak มี<b>ความกว้าง</b>ได้ (ค่าเล็กๆ รั่วไปช่องข้างๆ) ทั้ง DFT และ QFT</p>
+
+  <h3>mirror-image peak (peak สะท้อน) · real vs complex signal</h3>
+  <p>สัญญาณ<b>จริง</b> (เข็มชี้ได้แค่ + / −) → peak คู่ที่ <b>f กับ N − f</b> ใช้ได้แค่ครึ่งแรก ·
+  สัญญาณ<b>เชิงซ้อน</b> (เข็มหมุนวน) → peak เดียว · หมุนตามเข็ม f รอบ → peak ที่ N − f ·
+  QFT: เข้ารหัสใน<b>เฟส</b> → peak เดียว · ใน <b>magnitude</b> → peak คู่ (Figure 7-13: |1⟩ &amp; |15⟩) (p28–31)</p>
+
+  <h3>pure tone (เสียงบริสุทธิ์)</h3>
+  <p>สัญญาณ sine ความถี่เดียว (p23)</p>
+
+  <h2>บท 0028b — ฮาร์มอนิก และ square wave ใน QPU (Lec 07 หน้า 17–21, 32–39)</h2>
+
+  <h3>DC bias (ค่าเส้นฐาน)</h3>
+  <p>ค่า DFT/QFT ที่<b>ความถี่ 0</b> = baseline ที่สัญญาณแกว่งรอบๆ · สัญญาณที่แกว่งรอบศูนย์ไม่มี DC bias · เช็คช่อง 0 เสมอ (p34)</p>
+
+  <h3>square wave (คลื่นสี่เหลี่ยม) · harmonic (ฮาร์มอนิก) · fundamental</h3>
+  <p><b>square wave</b> = สัญญาณกระโดด +1/−1 เป็นเหลี่ยม · DFT ได้ peak ที่<b>ฮาร์มอนิกคี่</b> f, 3f, 5f, … สูง 1, ⅓, ⅕ (ความน่าจะเป็นตอน READ ≈ 1, 1/9, 1/25) ·
+  <b>fundamental</b> = ความถี่หลัก f · ใน QPU สร้างด้วย <code>had()</code> + <code>phase(180, mask)</code> → mask p = พลิกทุก p ค่า → ความถี่ 2ⁿ/(2p) (p17–21, p35–39)</p>
+
+  <h3>qubyte</h3>
+  <p>register 8 qubit = 256 ค่า (p36)</p>
+
+  <h2>บท 0029 — QFT เร็ว แต่ใช้ยังไง → invQFT (Lec 07 หน้า 40–53)</h2>
+
+  <h3>computational complexity (ความซับซ้อนเชิงคำนวณ) · Big-O</h3>
+  <p>จำนวน operation โตแค่ไหนเมื่อ input มีบิตมากขึ้น (ไม่ใช่เวลาเป็นวินาที) · <b>FFT O(n·2ⁿ)</b> vs <b>QFT O(m²)</b> ·
+  กราฟ runtime ตัดกันราว <b>22 บิต (~4 ล้าน sample)</b> เพราะ Big-O ตัดค่าคงที่ทิ้ง (p41–42)</p>
+
+  <h3>phase manipulation primitive (ตัวดำเนินการพื้นฐานสำหรับจัดการเฟส)</h3>
+  <p>บทบาทจริงของ QFT · ใช้แทน FFT ไม่ได้เพราะ ① <b>ใส่สัญญาณเข้า register ยาก</b> ② <b>READ ได้ความถี่เดียวแบบสุ่ม</b> ·
+  ยังใช้ได้ถ้ายอมรับคำตอบไหนก็ได้ในกลุ่ม หรือ <b>verify</b> ได้แล้วรันซ้ำ → Shor (Lec 12) (p43–47)</p>
+
+  <h3>invQFT (inverse QFT, QFT ผกผัน)</h3>
+  <p>รับ register ที่แทน <b>frequency space</b> → คืน<b>สัญญาณ</b> · <code>qin.write(3); qin.invQFT()</code> → เฟสเพิ่มวงละ 3×22.5° = 3 รอบ ·
+  วงจร = QFT เรียงกลับหลัง: <b>มุม CPHASE บวก</b> (QFT = ลบ) · สไลด์ p49–53 วาด SWAP ไว้ต้น (p48–49, p53)</p>
+
+  <h3>symmetric frequency representation (การแทนความถี่แบบสมมาตร)</h3>
+  <p>เขียนความถี่คู่ f กับ N−f (เช่น |1⟩+|15⟩) ก่อน invQFT → ได้คาบใน <b>magnitude</b> (สัญญาณจริง) ·
+  ความถี่เดียว/ไม่สมมาตร → คาบใน <b>relative phase</b> (p50, p53)</p>
+
+  <h3>แก้ความถี่: QFT → add(1) → invQFT</h3>
+  <p>ย้ายเข้า frequency space · บวก 1 ให้ทุก component · แปลงกลับ → ความถี่สูงขึ้น 1 (p52–53) ·
+  ⚠️ กับสัญญาณจริง |1⟩+|15⟩ +1 ได้ |2⟩+|0⟩ ไม่สมมาตรแล้ว</p>
+
+  <h2>บท 0030 — ข้างในวงจร invQFT (Lec 07 หน้า 54–70)</h2>
+
+  <h3>กฎหมุนของ invQFT · θ = n/2ᴺ × 360°</h3>
+  <p>register N qubit ที่เก็บค่า n → วง |k⟩ ต้องหมุนไป <b>k × θ</b> · ครบรอบทุก 2ᴺ/n วง ·
+  เช่น n = 2, N = 4 → θ = 45° (p57–58) · ⚠️ สไลด์ p59 พิมพ์ n/2 × 360° (ตัวยก N หาย)</p>
+
+  <h3>ทำ operation k ครั้งตามค่าใน register</h3>
+  <p>ทำ op บน qubit ที่ i <b>ซ้ำ 2ⁱ ครั้ง</b> → วง |k⟩ โดนรวม k ครั้งพอดี · เช่น PHASE 20° → |k⟩ ได้ k × 20° (p60–62)</p>
+
+  <h3>subroutine ของ invQFT (4 กล่อง)</h3>
+  <p>กล่อง 1 = H + CPHASE 90/45/22.5 เล็ง 0x8 → ได้ 1×θ · มุม CPHASE = น้ำหนักบิต/2ᴺ × 360° ·
+  <b>H ให้ส่วน 180°</b> ของบิตตัวเอง (H|1⟩ = |0⟩ − |1⟩) + สร้าง superposition (p63–66)</p>
+
+  <h3>roll left (เลื่อนน้ำหนักซ้าย)</h3>
+  <p>subroutine ถัดไปใช้มุม<b>เป็น 2 เท่า</b>ต่อบิต (0x2: 45° → 90°) → 0x4 ได้ 2θ · 0x2 ได้ 4θ · 0x1 ได้ 8θ ·
+  ผลจึง<b>กลับหัว</b> → ต้อง <b>SWAP ท้าย</b> 0x1↔0x8, 0x2↔0x4 (p67–68)</p>
+
+  <h3>AA vs QFT (สรุป Lec 07)</h3>
+  <p>AA ดึง<b>ค่าเฉพาะ (discrete values)</b> · QFT ดึง<b>รูปแบบ (patterns)</b> · QFT เป็นแกนของ Shor (Lec 12) (p69)</p>
+
   <h2>คำที่จะเจอในบทถัดไป (Lec 05–09, ยังไม่ต้องจำ)</h2>
-  <p class="src">amplitude amplification (Lec 06) ·
-  Quantum Fourier Transform (Lec 07) · phase estimation (Lec 08) · quantum data types (Lec 09)
+  <p class="src">Quantum Fourier Transform (Lec 07) · phase estimation (Lec 08) · quantum data types (Lec 09)
   — จะเพิ่มนิยามเต็มเมื่อถึงบทนั้นๆ</p>
 
   <div class="footer">

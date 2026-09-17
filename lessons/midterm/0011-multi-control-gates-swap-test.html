@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="th">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บทที่ 0011 — CCNOT, SWAP, CSWAP และ SWAP test</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/lesson-bits.css">
+<script defer src="../../assets/quiz.js"></script>
+<script defer src="../../assets/circuit.js"></script>
+<script defer src="../../assets/circles.js"></script>
+
+<div class="wrap">
+  <p class="kicker">Quantum Programming · Lec 03 · บทที่ 0011</p>
+  <h1>เพิ่มเงื่อนไขให้ NOT: CCNOT, SWAP, CSWAP และ SWAP test</h1>
+  <p class="lead">บทที่แล้วเราเพิ่ม “เงื่อนไข” ให้ PHASE จนได้ CPHASE/CZ บทนี้เอาแนวคิดเดิม
+  ไปเพิ่มเงื่อนไขให้ <b>NOT</b> บ้าง → ได้ <b>CCNOT (Toffoli)</b> แล้วต่อยอดเป็น
+  <b>SWAP / CSWAP</b> และปิดท้ายด้วยของเจ๋งเชิงอัลกอริทึม — <b>SWAP test</b>
+  ที่เทียบว่าสองสถานะเหมือนกันแค่ไหน โดยไม่ต้องอ่านทำลายมัน</p>
+
+  <div class="box why">
+    <span class="tag">บทนี้จับ 4 อย่าง</span>
+    <p style="margin-bottom:0;">① <b>CCNOT</b> = NOT ที่มี 2 เงื่อนไข (“ถ้า A และ B ค่อยพลิก C”) ·
+    ② <b>SWAP</b> = สลับสอง qubit (= 3 CNOT) · ③ <b>CSWAP</b> = SWAP แบบมีเงื่อนไข (= 3 CCNOT) ·
+    ④ <b>SWAP test</b> = เอา CSWAP มาเทียบความเหมือนของสองสถานะแบบไม่ทำลาย</p>
+  </div>
+
+  <!-- ===================== PART 1 ===================== -->
+  <div class="part">
+    <div class="n">ส่วนที่ 1 · gate หลาย control</div>
+    <h2>CCNOT · SWAP · CSWAP</h2>
+  </div>
+
+  <h2>1. CCNOT (Toffoli) — NOT ที่มีสองเงื่อนไข</h2>
+  <p>จำกฎจากบท <a href="0010-cphase-cz-phase-kickback.html">0010</a> ได้ไหมคะ — “ทุกครั้งที่เพิ่ม
+  control หนึ่งตัว จำนวนสิ่งที่ถูกกระทบจะเหลือ <b>ครึ่งเดียว</b>”. CNOT คือ NOT ที่มี 1 เงื่อนไข
+  ถ้าเติมอีกเงื่อนไขเข้าไปก็ได้ <b>CCNOT</b> — พลิก target ก็ต่อเมื่อ control <b>ทั้งสองตัว</b>
+  เป็น |1⟩ พร้อมกัน</p>
+
+  <div class="box aha">
+    <span class="tag">ประโยคทองจากสไลด์ (หน้า 87)</span>
+    <p style="margin-bottom:0;">CCNOT ตีความได้ว่า “<b>if A AND B then flip C</b>” — สำหรับงาน logic พื้นฐาน
+    CCNOT ถือเป็น QPU operation ที่มีประโยชน์ที่สุดตัวเดียว เพราะเอามาต่อกันสร้าง logic function
+    อะไรก็ได้ (universal สำหรับ logic)</p>
+  </div>
+
+  <div class="circuit-syms">
+    <div class="sy">
+      <div class="circuit" data-wires="3" data-wire-labels="0x1,0x2,0x4" data-init="0,0,0"
+           data-ops="X:0"></div>
+      <div class="cap"><b>NOT</b> บน 0x1<br>0 เงื่อนไข → กระทบ <b>4 คู่</b></div>
+    </div>
+    <div class="sy">
+      <div class="circuit" data-wires="3" data-wire-labels="0x1,0x2,0x4" data-init="0,0,0"
+           data-ops="CNOT:1,0"></div>
+      <div class="cap"><b>CNOT</b> (control 0x2)<br>1 เงื่อนไข → กระทบ <b>2 คู่</b></div>
+    </div>
+    <div class="sy">
+      <div class="circuit" data-wires="3" data-wire-labels="0x1,0x2,0x4" data-init="0,0,0"
+           data-ops="CCNOT:1,2,0"></div>
+      <div class="cap"><b>CCNOT</b> (control 0x2,0x4)<br>2 เงื่อนไข → กระทบ <b>1 คู่</b></div>
+    </div>
+  </div>
+
+  <p>ดูใน circle notation ของทะเบียน 3 qubit (8 วง) จะเห็นชัดว่าเงื่อนไขทำหน้าที่ “กรอง” ว่าจะพลิก
+  วงคู่ไหนบ้าง — ทั้งสามอันข้างบนคือ NOT ที่พลิกบิต 0x1 เหมือนกัน ต่างกันแค่เงื่อนไข:</p>
+
+  <table class="cmp">
+    <tr><th>operation</th><th>เงื่อนไข</th><th>คู่วงที่สลับ (บิต 0x1)</th><th>จำนวนคู่</th></tr>
+    <tr><td>NOT บน 0x1</td><td>ไม่มี</td><td>(0,1)·(2,3)·(4,5)·(6,7)</td><td>4</td></tr>
+    <tr><td>CNOT (0x2→0x1)</td><td>0x2 = 1</td><td>(2,3)·(6,7)</td><td>2</td></tr>
+    <tr><td>CCNOT (0x2,0x4→0x1)</td><td>0x2 = 1 <b>และ</b> 0x4 = 1</td><td>(6,7)</td><td>1</td></tr>
+  </table>
+  <p style="font-size:.9rem;color:var(--ink-soft);">เช็คเอง: |6⟩ = 110₂ (0x2=1, 0x4=1 ✓) และ |7⟩ = 111₂
+  ต่างกันแค่บิต 0x1 → นี่คือคู่เดียวที่ CCNOT สลับ</p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">① ในทะเบียน 3 qubit เดิม ถ้าใช้ CCNOT ที่มี control = 0x1 กับ 0x2 และ target = 0x4
+      (คือ “ถ้า 0x1=1 และ 0x2=1 ค่อยพลิก 0x4”) — คู่วงไหนที่ถูกสลับ? (ไล่เลขฐานสองเองก่อนตอบ)</div>
+    <button class="opt">คู่ |1⟩ กับวง |3⟩ เพราะสองวงนี้บิตครบ</button>
+    <button class="opt">คู่ |3⟩ กับวง |7⟩ เพราะต่างที่บิต 0x4</button>
+    <button class="opt">คู่ |6⟩ กับวง |7⟩ เพราะต่างที่บิต 0x1</button>
+    <button class="opt">คู่ |4⟩ กับวง |5⟩ เพราะต่างที่บิต 0x1</button>
+    <div class="fb ok" data-for="ok">ใช่ค่ะ! เงื่อนไข 0x1=1 และ 0x2=1 เป็นจริงที่ |3⟩=011 และ |7⟩=111
+    (ทั้งคู่มีบิต 0x1,0x2 ครบ) ต่างกันแค่บิต 0x4 → CCNOT สลับคู่ (3,7) พอดี</div>
+    <div class="fb no" data-for="no">ลองใหม่: หาวงที่ 0x1=1 และ 0x2=1 ก่อน (ได้ |3⟩=011 และ |7⟩=111)
+    แล้วดูว่าการพลิกบิต target 0x4 ทำให้ |3⟩↔|7⟩ → คำตอบคือคู่ (3,7)</div>
+  </div>
+
+  <h2>2. SWAP — สลับสอง qubit</h2>
+  <p>SWAP (หรือ <em>exchange</em>) แค่สลับที่กันของสอง qubit ตรงๆ. ถ้าฮาร์ดแวร์ทำได้ มันอาจย้าย
+  วัตถุจริงสลับตำแหน่งเลยก็ได้ แต่ถ้าไม่ได้ ก็ทำ SWAP โดย “แลกข้อมูล” ผ่าน <b>3 CNOT</b> สลับหัวท้าย
+  ได้เหมือนกัน (สัญลักษณ์ ×—×)</p>
+
+  <div class="circuit-syms">
+    <div class="sy">
+      <div class="circuit" data-wires="2" data-wire-labels="a,b" data-init="0,0"
+           data-ops="SWAP:0,1"></div>
+      <div class="cap"><b>SWAP</b> = ×—×</div>
+    </div>
+    <div class="sy">
+      <div class="circuit" data-wires="2" data-wire-labels="a,b" data-init="0,0"
+           data-ops="CNOT:0,1; CNOT:1,0; CNOT:0,1"></div>
+      <div class="cap">= 3 CNOT (สลับหัว-ท้าย-หัว)</div>
+    </div>
+  </div>
+
+  <div class="analogy">เทียบง่ายๆ: จะสลับน้ำสองแก้ว โดยไม่มีแก้วที่สาม — เทไป-เทกลับสามจังหวะก็สลับได้
+  นี่คือสิ่งที่ 3 CNOT ทำกับข้อมูลใน qubit</div>
+
+  <p>“ทำไมไม่แค่เปลี่ยนชื่อ qubit เอาล่ะ?” — คำถามนี้ถูกต้องถ้า SWAP อยู่เดี่ยวๆ. แต่ SWAP
+  จะมีความหมายจริงตอนเราทำให้มัน <b>มีเงื่อนไข</b> → CSWAP</p>
+
+  <h2>3. CSWAP — SWAP แบบมีเงื่อนไข</h2>
+  <p>CSWAP (conditional exchange) = เติม control ให้ SWAP: “ถ้า control = |1⟩ ค่อยสลับสอง qubit”.
+  สร้างได้จาก <b>3 CCNOT</b> (คือเอา SWAP = 3 CNOT มาเติมเงื่อนไขให้ทุกตัว) สัญลักษณ์คือจุด control ●
+  เชื่อมกับ ×—×</p>
+
+  <div class="circuit-syms">
+    <div class="sy">
+      <div class="circuit" data-wires="3" data-wire-labels="0x1,0x2,0x4" data-init="0,0,1"
+           data-ops="CSWAP:2,0,1"></div>
+      <div class="cap"><b>CSWAP</b> (control 0x4 สลับ 0x1,0x2)</div>
+    </div>
+    <div class="sy">
+      <div class="circuit" data-wires="3" data-wire-labels="0x1,0x2,0x4" data-init="0,0,1"
+           data-ops="CCNOT:0,2,1; CCNOT:1,2,0; CCNOT:0,2,1"></div>
+      <div class="cap">= 3 CCNOT (control กลางกลายเป็นสองจุด)</div>
+    </div>
+  </div>
+
+  <div class="box aha">
+    <span class="tag">จุดพีคของ CSWAP (สไลด์หน้า 91)</span>
+    <p style="margin-bottom:0;">ถ้า control อยู่ใน <b>superposition</b> เราจะได้ผลเป็น superposition ของ
+    “สลับแล้ว” กับ “ยังไม่สลับ” <b>พร้อมกัน</b> — พฤติกรรมนี้แหละที่ทำให้ SWAP test ในส่วนถัดไปทำงานได้</p>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">② ข้อไหน<b>ผิด</b>เกี่ยวกับ SWAP / CSWAP?</div>
+    <button class="opt">SWAP หนึ่งตัวประกอบขึ้นจาก CNOT สามตัวได้</button>
+    <button class="opt">CSWAP หนึ่งตัวประกอบขึ้นจาก CCNOT สามตัว</button>
+    <button class="opt">SWAP เดี่ยวๆ สร้าง entanglement จากสถานะฐาน</button>
+    <button class="opt">CSWAP ที่ control superposition ให้ผลซ้อนสองแบบ</button>
+    <div class="fb ok" data-for="ok">ถูกต้อง — อันนี้คือข้อที่ผิด. SWAP แค่สลับที่ของสอง qubit
+    ถ้าเริ่มจากสถานะฐาน (เช่น |01⟩) ผลก็ยังเป็นสถานะฐาน (|10⟩) ไม่พัวพันกัน. entanglement
+    ต้องอาศัย superposition ที่ control (เหมือน CNOT ในบท 0009)</div>
+    <div class="fb no" data-for="no">ทวนดูอีกที: SWAP=3CNOT ✓, CSWAP=3CCNOT ✓, control superposition
+    ให้ผลซ้อน ✓. เหลือข้อเดียวที่ผิด — SWAP เดี่ยวๆ บนสถานะฐาน<b>ไม่</b>สร้าง entanglement</div>
+  </div>
+
+  <!-- ===================== PART 2 ===================== -->
+  <div class="part">
+    <div class="n">ส่วนที่ 2 · เอา CSWAP ไปใช้จริง</div>
+    <h2>SWAP test &amp; fidelity</h2>
+  </div>
+
+  <h2>4. ปัญหา: เทียบสองสถานะยังไงไม่ให้พัง</h2>
+  <p>สมมติมีสองทะเบียนที่เราไม่รู้ว่าข้างในเป็นอะไร (อาจเป็น superposition) — อยากรู้แค่ว่า
+  “<b>มันเหมือนกันไหม</b>”. ปัญหาคือ:</p>
+  <ul>
+    <li>READ = การวัดแบบทำลาย → พอวัดปุ๊บ superposition ยุบทันที (บท 0008)</li>
+    <li>เทียบสองสถานะควอนตัมตรงๆ ทำไม่ได้ในกรณีทั่วไป โดยเฉพาะถ้าสถานะไม่รู้/ซ้อนอยู่</li>
+  </ul>
+  <p><b>SWAP test</b> แก้ปัญหานี้ — มันไม่บอกว่าข้างในเป็นอะไร แต่ใช้ CSWAP ทำให้สองสถานะ
+  <b>แทรกสอด (interfere)</b> กัน แล้วอ่านผลจาก qubit ตัวช่วย (ancilla) ตัวเดียว
+  ได้คำตอบเชิงความน่าจะเป็นว่าเหมือนหรือต่าง</p>
+
+  <h2>5. หน้าตาวงจร SWAP test</h2>
+  <p>โครง 5 สเต็ป (สไลด์หน้า 93): เตรียม ancilla เป็น |0⟩ → H → CSWAP (ancilla คุมการสลับ
+  input1/input2) → H → READ ancilla</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="3" data-wire-labels="input1,input2,output(ancilla)"
+         data-init="0,0,0"
+         data-ops="_; _; H:2; CSWAP:2,0,1; H:2; READ:2"
+         data-cap="SWAP test — ancilla (output) เป็น control ของ CSWAP ที่สลับ input1↔input2"></div>
+  </div>
+
+  <div class="box why">
+    <span class="tag">ทำไมมันได้ผล (intuition)</span>
+    <p style="margin-bottom:0;">H ตัวแรกทำให้ ancilla เป็น superposition → CSWAP จึงสร้าง “สองเส้นทาง”
+    พร้อมกัน: เส้นที่<b>สลับ</b> input กับเส้นที่<b>ไม่สลับ</b>. H ตัวที่สองเอาสองเส้นทางมาแทรกสอดกัน —
+    <b>ถ้า input เหมือนกัน</b> สลับแล้วก็หน้าตาเดิม สองเส้นทางเหมือนกันเป๊ะ → แทรกสอดเสริมกัน
+    ให้ ancilla กลับไป |0⟩ แน่นอน. <b>ยิ่ง input ต่างกัน</b> สองเส้นทางยิ่งไม่เหมือน → โอกาสได้ |1⟩ ยิ่งมาก</p>
+  </div>
+
+  <h2>6. อ่านผลยังไง — ⚠️ ระวังจุดที่สไลด์ขัดกันเอง</h2>
+  <p>เวอร์ชัน “5 สเต็ปมาตรฐาน” ข้างบน (และตรงกับตำรา O'Reilly) อ่านผลแบบนี้:</p>
+  <div class="eq">P(อ่าน ancilla ได้ 0) = <span class="frac"><span class="num">1 + |⟨a|b⟩|²</span><span class="den">2</span></span></div>
+  <ul>
+    <li>ancilla = <b>|0⟩</b> → มีโอกาสสูงว่าสองสถานะ <b>เหมือนกัน</b> (ถ้าเหมือนเป๊ะ ได้ 0 แน่ 100%)</li>
+    <li>ancilla = <b>|1⟩</b> → สองสถานะ <b>ต่างกัน</b> (เจอ 1 เมื่อไร รู้ทันทีว่าไม่เหมือนเป๊ะ)</li>
+    <li>ต่างกันสุดขั้ว (เช่น |0⟩ กับ |1⟩) → ออกมา <b>50/50</b></li>
+  </ul>
+
+  <div class="box warn">
+    <span class="tag">กับดักข้อสอบ — สไลด์สองหน้าขัดกัน</span>
+    <p>สไลด์หน้า 94 บอกว่า “ancilla = |0⟩ → เหมือน, |1⟩ → ต่าง” (วงจร 5 สเต็ป ตามข้างบน)</p>
+    <p>แต่ <b>โค้ดหน้า 97–99</b> เติมบรรทัด <code class="code">output.not()</code> ต่อท้ายก่อน READ →
+    ผลเลย<b>สลับด้าน</b> กลายเป็น “result = 1 ถ้า input เหมือนกัน”. คอมเมนต์ในโค้ดจึงเขียน
+    <code class="code">// result is 1 if inputs are equal</code></p>
+    <p style="margin-bottom:0;"><b>ทั้งสองไม่ผิด</b> — มันคือวงจรคนละอัน (ต่างกันแค่มี NOT ปิดท้ายไหม).
+    เวลาสอบ <b>ดูให้ดีว่าโจทย์ให้วงจรมี <code class="code">output.not()</code> หรือไม่</b> แล้วค่อยตอบ:
+    มี NOT → 1 = เหมือน · ไม่มี NOT → 0 = เหมือน</p>
+  </div>
+
+  <p>โค้ด QCEngine ตามสไลด์ (มี <code class="code">.not()</code> → 1 = เหมือน) ลองรันดูได้เลยค่ะ:</p>
+  <pre class="code-blk">qc.reset(3);
+var input1 = qint.new(1, 'input1');
+var input2 = qint.new(1, 'input2');
+var output = qint.new(1, 'output');   // ancilla
+input1.write(0);
+input2.write(0);                       // ลองเปลี่ยนเป็น write(1) ดูผลตอน "ต่างกัน"
+output.write(0);
+output.had();                          // H บน ancilla
+input1.exchange(input2, 0x1, output.bits());  // CSWAP: output คุมการสลับ
+output.had();                          // H อีกครั้ง
+output.not();                          // NOT ปิดท้าย → ทำให้ 1 = เหมือน
+var result = output.read();            // result = 1 ถ้า input เหมือนกัน</pre>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">③ ใช้วงจร SWAP test <b>5 สเต็ปมาตรฐาน</b> (ไม่มี <code class="code">output.not()</code>)
+      ถ้า input1 กับ input2 เหมือนกันเป๊ะ — อ่าน ancilla ได้อะไร แน่นอนแค่ไหน?</div>
+    <button class="opt">ได้ค่า 0 เสมอ ด้วยความแน่นอนเต็มร้อย</button>
+    <button class="opt">ได้ค่า 1 เสมอ ด้วยความแน่นอนเต็มร้อย</button>
+    <button class="opt">ได้ 0 หรือ 1 อย่างละครึ่งเท่าๆ กัน</button>
+    <button class="opt">ได้ค่า 0 บ่อยแต่ไม่แน่นอนเต็มที่</button>
+    <div class="fb ok" data-for="ok">ถูกต้อง — เหมือนเป๊ะ ⟨a|b⟩=1 → P(0) = (1+1)/2 = 1
+    สองเส้นทางแทรกสอดเสริมกันเต็มที่ ได้ 0 แน่นอน 100% (นี่คือเวอร์ชัน<b>ไม่มี</b> NOT)</div>
+    <div class="fb no" data-for="no">ระวังconvention: เวอร์ชัน 5 สเต็ป (ไม่มี NOT) ให้ <b>0 = เหมือน</b>.
+    เหมือนเป๊ะ → P(0) = (1+1)/2 = 1 → ได้ 0 แน่นอน. (ถ้ามี <code class="code">.not()</code> ถึงจะกลายเป็น 1)</div>
+  </div>
+
+  <h2>7. Fidelity — เปลี่ยน “เหมือน/ไม่เหมือน” เป็นตัวเลข</h2>
+  <p>ที่จริง SWAP test บอกได้มากกว่าคำตอบใช่/ไม่ใช่ — <b>ความน่าจะเป็น</b>ของผลลัพธ์คือมาตรวัดว่า
+  สองสถานะเหมือนกัน <em>แค่ไหน</em> เรียกว่า <b>fidelity (ความเที่ยงตรง/ความเหมือน)</b></p>
+  <div class="twocol">
+    <div class="c"><b>fidelity = 1</b> สองสถานะเหมือนกันเป๊ะ</div>
+    <div class="c"><b>fidelity = 0</b> ตั้งฉากกัน (ต่างกันสุดขั้ว)</div>
+  </div>
+  <p>เพราะแต่ละรอบเป็นความน่าจะเป็น รอบเดียวไม่พอ — ต้อง <b>รันซ้ำหลายครั้ง</b> แล้วนับสัดส่วนผล
+  ถึงจะประเมิน fidelity ได้แม่น. กราฟสไลด์หน้า 104 บอกว่า <b>ยิ่งอยากมั่นใจว่าเหมือน “เป๊ะ” ยิ่งต้องรันเยอะ</b>
+  (เส้นพุ่งชันมากเมื่อ fidelity เข้าใกล้ 1) — แต่ทางกลับกัน <b>เจอผลที่แปลว่า “ต่าง” แค่ครั้งเดียว
+  ก็ฟันธงได้ทันทีว่าไม่เหมือนเป๊ะ</b></p>
+
+  <div class="box aha">
+    <span class="tag">เอาไปใช้ตรงไหน</span>
+    <p style="margin-bottom:0;">quantum fingerprinting · ตรวจสอบสถานะใน quantum machine learning /
+    quantum communication · เช็คว่า subroutine ทำงานถูก · ตรวจสถานะที่โคลนมา — ทุกงานที่อยาก
+    “เทียบว่าใกล้กันแค่ไหน” โดยไม่ต้องรู้ค่าข้างในจริงๆ</p>
+  </div>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">④ รัน SWAP test (เวอร์ชันมาตรฐาน) แล้วบังเอิญได้ผลที่แปลว่า “ต่าง” มาหนึ่งครั้ง
+      สรุปได้อะไรทันที?</div>
+    <button class="opt">ต้องรันซ้ำอีกมากจึงจะสรุปได้จริง</button>
+    <button class="opt">fidelity ของสองสถานะนี้เท่ากับหนึ่ง</button>
+    <button class="opt">สองสถานะน่าจะเหมือนกันแต่ยังไม่ชัด</button>
+    <button class="opt">สองสถานะไม่เหมือนกันเป๊ะแน่นอนแล้ว</button>
+    <div class="fb ok" data-for="ok">ใช่ค่ะ — ถ้าเหมือนเป๊ะ ผลจะต้องออกฝั่ง “เหมือน” เสมอ 100%
+    ดังนั้นพอโผล่ผล “ต่าง” มาแม้ครั้งเดียว ก็รู้แน่นอนว่าสองสถานะ<b>ไม่</b>เหมือนเป๊ะ (asymmetry ของ SWAP test)</div>
+    <div class="fb no" data-for="no">คิดถึง P(เหมือน)=100% ตอน fidelity=1: ถ้าเหมือนเป๊ะจะ<b>ไม่มีทาง</b>
+    ได้ผล “ต่าง” เลย. ดังนั้นเจอผล “ต่าง” หนึ่งครั้ง = ฟันธงได้ทันทีว่าไม่เหมือนเป๊ะ</div>
+  </div>
+
+  <details class="recall">
+    <summary>🧠 ทดสอบความจำก่อนไปบทหน้า (ลองตอบในใจ/เขียนก่อนกดดู)</summary>
+    <ol>
+      <li>วาดสัญลักษณ์วงจรของ <b>CCNOT</b>, <b>SWAP</b>, และ <b>CSWAP</b> จากความจำ</li>
+      <li>CCNOT บน 3 qubit กระทบกี่คู่วง? แล้ว CNOT / NOT ล่ะ? (คำใบ้: ครึ่งลงเรื่อยๆ)</li>
+      <li>อธิบายด้วยคำพูดตัวเองว่า SWAP test เทียบสองสถานะได้ยังไง โดยไม่ต้องรู้ค่าข้างใน</li>
+      <li>วงจร SWAP test 5 สเต็ป: ancilla = |0⟩ แปลว่าอะไร? แล้วถ้าโค้ดมี
+        <code class="code">output.not()</code> ปิดท้าย ความหมายเปลี่ยนยังไง?</li>
+      <li>fidelity = 1 กับ 0 หมายถึงอะไร? ทำไมต้องรัน SWAP test ซ้ำหลายครั้ง?</li>
+    </ol>
+  </details>
+
+  <h2>8. สรุปก่อนไปบทหน้า</h2>
+  <ul>
+    <li><b>CCNOT (Toffoli)</b> = “ถ้า A และ B ค่อยพลิก C” · ●●⊕ · 2 control → กระทบ 1 คู่ (universal สำหรับ logic)</li>
+    <li><b>SWAP</b> = สลับสอง qubit · ×—× · = 3 CNOT</li>
+    <li><b>CSWAP</b> = SWAP มีเงื่อนไข · ●+×—× · = 3 CCNOT · control superposition → “สลับ+ไม่สลับ” พร้อมกัน</li>
+    <li><b>SWAP test</b>: ancilla→H→CSWAP→H→READ · ใช้ interference เทียบสองสถานะโดยไม่ทำลาย</li>
+    <li>อ่านผล: 5 สเต็ป → <b>0 = เหมือน</b> · ถ้าโค้ดมี <code class="code">.not()</code> → <b>1 = เหมือน</b> (ระวังตอนสอบ!)</li>
+    <li><b>fidelity</b> (0..1) = ความเหมือนเชิงตัวเลข · ต้องรันซ้ำหลายรอบ · เจอผล “ต่าง” ครั้งเดียว = ฟันธงว่าไม่เหมือน</li>
+  </ul>
+
+  <div class="box why">
+    <span class="tag">บทหน้า (0012)</span>
+    <p style="margin-bottom:0;">ปิดท้าย Lec 03 — เราจะเรียนหลักการ <b>สร้าง conditional operation อะไรก็ได้เอง</b>
+    (เช่น ประกอบ CPHASE จาก CNOT + PHASE) แล้วจบด้วย capstone <b>remote-controlled randomness</b>
+    ที่เอา entanglement มาโชว์ว่าทำไมส่งข้อมูลเร็วกว่าแสงไม่ได้ค่ะ</p>
+  </div>
+
+  <div class="footer">
+    <p><span class="pill">อ่านต่อจากแหล่งต้นทาง</span>
+    <a href="https://oreilly-qc.github.io/">Programming Quantum Computers — ตัวอย่างโค้ดบท 3 (O'Reilly, ตำราของวิชา)</a>
+    — ดูตัวอย่าง <em>3-4 (swap test)</em> คือโค้ดชุดเดียวกับในสไลด์</p>
+    <p><span class="pill">อ้างอิงในคอร์ส</span> <code class="code">slides/QuantumProg_Lec03.pdf</code> หน้า 85–104</p>
+    <p><span class="pill">เอกสารอ้างอิง</span>
+      <a href="../../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../../reference/glossary.html">อภิธานศัพท์</a></p>
+    <p><span class="pill">บทก่อนหน้า</span>
+      <a href="0010-cphase-cz-phase-kickback.html">บท 0010 — CPHASE, CZ, phase kickback</a> ·
+      <a href="0009-cnot-and-entanglement.html">บท 0009 — CNOT กับ entanglement</a></p>
+
+    <div class="ask">
+      <p style="margin-bottom:0;"><b>ถามคาโฮะได้ตลอดนะคะ 🙋‍♀️</b> จุดที่คนพลาดบ่อยในบทนี้คือ
+      <b>convention การอ่านผล SWAP test</b> (0 หรือ 1 = เหมือน) ที่สไลด์เขียนไว้สองแบบ —
+      ถ้าอยากให้หนูไล่ทีละสเต็ปว่าทำไม input เหมือนกันถึงได้ ancilla = 0 แน่นอน หรืออยากได้
+      โจทย์ซ้อม “นับคู่วงที่ CCNOT กระทบ” เพิ่ม บอกได้เลยค่ะ</p>
+    </div>
+  </div>
+
+</div>
+</html>

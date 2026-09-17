@@ -68,6 +68,21 @@ table.cmp td b { color:var(--ink); }
 .crow .lab { min-width:5.4rem; font-size:.8rem; font-weight:800; color:var(--accent);
   text-align:right; padding-right:.4rem; align-self:center; }
 
+/* ---------- สะท้อนรอบค่าเฉลี่ย (คู่กับ mirrorplot.js · เพิ่มตอนบท 0026) ---------- */
+.mplot { margin:1rem 0; }
+.mplot .row { display:flex; gap:.5rem; justify-content:center; flex-wrap:wrap; }
+.mplot .c { text-align:center; }
+.mplot .c svg { display:block; margin:0 auto; }
+.mplot .c small { display:block; font-size:.72rem; color:var(--ink-soft); line-height:1.35; }
+.mplot .c.hl small b { color:#9a4f1c; }
+.mplot .lab { text-align:center; font-size:.82rem; font-weight:800; color:var(--accent); margin-bottom:.3rem; }
+.mplot .cap { text-align:center; font-size:.85rem; color:var(--ink-soft); margin-top:.45rem; }
+.mplot .key { text-align:center; font-size:.75rem; color:var(--ink-soft); margin-top:.2rem; }
+.wave { margin:1rem 0; text-align:center; }
+.wave svg { display:block; margin:0 auto; }
+.wave .lab { font-size:.82rem; font-weight:800; color:var(--accent); margin-bottom:.3rem; }
+.wave .cap { font-size:.85rem; color:var(--ink-soft); margin-top:.35rem; }
+
 /* ---------- วงจร (คู่กับ circuit.js) ---------- */
 .circuit { text-align:center; margin:1.1rem 0; }
 .circuit svg { display:block; margin:0 auto; max-width:100%; height:auto; }
@@ -100,5 +115,5 @@ pre.code-blk { background:#f2f4f8; border:1px solid #d5dbe6; border-radius:10px;
 @media (max-width:34rem){ .twocol { grid-template-columns:1fr; } }
 
 @media print {
-  .work, .box, .quiz, .circuit-syms .sy, .circuit, .crow { break-inside: avoid; }
+  .work, .box, .quiz, .circuit-syms .sy, .circuit, .crow, .mplot, .wave { break-inside: avoid; }
 }

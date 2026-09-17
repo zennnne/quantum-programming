@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0023 — เฟสซ่อนคำตอบ → flip + mirror ทำให้อ่านได้</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 06 · บทที่ 0023 (เปิดคาบ)</div>
+  <h1>เฟสซ่อนคำตอบไว้ — flip + mirror ดึงมันออกมาให้อ่านได้</h1>
+  <p class="lead">ตลอด Lec 05 เราทำลอจิกบน superposition ได้แล้ว และเก็บคำตอบไว้ใน<b>เฟส</b>ได้ด้วย
+    (บท <a href="midterm/0020-quantum-conditional-execution-and-phase-encoding.html">0020</a>) — แต่ติดปัญหาเดิมที่ค้างไว้:
+    <b>READ มองไม่เห็นเฟส</b> · บทนี้คือเครื่องมือตัวแรกที่แก้ปัญหานั้น ชื่อว่า
+    <b>amplitude amplification (AA — การขยายแอมพลิจูด)</b></p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b> — คำนวณใน superposition ได้เก่งแค่ไหนก็<b>ไร้ประโยชน์</b>
+    ถ้า READ แล้วได้แค่เลขสุ่ม · บทนี้จับหลักแค่ 2 อย่าง:
+    ① <b>flip</b> = ทำเครื่องหมายคำตอบด้วยเฟส 180° ② <b>mirror</b> = แปลงความต่างของเฟส → ความต่างของขนาดวง
+    · และวงจร flip/mirror คือ<b>สัญลักษณ์ที่ออกสอบ</b>ได้ตรงๆ
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · ปัญหา: 3 สถานะที่ READ แยกไม่ออก</h2></div>
+
+  <h3>quantum primitive คืออะไร</h3>
+  <p>สไลด์ p2 เรียก AA ว่า <b>quantum primitive (ท่าพื้นฐานของ QPU)</b> ตัวแรก —
+    คือ “ท่า” สำเร็จรูปที่ใช้<b>จัดรูป superposition ให้ READ ได้คำตอบอย่างเชื่อถือได้</b>
+    มี primitive หลายตัว แต่ละตัวเหมาะกับโจทย์คนละแบบ (บทหน้าๆ จะเจอ QFT เป็นต้น)</p>
+
+  <div class="analogy">
+    <div class="cell"><b>คำนวณใน superposition</b><small>เหมือนเขียนคำตอบไว้ด้วยหมึกล่องหน —
+      ข้อมูลอยู่ครบในกระดาษจริงๆ</small></div>
+    <div class="arrow">→</div>
+    <div class="cell"><b>quantum primitive</b><small>คือไฟฉาย UV ที่ทำให้หมึกล่องหนโผล่ขึ้นมา
+      ก่อนที่เราจะ “ถ่ายรูป” (READ) ซึ่งถ่ายได้แค่ครั้งเดียว</small></div>
+  </div>
+
+  <h3>ตัวอย่างที่ใช้ทั้งคาบ: สถานะ A, B, C</h3>
+  <p>มีรีจิสเตอร์ 4 qubit (16 ค่า ∣0⟩–∣15⟩) อยู่ในสถานะใดสถานะหนึ่งจาก 3 แบบ แต่<b>เราไม่รู้ว่าแบบไหน</b>
+    · ทั้ง 3 แบบมี 16 ค่าขนาดเท่ากันหมด ต่างกันแค่ว่า<b>ค่าไหนโดนพลิกเฟสเป็น 180°</b>
+    — เรียกค่านั้นว่า <b>marked value (ค่าที่ถูกทำเครื่องหมาย)</b> (สไลด์ p4–5)</p>
+
+  <div class="wide">
+    <p class="meta" style="margin:.5rem 0 0;"><b>สถานะ A</b></p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625"
+         data-phase="0,180,0,0,0,0,0,0,0,0,0,0,0,0,0,0" data-hl="1"></div>
+    <p class="meta" style="margin:.5rem 0 0;"><b>สถานะ B</b></p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625"
+         data-phase="0,0,0,180,0,0,0,0,0,0,0,0,0,0,0,0" data-hl="3"></div>
+    <p class="meta" style="margin:.5rem 0 0;"><b>สถานะ C</b></p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625"
+         data-phase="0,0,0,0,0,0,0,0,0,0,0,0,180,0,0,0" data-hl="12"></div>
+    <p class="src">สไลด์ p4–5 · A mark ที่ ∣1⟩ · B mark ที่ ∣3⟩ · C mark ที่ ∣12⟩ · ทุกวงขนาดเท่ากัน (6.25%)</p>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ลองคิดเองก่อนเลื่อนต่อ: ถ้า READ รีจิสเตอร์ตอนนี้ได้ผลออกมาเป็น <b>3</b>
+      เราสรุปได้ว่าอะไร?</div>
+    <button class="opt">อยู่ที่สถานะ B แน่นอน เพราะ B mark ที่ค่า 3</button>
+    <button class="opt">น่าจะเป็นสถานะ B มากกว่า A หรือ C นิดหน่อย</button>
+    <button class="opt">สรุปไม่ได้ ทุกสถานะให้ 3 ที่ 6.25% เท่ากัน</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — ความน่าจะเป็นมาจาก<b>ขนาดวง</b>อย่างเดียว เฟสไม่มีผลเลย
+      · ซ้ำร้าย READ ยัง<b>ทำลายข้อมูลเฟสทิ้ง</b>ด้วย (p5) ถามซ้ำก็ไม่ได้</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — ย้อนดูผังด้านบน วงทุกวงในทั้ง 3 แถว<b>ขนาดเท่ากัน</b>
+      และ READ เห็นแค่ขนาด (บท 0003) เฟส 180° ที่ ∣3⟩ จึงไม่ทำให้โอกาสได้ 3 เปลี่ยนเลย</div>
+  </div>
+
+  <h3>AA ทำอะไร (นิยามจากสไลด์ p3)</h3>
+  <div class="box aha">
+    <b>amplitude amplification</b> แปลง <b>ความต่างของเฟส (READ ไม่เห็น)</b>
+    → <b>ความต่างของ magnitude (READ เห็น)</b> — และแปลงย้อนกลับได้ด้วย
+  </div>
+  <p>เกร็ดชื่อ: เพราะมันขยาย <i>magnitude</i> จริงๆ ชื่อ “magnitude amplification” จะตรงกว่า
+    แต่วงการใช้ “amplitude amplification” จนเป็นมาตรฐานไปแล้ว</p>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · วงจร prep → flip → mirror และผลรอบแรก</h2></div>
+
+  <p>วงจรเต็มจากสไลด์ p6–7 (ตัวอย่างนี้ mark ค่า <b>3</b> = สถานะ B) · อ่านซ้าย→ขวาเป็น 3 กล่อง:</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8"
+         data-groups="1-1:prep; 2-4:flip; 5-9:mirror"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3;
+                   H:0 + H:1 + H:2 + H:3;
+                   X:2 + X:3; CZ:0,1,2,3; X:2 + X:3;
+                   H:0 + H:1 + H:2 + H:3;
+                   X:0 + X:1 + X:2 + X:3; CZ:0,1,2,3; X:0 + X:1 + X:2 + X:3;
+                   H:0 + H:1 + H:2 + H:3"
+         data-cap="Applying the mirror subroutine to a flipped phase (สไลด์ p6–7) · ● 4 จุดบนเส้นเดียว = CZ คร่อม 4 สาย"></div>
+  </div>
+
+<pre class="code-blk">var number_to_flip = 3;       // ค่าที่จะ mark
+var num_qubits = 4;
+qc.reset(num_qubits);
+var reg = qint.new(num_qubits, 'reg');
+reg.write(0);
+
+reg.hadamard();               // prep  : 16 ค่าเท่ากันหมด
+reg.not(~number_to_flip);     // flip ①: NOT เฉพาะบิตที่เป็น 0
+reg.cphase(180);              // flip ②: CZ คร่อมทุกสาย
+reg.not(~number_to_flip);     // flip ③: NOT คืน (uncompute)
+reg.Grover();                 // mirror ทั้งกล่อง</pre>
+
+  <h3>ไล่ flip ทีละสเต็ป — ทำไมมันพลิกเฟสค่า 3 ได้ค่าเดียว</h3>
+  <p>ท่านี้คือท่าเดียวกับ phase-encoded result ในบท 0020 เป๊ะ — แค่ตอนนี้คร่อม 4 สาย:</p>
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> 3 = <code class="code">0011</code> (0x8 0x4 0x2 0x1) ·
+      <code class="code">~3</code> เลือกบิตที่เป็น <b>0</b> คือสาย <b>0x4 กับ 0x8</b> → ใส่ ⊕ ตรงนั้น
+      → ค่า 3 กลายเป็น <code class="code">1111</code> = 15</div>
+    <div class="step"><span class="lbl">②</span> <b>CZ 4 จุด</b> (<code class="code">cphase(180)</code>)
+      พลิกเฟส 180° <b>เฉพาะค่าที่ทุกบิตเป็น 1</b> — มีค่าเดียวคือ 15 (ซึ่งตอนนี้คือ 3 ตัวเดิมที่ปลอมตัวมา)</div>
+    <div class="step"><span class="lbl">③</span> ⊕ ที่ 0x4, 0x8 อีกรอบ → ทุกค่ากลับชื่อเดิม
+      แต่ <b>∣3⟩ ติดเฟส 180° มาด้วย</b></div>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">ถ้าอยาก mark ค่า <b>12</b> (สถานะ C) แทน ต้องวาง ⊕ ของกล่อง flip ที่สายไหน?
+      (เขียน 12 เป็นเลขฐานสองก่อน)</div>
+    <button class="opt">⊕ ที่สาย 0x1 กับ 0x2</button>
+    <button class="opt">⊕ ที่สาย 0x4 กับ 0x8</button>
+    <button class="opt">⊕ ที่สาย 0x2 กับ 0x8</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — 12 = <code class="code">1100</code> บิตที่เป็น 0 คือ 0x1, 0x2
+      → ⊕ ตรงนั้น แล้ว CZ 4 จุดเหมือนเดิม · <b>กล่อง flip เปลี่ยนตามค่าที่ mark แต่ CZ ไม่เปลี่ยน</b></div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — 12 = 8 + 4 = <code class="code">1100</code>
+      ⊕ ต้องตกที่บิตที่เป็น <b>0</b> (ให้ทุกบิตกลายเป็น 1 ก่อนเข้า CZ) · 0x4/0x8 คือคำตอบของค่า 3</div>
+  </div>
+
+  <h3>mirror — กล่องที่หน้าตาไม่เคยเปลี่ยน</h3>
+  <p>mirror = <b>H → ⊕ → CZ 4 จุด → ⊕ → H</b> ทุกสาย · ในโค้ดคือ <code class="code">reg.Grover()</code> บรรทัดเดียว
+    · ต่างจาก flip ตรงที่<b>ไม่ขึ้นกับว่า mark ค่าไหน</b> — จำหน้าตาเดียวจบ
+    (ทำไมมันถึงชื่อ “mirror” และข้างในทำงานยังไง เก็บไว้บท 0026 ค่ะ)</p>
+
+  <details class="recall">
+    <summary>ทายก่อนเปิด: หลัง mirror 1 รอบ ผังของสถานะ A/B/C จะหน้าตาเป็นยังไง?</summary>
+    <div class="wide">
+      <p class="meta" style="margin:.5rem 0 0;"><b>สถานะ A</b></p>
+      <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+           data-mag="0.035,0.473,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035"
+           data-phase="180,180,180,180,180,180,180,180,180,180,180,180,180,180,180,180" data-hl="1"></div>
+      <p class="meta" style="margin:.5rem 0 0;"><b>สถานะ B</b></p>
+      <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+           data-mag="0.035,0.035,0.035,0.473,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035"
+           data-phase="180,180,180,180,180,180,180,180,180,180,180,180,180,180,180,180" data-hl="3"></div>
+      <p class="meta" style="margin:.5rem 0 0;"><b>สถานะ C</b></p>
+      <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+           data-mag="0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.473,0.035,0.035,0.035"
+           data-phase="180,180,180,180,180,180,180,180,180,180,180,180,180,180,180,180" data-hl="12"></div>
+      <p class="src">สไลด์ p8 · “phase differences have been converted into magnitude differences”</p>
+    </div>
+    <ul>
+      <li><b>ขนาดวงไม่เท่ากันแล้ว</b> — marked value โต ที่เหลือหด</li>
+      <li><b>เฟสเท่ากันหมดทุกวง</b> (ทุกเข็มชี้ 180°) — ความต่างของเฟส<b>ย้ายไปอยู่ที่ขนาด</b></li>
+    </ul>
+  </details>
+
+  <table class="cmp">
+    <thead><tr><th>ช่วงเวลา</th><th>marked value</th><th>ค่าอื่น (ต่อค่า)</th></tr></thead>
+    <tbody>
+      <tr><td data-label="ช่วงเวลา">หลัง flip (ก่อน mirror)</td><td data-label="marked value">6.25%</td><td data-label="ค่าอื่น (ต่อค่า)">6.25%</td></tr>
+      <tr><td data-label="ช่วงเวลา">หลัง mirror 1 รอบ</td><td data-label="marked value"><b>≈ 47.3%</b></td><td data-label="ค่าอื่น (ต่อค่า)">≈ 3.5%</td></tr>
+    </tbody>
+  </table>
+  <p class="meta">เช็กผลรวม: 47.3 + 15 × 3.5 ≈ 100% ✓ (สไลด์ p9) · แปลเป็น amplitude: 0.6875 กับ 0.1875</p>
+
+  <div class="box warn">
+    <b>เข็มทุกวงชี้ 180° แล้วมันไม่ “พลิก” กลับไปเหมือนเดิมเหรอ?</b> — ไม่ค่ะ ที่ READ สนใจคือ<b>เฟสสัมพัทธ์</b>
+    (relative phase, บท 0003) · ทุกวงหมุนไปเท่ากันหมด = ไม่มีวงไหนต่างจากใคร = ไม่มีข้อมูลในเฟสเหลืออยู่
+    · ข้อมูลทั้งหมดย้ายไปอยู่ในขนาดวงแล้ว
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">หลัง mirror 1 รอบ เรา READ สถานะ B แล้วได้ 3 — ประโยคไหนถูกที่สุด?</div>
+    <button class="opt">รู้แน่ว่าเป็น B เพราะ mirror ขยายค่าที่ mark ไปแล้ว</button>
+    <button class="opt">น่าจะเป็น B แต่ยังพลาดได้ราวครึ่ง จึงยังไม่พอใช้งาน</button>
+    <button class="opt">สรุปไม่ได้ เพราะเฟสทุกวงเท่ากันหมดจนข้อมูลหายไปแล้ว</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — 47.3% คือ “ดีขึ้นมาก แต่ยังเกือบโยนเหรียญ” (p9)
+      · คำถามที่ค้างไว้ให้บทหน้า: <b>ทำ flip + mirror ซ้ำอีกรอบได้ไหม?</b></div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — ข้อมูลไม่ได้หาย แค่ย้ายจากเฟสไปอยู่ที่ขนาด
+      แต่ 47.3% ก็ยังห่างจาก 100% มาก → ได้ 3 ออกมาทำให้<b>น่าเชื่อ</b>ว่าเป็น B แต่ไม่ใช่แน่นอน</div>
+  </div>
+
+  <h3>mirror = Grover iteration</h3>
+  <p>สไลด์ p10: routine flip-mirror ถูกใช้ครั้งแรกใน <b>Grover's algorithm</b> สำหรับ
+    <b>unstructured database search (การค้นข้อมูลแบบไม่มีโครงสร้าง)</b> ·
+    AA ที่เรียนอยู่คือ<b>รุ่นขยาย (generalization)</b> ของอัลกอริทึมนั้น ·
+    หนังสือเรียกกล่องนี้ว่า “mirror” เพราะจำผลของมันง่ายกว่า</p>
+
+  <div class="box warn">
+    <b>ระวังชื่อเรียก</b> — สไลด์ p10 บอก <b>mirror = Grover iteration</b> → <b>ตอบตามนี้ตอนสอบ</b>
+    · แต่ในตำราทั่วไป (เช่น <a href="https://en.wikipedia.org/wiki/Grover%27s_algorithm">Wikipedia: Grover's algorithm</a>)
+    คำว่า Grover iteration มักหมายถึง <b>oracle + diffusion</b> คือ flip + mirror รวมกัน
+    ส่วน mirror เดี่ยวๆ เรียก <b>diffusion operator</b> · เวลาไปอ่านที่อื่นจะได้ไม่งง
+  </div>
+
+  <!-- ============================================================ -->
+  <details class="recall">
+    <summary>ทดสอบความจำ (ตอบในใจก่อนเปิด)</summary>
+    <ol>
+      <li>ทำไมคำนวณใน superposition ได้แล้วยังต้องมี quantum primitive?
+        <br><b>เพราะ READ ได้แค่ค่าสุ่มค่าเดียว ถ้าไม่จัดรูป superposition ก่อน คำตอบก็อ่านไม่ออก</b></li>
+      <li>AA แปลงอะไรเป็นอะไร?
+        <br><b>ความต่างของเฟส (READ ไม่เห็น) → ความต่างของ magnitude (READ เห็น) และย้อนกลับได้</b></li>
+      <li>marked value คืออะไร?
+        <br><b>ค่าที่ถูกพลิกเฟสเป็น 180° ต่างจากค่าอื่น</b></li>
+      <li>กล่อง flip ของค่า 5 (<code class="code">0101</code>) มี ⊕ ที่สายไหน?
+        <br><b>0x2 กับ 0x8 (บิตที่เป็น 0) → CZ 4 จุด → ⊕ คืนที่เดิม</b></li>
+      <li>วาดกล่อง mirror จากความจำ
+        <br><b>H ทุกสาย → ⊕ ทุกสาย → CZ 4 จุด → ⊕ ทุกสาย → H ทุกสาย</b></li>
+      <li>ระหว่าง flip กับ mirror กล่องไหนเปลี่ยนตามโจทย์?
+        <br><b>flip เปลี่ยน · mirror เหมือนเดิมเสมอ</b></li>
+      <li>หลัง mirror 1 รอบ (4 qubit) marked value มีโอกาสกี่ %?
+        <br><b>≈ 47.3% (ค่าอื่นเหลือ ≈ 3.5% ต่อค่า)</b></li>
+      <li>หลัง mirror เฟสของ marked value เป็นยังไงเทียบกับค่าอื่น?
+        <br><b>เท่ากันหมดแล้ว — ความต่างย้ายไปอยู่ที่ขนาด</b></li>
+      <li>ตามสไลด์ mirror มีชื่อเรียกทั่วไปว่าอะไร?
+        <br><b>Grover iteration</b></li>
+    </ol>
+  </details>
+
+  <div class="part"><h2>สรุปบทนี้</h2></div>
+  <ul>
+    <li><b>quantum primitive</b> = ท่าจัดรูป superposition ให้ READ ได้ · ตัวแรกคือ <b>amplitude amplification</b></li>
+    <li>ปัญหา: สถานะที่ต่างกันแค่<b>เฟส</b> READ แยกไม่ออก (6.25% เท่ากันหมด) และ READ ยังทำลายเฟสทิ้ง</li>
+    <li><b>flip</b> = <code class="code">not(~n)</code> → CZ ทุกสาย → <code class="code">not(~n)</code>
+      · ⊕ ตกที่<b>บิตที่เป็น 0</b> ของค่าที่ mark</li>
+    <li><b>mirror</b> = H → ⊕ → CZ → ⊕ → H ทุกสาย = <code class="code">Grover()</code> · <b>หน้าตาเดียวทุกโจทย์</b></li>
+    <li>flip + mirror 1 รอบ: marked <b>6.25% → 47.3%</b> · เฟสเท่ากันหมด → ยังไม่พอ → บทหน้า: <b>ทำซ้ำ</b></li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b> — <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia — บทที่ 6
+      <i>Amplitude Amplification</i> หัวข้อ <i>Hands-on: Converting Between Phase and Magnitude</i> ·
+      โค้ดรันเองได้ที่ <a href="https://oreilly-qc.github.io/#/toolkit">QCEngine</a>
+      (ลองเปลี่ยน <code class="code">number_to_flip</code> เป็น 12 แล้วดูผัง) ·
+      สไลด์ <code class="code">QuantumProg_Lec06.pdf</code> หน้า 2–10</p>
+    <p><b>บทที่เกี่ยวข้อง</b> —
+      <a href="midterm/0020-quantum-conditional-execution-and-phase-encoding.html">0020 · phase-encoded result</a> ·
+      <a href="midterm/0003-amplitude-and-phase.html">0003 · amplitude และ phase</a> ·
+      <a href="midterm/0022-toffoli-is-quantum-nand.html">0022 · Toffoli คือ NAND</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> — จุดที่คนงงบ่อยในบทนี้:
+      ① ทำไม <code class="code">~n</code> ถึงเลือกบิตที่เป็น 0 ② เฟส 180° ทุกวงหลัง mirror ไม่นับเป็นข้อมูลเพราะอะไร
+      ③ Grover iteration ในสไลด์กับในตำราอื่นต่างกันยังไง
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

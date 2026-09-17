@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0022 — Toffoli คือ NAND ของโลกควอนตัม</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/lesson-bits.css">
+<script defer src="../../assets/quiz.js"></script>
+<script defer src="../../assets/circles.js"></script>
+<script defer src="../../assets/circuit.js"></script>
+<script defer src="../../assets/logicgate.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 05 · บทที่ 0022 (ปิดคาบ)</div>
+  <h1>Toffoli คือ NAND ของโลกควอนตัม</h1>
+  <p class="lead">ตลอด Lec 05 เราเห็น <b>multi-condition CNOT</b> (● หลายจุด + ⊕) โผล่ในทุกวงจร
+    ตั้งแต่ increment ยัน <code class="code">abs(a)</code> — เหมือนมันเป็นอิฐก้อนเดียวที่ใช้ก่อทุกอย่าง
+    บทนี้คือคำอธิบายว่า<b>ทำไมถึงเป็นแบบนั้น</b> และเราจะเอามันมาสร้าง<b>ประตูลอจิกดิจิทัลครบทั้ง 6 ตัว</b>
+    พร้อมกับเจอบิลค่าใช้จ่ายที่ตามมา: <b>scratch qubit</b></p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b> — ในโลกดิจิทัล ทุกอย่างที่คอมพิวเตอร์ทำได้ ย่อยลงไปสุดทางแล้ว
+    เป็น NAND ต่อกันเป็นล้านๆ ตัว · บทนี้ตอบว่า<b>ฝั่งควอนตัมอิฐก้อนนั้นคือตัวไหน</b>
+    ซึ่งแปลว่าถ้าเข้าใจ gate ตัวเดียวนี้ เราจะอ่านวงจรลอจิกควอนตัมอะไรก็ได้ออก
+    · และเป็นเรื่องที่ออกสอบได้ตรงๆ เพราะมันคือ<b>ตารางสัญลักษณ์ 6 ช่อง</b>
+  </div>
+
+  <div class="part"><h2>ส่วนที่ 1 · gate สารพัดประโยชน์: จาก NAND สู่ Toffoli</h2></div>
+
+  <h2>1.1 ฝั่งดิจิทัล — NAND ตัวเดียวสร้างได้ทั้งโลก</h2>
+  <p>ในลอจิกดิจิทัล มีข้อเท็จจริงที่สวยมากอยู่ข้อหนึ่ง: มี logic gate พื้นฐาน<b>ไม่กี่ตัว</b>
+    ที่เอาไปสร้างตัวอื่นทั้งหมดได้ · สุดขั้วคือ <b>NAND</b> — ถ้ามีแต่ NAND อย่างเดียว
+    ก็สร้าง AND, OR, NOT, XOR ได้ครบ แล้วประกอบเป็น<b>ฟังก์ชันลอจิกอะไรก็ได้</b>ที่เราต้องการ
+    เราเรียกเกตแบบนี้ว่า <span class="term">universal gate (เกตครบชุด)</span></p>
+
+  <p>และ NAND ในรูปจะมี input <b>กี่ขาก็ได้</b> — กรณีง่ายที่สุดคือขาเดียว
+    ซึ่งมันจะทำหน้าที่เป็น NOT พอดี:</p>
+
+  <div class="twocol">
+    <div class="c">
+      <div class="logicgate" data-gate="nand" data-in="a" data-out="D"
+           data-cap="<b>D = NOT(a)</b> — NAND ขาเดียว"></div>
+    </div>
+    <div class="c">
+      <div class="logicgate" data-gate="nand" data-in="a,b" data-out="D"
+           data-cap="<b>D = NOT(a AND b)</b> — ขนาดมาตรฐาน"></div>
+    </div>
+  </div>
+  <div class="logicgate" data-gate="nand" data-in="a,b,c" data-out="D"
+       data-cap="<b>D = NOT(a AND b AND c)</b> — NAND 3 ขา · ขยายได้เรื่อยๆ (สไลด์ p56)"></div>
+
+  <p class="src">จำสัญลักษณ์: <b>ทรง AND</b> = ด้านซ้ายตรง ด้านขวาโค้งเป็นครึ่งวงกลม (ทรงตัว D) ·
+    <b>วงกลมเล็กที่ขา output</b> (inverting bubble) แปลว่า “แล้ว NOT ทับอีกที” →
+    AND + bubble = <b>NAND</b> เสมอ · ดูครบทั้ง 6 ตัวได้ที่
+    <a href="../../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a></p>
+
+  <div class="box warn">
+    <b>สไลด์พิมพ์ตก</b> — p56 เขียนว่า “the NAND gates in Figure <i>an</i> have any number of inputs”
+    ที่ถูกคือ “<i>can</i> have” · ความหมายไม่เปลี่ยน แต่ถ้าเจอในข้อสอบให้อ่านว่า
+    “NAND จะมีขาเข้ากี่ขาก็ได้”
+  </div>
+
+  <h2>1.2 ฝั่งควอนตัม — เกตอเนกประสงค์คือ multi-condition CNOT</h2>
+  <p>ฝั่งควอนตัมก็เล่นท่าเดียวกันเป๊ะ: เริ่มจาก<b>เกตอเนกประสงค์ตัวเดียว</b>แล้วต่อยอดเป็นลอจิกทั้งหมด
+    · เกตตัวนั้นคือ <span class="term">multiple-condition CNOT</span> หรือชื่อที่คุ้นกว่าคือ
+    <span class="term">Toffoli gate</span> — และมัน<b>เปลี่ยนจำนวน condition ได้</b>เหมือน NAND
+    เปลี่ยนจำนวนขาเข้าได้เลย:</p>
+
+  <div class="circuit" data-wires="1" data-names="c" data-wire-labels="0x4" data-init="0"
+       data-ops="WRITE:0; X:0; READ:0"
+       data-cap="<b>0 condition</b> — <code>c = ~c</code> · NOT เดี่ยว พลิกแน่นอน"></div>
+
+  <div class="circuit" data-wires="2" data-names="b,c" data-wire-labels="0x2,0x4" data-init="0,0"
+       data-ops="WRITE:0 + WRITE:1; CNOT:0,1; READ:0 + READ:1"
+       data-cap="<b>1 condition</b> — <code>if (b) then c = ~c</code> · CNOT ธรรมดา"></div>
+
+  <div class="circuit" data-wires="3" data-names="a,b,c" data-wire-labels="0x1,0x2,0x4" data-init="0,0,0"
+       data-ops="WRITE:0 + WRITE:1 + WRITE:2; CCNOT:0,1,2; READ:0 + READ:1 + READ:2"
+       data-cap="<b>2 conditions</b> — <code>if (a and b) then c = ~c</code> · นี่คือ Toffoli (สไลด์ p57)"></div>
+
+  <p>โค้ด QCEngine ของทั้งสามอันนี้ (a = บิต <code class="code">0x1</code>,
+    b = <code class="code">0x2</code>, c = <code class="code">0x4</code>):</p>
+<pre class="code-blk">// c = ~c
+c.write(0);  c.not();  c.read();
+
+// if (b) then c = ~c
+qc.write(2, 2|4);  c.cnot(b);  qc.read(2|4);
+
+// if (a and b) then c = ~c
+qc.write(1|2);  qc.cnot(4, 1|2);  qc.read(1|2|4);</pre>
+  <p class="src">อ่านโค้ดให้ถูก: <code class="code">qc.cnot(target_mask, condition_mask)</code> —
+    <b>ตัวแรกคือเป้า ตัวหลังคือเงื่อนไข</b> · ดังนั้น <code class="code">qc.cnot(4, 1|2)</code>
+    = พลิกบิต <code class="code">0x4</code> (c) เมื่อ <code class="code">0x1</code> และ
+    <code class="code">0x2</code> (a และ b) เป็น 1 ทั้งคู่ = Toffoli</p>
+
+  <h2>1.3 ตัวเทียบเท่าฝั่งดิจิทัลแบบเป๊ะๆ</h2>
+  <p>Toffoli ทำงาน <b>“เกือบ”</b> เหมือน NAND — คำว่าเกือบสำคัญมาก
+    เพราะถ้าเขียนตัวเทียบเท่าฝั่งดิจิทัลออกมาจริงๆ จะได้แบบนี้:</p>
+
+  <div class="eq">c = c <b>XOR</b> (a <b>AND</b> b)</div>
+
+  <div class="twocol">
+    <div class="c">
+      <div class="circuit" data-wires="3" data-names="a,b,c" data-ops="CCNOT:0,1,2"
+           data-cap="ฝั่งควอนตัม — Toffoli ตัวเดียวจบ"></div>
+    </div>
+    <div class="c">
+      <div class="logicgate" data-gate="and" data-in="a,b" data-out="t"
+           data-cap="① a กับ b แยกสัญญาณเข้า <b>AND</b> → ได้ผลชั่วคราว t"></div>
+      <div class="logicgate" data-gate="xor" data-in="t,c" data-out="c"
+           data-cap="② t เข้า <b>XOR</b> พร้อมกับ c เดิม → ได้ c ตัวใหม่"></div>
+    </div>
+  </div>
+
+  <p><b>การเดินสายฝั่งขวาตามสไลด์ p58</b> (ข้อนี้ออกสอบได้ — จำผังไว้):
+    เส้น <code class="code">a</code> และ <code class="code">b</code> <b>วิ่งผ่านออกไปเป็น output
+    ชื่อเดิม</b> โดยมี<b>จุดแยกสัญญาณ ●</b> บนเส้น · สัญญาณที่แยกออกมาจาก a และ b เข้า
+    <b>AND gate</b> → เอาต์พุตของ AND เข้า <b>XOR gate</b> พร้อมกับเส้น <code class="code">c</code>
+    → เอาต์พุตของ XOR คือ <code class="code">c</code> ตัวใหม่</p>
+
+  <div class="box aha">
+    <b>ประโยคทองของบท</b> — NAND <b>เขียนทับ output ทิ้ง</b> ของเดิมหายไปเลย จึงย้อนกลับไม่ได้
+    · แต่ Toffoli เอาผล <code class="code">a AND b</code> ไป <b>XOR ใส่ c ที่มีอยู่เดิม</b>
+    และ <code class="code">a</code>, <code class="code">b</code> ยังอยู่ครบ →
+    <b>ย้อนกลับได้</b> (รัน Toffoli ซ้ำอีกรอบก็กลับที่เดิมพอดี)
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">① เพราะอะไร Toffoli ถึงย้อนกลับได้ แต่ NAND ย้อนกลับไม่ได้?</div>
+    <button class="opt">Toffoli เอาผล a AND b ไป XOR ทับ c เดิม — a, b ยังอยู่ครบทุกเส้น</button>
+    <button class="opt">Toffoli เอาผล a AND b เขียนทับ c ทิ้งไป — a, b ยังอยู่ครบทุกเส้น</button>
+    <button class="opt">Toffoli เอาผล a AND b ไป XOR ทับ c เดิม — แต่ลบ a, b ทิ้งทุกเส้น</button>
+    <div class="fb ok" data-for="ok">ถูกต้องค่ะ · เงื่อนไข <b>ย้อนกลับได้</b> ต้องการสองอย่างพร้อมกัน:
+      ข้อมูลเข้า (a, b) ไม่หาย และการเขียนผลต้องเป็นการ <b>XOR</b> ไม่ใช่การทับ —
+      เพราะ XOR ตัวเดิมซ้ำสองครั้งได้ค่าเดิมคืน</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · ลองนึกว่าจะ “ถอย” ยังไง — ถ้าเขียนทับ ของเดิมหายถาวร
+      ย้อนไม่ได้ · ถ้า a, b หาย ก็คำนวณ <code class="code">a AND b</code> ซ้ำไม่ได้ →
+      คำตอบต้องเป็นข้อที่<b>เก็บ a, b ไว้ครบ + ใช้ XOR</b></div>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">② ตั้งค่าเริ่มต้น a = 1, b = 0, c = 1 แล้วรัน Toffoli หนึ่งครั้ง ได้อะไรออกมา?
+      (ลองแทนในสูตร <code class="code">c = c XOR (a AND b)</code> ก่อนเลือก)</div>
+    <button class="opt">a = 1 · b = 0 · c = 1</button>
+    <button class="opt">a = 1 · b = 0 · c = 0</button>
+    <button class="opt">a = 0 · b = 0 · c = 1</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · <code class="code">a AND b</code> = 1 AND 0 = <b>0</b>
+      → <code class="code">c = 1 XOR 0 = 1</code> ไม่ขยับ · เงื่อนไขไม่ครบ Toffoli ก็ไม่ทำอะไร
+      และ a, b ไม่เคยถูกแตะอยู่แล้ว</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · Toffoli พลิก c <b>ก็ต่อเมื่อ control ครบทุกตัวเป็น 1</b>
+      · ที่นี่ b = 0 → <code class="code">a AND b = 0</code> → <code class="code">c XOR 0 = c</code>
+      เท่าเดิม · และ<b>สาย control ไม่มีวันเปลี่ยนค่า</b> ไม่ว่าจะกรณีไหน</div>
+  </div>
+
+  <div class="part"><h2>ส่วนที่ 2 · สร้างประตูลอจิกครบ 6 ตัว + บิลค่า scratch</h2></div>
+
+  <h2>2.1 ตาราง 6 ช่องที่ต้องจำ</h2>
+  <p>มีเกตตัวเดียวนี้ในมือ เราสร้าง QPU เวอร์ชันของฟังก์ชันลอจิกได้เพียบ · สไลด์ p59–60
+    ให้มาครบ 6 ช่อง · <b>ทุกช่องเรียงสายบนลงล่างเป็น a, b, c เหมือนกันหมด</b>
+    และ <b>a กับ b ออกมาเหมือนเดิมทุกช่อง</b>:</p>
+
+  <div class="twocol">
+    <div class="c">
+      <div class="circuit" data-wires="3" data-names="a,b,c" data-ops="X:0"></div>
+      <div class="logicgate" data-gate="not" data-in="a" data-out="a"></div>
+      <p class="src"><b>a = (NOT a)</b> · <code class="code">ops="X:0"</code> —
+        ⊕ เดี่ยวไม่มี control บนสาย a · <b>ไม่ใช้ scratch</b></p>
+    </div>
+    <div class="c">
+      <div class="circuit" data-wires="3" data-names="a,b,c" data-ops="CNOT:0,1"></div>
+      <div class="logicgate" data-gate="xor" data-in="a,b" data-out="b"></div>
+      <p class="src"><b>b = (a XOR b)</b> · <code class="code">ops="CNOT:0,1"</code> —
+        ● บน a, ⊕ บน b · <b>ไม่ใช้ scratch</b></p>
+    </div>
+  </div>
+
+  <div class="twocol">
+    <div class="c">
+      <div class="circuit" data-wires="3" data-names="a,b,c" data-init=",,0"
+           data-ops="WRITE:2; CCNOT:0,1,2"></div>
+      <div class="logicgate" data-gate="and" data-in="a,b" data-out="c"></div>
+      <p class="src"><b>c = (a AND b)</b> · <code class="code">ops="WRITE:2; CCNOT:0,1,2"</code> —
+        Toffoli ตรงๆ · <b>ต้องมี scratch c = |0⟩</b></p>
+    </div>
+    <div class="c">
+      <div class="circuit" data-wires="3" data-names="a,b,c" data-init=",,0"
+           data-ops="WRITE:2; X:0 + X:1; CCNOT:0,1,2; X:0 + X:1 + X:2"></div>
+      <div class="logicgate" data-gate="or" data-in="a,b" data-out="c"></div>
+      <p class="src"><b>c = (a OR b)</b> ·
+        <code class="code">X:0 + X:1; CCNOT:0,1,2; X:0 + X:1 + X:2</code> —
+        คอลัมน์สุดท้ายมี ⊕ <b>ครบทั้ง 3 สาย</b></p>
+    </div>
+  </div>
+
+  <div class="twocol">
+    <div class="c">
+      <div class="circuit" data-wires="3" data-names="a,b,c" data-init=",,0"
+           data-ops="WRITE:2; CCNOT:0,1,2; X:2"></div>
+      <div class="logicgate" data-gate="nand" data-in="a,b" data-out="c"></div>
+      <p class="src"><b>c = (a NAND b)</b> · <code class="code">CCNOT:0,1,2; X:2</code> —
+        Toffoli แล้วต่อด้วย ⊕ เดี่ยวบนสาย c (ไม่มีเส้นตั้ง)</p>
+    </div>
+    <div class="c">
+      <div class="circuit" data-wires="3" data-names="a,b,c" data-init=",,0"
+           data-ops="WRITE:2; X:0 + X:1; CCNOT:0,1,2; X:0 + X:1"></div>
+      <div class="logicgate" data-gate="nor" data-in="a,b" data-out="c"></div>
+      <p class="src"><b>c = (a NOR b)</b> ·
+        <code class="code">X:0 + X:1; CCNOT:0,1,2; X:0 + X:1</code> —
+        คอลัมน์สุดท้าย <b>ไม่มี ⊕ บนสาย c</b></p>
+    </div>
+  </div>
+
+  <h2>2.2 OR กับ NOR ต่างกันแค่ ⊕ ตัวเดียว — เพราะ De Morgan</h2>
+  <p>สองช่องล่างขวาคือช่องที่คนงงบ่อยที่สุด และมันต่างกันแค่ <b>⊕ หนึ่งตัวบนสาย c</b> ·
+    หลักคิดคือกฎ <span class="term">De Morgan</span>:</p>
+
+  <div class="eq">NOT a AND NOT b &nbsp;=&nbsp; NOT (a OR b)</div>
+
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> <b>พลิก a และ b</b> (<code class="code">X:0 + X:1</code>)
+      — ตอนนี้เส้นทั้งสองถือค่า <code class="code">NOT a</code> กับ <code class="code">NOT b</code></div>
+    <div class="step"><span class="lbl">②</span> <b>Toffoli</b> — ได้
+      <code class="code">c = NOT a AND NOT b</code> ซึ่งตามสูตร De Morgan ก็คือ
+      <code class="code">NOT (a OR b)</code> = <b>NOR พอดี</b></div>
+    <div class="step"><span class="lbl">③</span> <b>พลิก a และ b กลับคืน</b> — เพราะ a, b
+      ต้องออกมาเหมือนเดิม (ไม่งั้นเอาไปใช้ต่อไม่ได้) · <b>ถึงตรงนี้เราได้ NOR แล้ว</b></div>
+    <div class="step"><span class="lbl">④</span> ถ้าอยากได้ <b>OR</b> ก็แค่ <b>พลิก c เพิ่มอีกที</b>
+      (<code class="code">X:2</code> ในคอลัมน์เดียวกัน) — เพราะ NOT ของ NOR คือ OR</div>
+  </div>
+
+  <p class="src">เห็นไหมคะว่าทำไมสไลด์วาดคอลัมน์สุดท้ายของ OR เป็น ⊕ <b>สามตัว</b>
+    แต่ของ NOR เป็น ⊕ <b>สองตัว</b> — สองตัวแรกคือ “คืน a, b” (มีเหมือนกันทั้งคู่)
+    ตัวที่สามบนสาย c คือ “พลิกจาก NOR เป็น OR” ที่มีเฉพาะฝั่ง OR</p>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">③ ในวงจร <b>c = (a OR b)</b> ถ้าลบ ⊕ ที่อยู่บน<b>สาย c</b> ในคอลัมน์สุดท้ายทิ้ง
+      จะได้วงจรอะไร? (ไล่ตาม 4 สเต็ปข้างบนก่อนตอบ)</div>
+    <button class="opt">ได้วงจร NOR — เพราะ c จะเหลือค่า NOT(a OR b) พอดี</button>
+    <button class="opt">ได้วงจร NAND — เพราะ c เหลือค่า NOT(a AND b) พอดี</button>
+    <button class="opt">ได้วงจร OR ตัวเดิม — เพราะ ⊕ ตัวนั้นแค่คืนค่า a,b</button>
+    <div class="fb ok" data-for="ok">ใช่เลยค่ะ · สเต็ป ①–③ ผลิต <b>NOR</b> ออกมาอยู่แล้ว
+      ⊕ บนสาย c คือสเต็ป ④ ที่พลิกให้เป็น OR · ตัดทิ้ง = หยุดที่ NOR
+      · <b>เทียบกับตารางช่อง NOR ในหัวข้อ 2.1 ได้เลย ops เหมือนกันเป๊ะ</b></div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · ⊕ <b>สองตัวบน a และ b</b> ต่างหากที่ทำหน้าที่คืนค่า —
+      ตัวที่อยู่บนสาย c ทำงานคนละอย่าง คือพลิกผลลัพธ์ · Toffoli หลังจากพลิก a, b แล้ว
+      ให้ <code class="code">NOT a AND NOT b</code> = <b>NOR</b> ดังนั้นการตัด ⊕ บน c
+      คือการหยุดไว้ที่ NOR</div>
+  </div>
+
+  <h2>2.3 กับดักสำคัญ: ป้าย “c = a AND b” จริงแค่ตอน c เริ่มที่ |0⟩</h2>
+  <p>วงจรควอนตัมพวกนี้<b>ทำ <code class="code">c = c XOR f(a,b)</code> เสมอ</b> ไม่มีทางเลือกอื่น
+    เพราะนั่นคือสิ่งที่ Toffoli ทำ · มันจะกลายเป็น <code class="code">c = f(a,b)</code> ตามป้าย
+    ก็ต่อเมื่อ <code class="code">0 XOR f = f</code> คือ <b>c ต้องเริ่มที่ |0⟩</b></p>
+
+  <div class="box warn">
+    <b>นี่คือเหตุผลที่ 4 ช่องล่างมี ▷ ที่หัวสาย c</b> — สัญลักษณ์ WRITE ที่เขียนค่า |0⟩ ลงไปก่อน
+    · ช่อง NOT กับ XOR ไม่มี เพราะมัน<b>เขียนผลทับสาย input ได้เลย</b> โดยที่ยังย้อนกลับได้
+    (a หรือ b ตัวเดิมเอากลับคืนได้จากผลลัพธ์) จึงไม่ต้องยืมสายที่สาม
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">④ ในวงจรช่อง <b>AND</b> ถ้าเผลอให้ c เริ่มที่ |1⟩ แทน |0⟩ ท้ายวงจร c จะเป็นฟังก์ชันอะไร?</div>
+    <button class="opt">ได้ NAND — เพราะว่า 1 XOR (a AND b) = NOT(a AND b)</button>
+    <button class="opt">ได้ AND เหมือนเดิม — เพราะ Toffoli บังคับ c เป็น 0</button>
+    <button class="opt">ได้ XOR — เพราะ 1 XOR (a AND b) = a XOR b อยู่แล้ว</button>
+    <div class="fb ok" data-for="ok">เยี่ยมค่ะ · <b>XOR กับ 1 = พลิกบิต</b> ดังนั้น c เริ่มที่ |1⟩
+      ก็เท่ากับได้ NAND มาฟรีๆ — ซึ่งเป็นวิธีสร้าง NAND ที่<b>ประหยัดกว่า</b>ช่อง NAND ในตาราง
+      (ที่ต้องเสีย ⊕ เพิ่มอีกตัว) · จุดนี้ย้ำว่าป้ายบนวงจร<b>ขึ้นกับค่าเริ่มต้นของ scratch</b></div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · แทนค่าตรงๆ: <code class="code">c = 1 XOR (a AND b)</code>
+      · ถ้า <code class="code">a AND b = 0</code> → c = 1 · ถ้า <code class="code">a AND b = 1</code>
+      → c = 0 · <b>กลับด้านกับ AND ทุกกรณี</b> = NAND · (Toffoli ไม่ได้บังคับค่าเริ่มต้นอะไรเลย
+      คนที่บังคับคือ WRITE)</div>
+  </div>
+
+  <h2>2.4 บิลที่ตามมา — scratch qubit เป็นของแพง</h2>
+  <p>สังเกตว่าใน 6 ช่องนั้น มี <b>4 ช่อง</b> (AND, OR, NAND, NOR) ที่ต้อง<b>ขอ qubit เพิ่มอีกตัว</b>
+    ที่ตั้งต้นด้วย |0⟩ มารับผล · นี่คือ <span class="term">scratch qubit</span> ตัวเดียวกับที่เรารู้จัก
+    ใน <a href="0021-scratch-qubit-and-abs.html">บท 0021</a> เลย · และสไลด์ p60 พูดตรงๆ ว่า:</p>
+
+  <div class="box aha">
+    <b>“หนึ่งในความท้าทายใหญ่ของ quantum computation คือการ<u>ลดจำนวน scratch qubit</u>
+    ที่ต้องใช้ในการคำนวณหนึ่งๆ”</b> — เพราะบน QPU จริง qubit เป็นทรัพยากรที่<b>แพงมาก</b>
+    และมีจำนวนจำกัดสุดๆ · ลอจิกที่กินสายเยอะ = รันบนเครื่องจริงไม่ได้
+  </div>
+
+  <p>ตรงนี้ต่อกับ <a href="0021b-uncomputing.html">บท 0021b</a> พอดีเป๊ะ:
+    <b>uncomputing</b> ไม่ได้มีไว้แค่ให้วงจรถูกต้อง — มันคือวิธี<b>คืน scratch qubit
+    กลับเข้าคลังเพื่อเอาไปใช้ซ้ำ</b> · ยิ่งเราคืนเก่ง เราก็ยิ่งคำนวณเรื่องใหญ่ได้ด้วย qubit เท่าเดิม</p>
+
+  <div class="analogy">
+    <div class="cell"><b>ลอจิกดิจิทัล</b><small>ทรานซิสเตอร์ราคาเศษสตางค์
+      ใส่เพิ่มเป็นล้านตัวก็ยังไหว — ไม่มีใครนับ gate</small></div>
+    <div class="arrow">≠</div>
+    <div class="cell"><b>ลอจิกควอนตัม</b><small>qubit ทุกตัวมีราคา
+      การเพิ่ม scratch หนึ่งตัวคือการตัดสินใจเชิงออกแบบ — ต้องนับทุกตัว</small></div>
+  </div>
+
+  <h2>2.5 ปิด Lec 05 — แล้วบทหน้าจะไปไหนต่อ</h2>
+  <p>สไลด์สรุปคาบไว้ 3 ข้อ:</p>
+  <ul>
+    <li><b>ความสามารถทำลอจิกดิจิทัลบน superposition คือแกนกลางของอัลกอริทึม QPU ส่วนใหญ่</b>
+      — ตลอดคาบนี้เราเห็นวิธีจัดการข้อมูลควอนตัมและทำ conditional operation ภายใน superposition</li>
+    <li><b>แต่ทำได้อย่างเดียวยังใช้ประโยชน์ได้จำกัด</b> ถ้าดึงข้อมูลออกมาไม่เป็น —
+      ถ้าเรา READ superposition ของคำตอบทั้งหมด เราจะได้<b>คำตอบเดียวแบบสุ่ม</b> เหมือนเดิม</li>
+    <li><b>บทหน้าคือเครื่องมือที่แก้ปัญหานั้น</b>: QPU primitive ที่ดึงผลลัพธ์ออกจาก superposition
+      ได้อย่างเชื่อถือได้ ชื่อ <span class="term">amplitude amplification (การขยายแอมพลิจูด)</span></li>
+  </ul>
+
+  <div class="box why">
+    <b>เชื่อมกับสิ่งที่เพิ่งเรียน</b> — จำวงจรปิดท้ายบท 0021b ได้ไหมคะ ที่
+    <code class="code">phase(180) if abs(a)==1</code> — คำตอบถูกซ่อนไว้ใน<b>เฟส</b>ซึ่ง READ ไม่เห็น
+    · amplitude amplification คือเครื่องมือที่<b>แปลงเฟสนั้นให้กลายเป็นความน่าจะเป็นที่วัดได้</b>
+    · นั่นแปลว่าทุกอย่างที่เราสร้างมาทั้งคาบนี้กำลังจะได้ใช้งานจริงในบทหน้า
+  </div>
+
+  <details class="recall">
+    <summary>ทบทวนความจำ 10 ข้อ (ลองตอบในใจก่อนกดดู)</summary>
+    <ol>
+      <li>universal gate ของลอจิกดิจิทัลคือตัวไหน — และมันมีขาเข้าได้กี่ขา?
+        <br><b>NAND · กี่ขาก็ได้ · ขาเดียว = NOT</b></li>
+      <li>universal gate ฝั่งควอนตัมชื่ออะไร?
+        <br><b>multiple-condition CNOT = Toffoli gate · เปลี่ยนจำนวน condition ได้</b></li>
+      <li>สมการที่ Toffoli ทำจริงๆ คือ?
+        <br><b><code>c = c XOR (a AND b)</code></b></li>
+      <li>Toffoli ต่างจาก NAND ตรงไหน?
+        <br><b>NAND เขียนทับ output ทิ้ง · Toffoli XOR ใส่ c เดิม + เก็บ a, b ไว้ → ย้อนกลับได้</b></li>
+      <li>ผังลอจิกเทียบเท่าของ Toffoli เดินสายยังไง?
+        <br><b>a, b แยกจุด ● เข้า AND → ผล AND เข้า XOR พร้อม c → ได้ c ใหม่ · a, b ผ่านออกไปเหมือนเดิม</b></li>
+      <li>ในตาราง 6 ช่อง ช่องไหนบ้างที่<b>ไม่</b>ต้องใช้ scratch qubit — เพราะอะไร?
+        <br><b>NOT กับ XOR · เพราะเขียนผลทับสาย input ได้เลยโดยยังย้อนกลับได้</b></li>
+      <li><code>ops</code> ของช่อง OR คืออะไร?
+        <br><b><code>X:0 + X:1; CCNOT:0,1,2; X:0 + X:1 + X:2</code> (คอลัมน์สุดท้าย ⊕ ครบ 3 สาย)</b></li>
+      <li><code>ops</code> ของช่อง NOR ต่างจาก OR ตรงไหน?
+        <br><b>คอลัมน์สุดท้ายมีแค่ <code>X:0 + X:1</code> — ไม่มี ⊕ บนสาย c</b></li>
+      <li>ทำไม OR/NOR ต้องพลิก a, b ก่อนแล้วพลิกกลับ?
+        <br><b>De Morgan: <code>NOT a AND NOT b = NOT(a OR b)</code> · พลิกกลับเพื่อคืนค่า a, b</b></li>
+      <li>สไลด์บอกว่าความท้าทายใหญ่ของ quantum computation คืออะไร?
+        <br><b>การลดจำนวน scratch qubit ที่ต้องใช้ — qubit เป็นทรัพยากรที่แพงและมีจำกัด</b></li>
+    </ol>
+  </details>
+
+  <div class="part"><h2>สรุปบทนี้</h2></div>
+  <ul>
+    <li>ดิจิทัลมี <b>NAND</b> เป็นเกตครบชุด · ควอนตัมมี <b>multi-condition CNOT (Toffoli)</b>
+      — ทั้งคู่<b>ขยายจำนวนขาเข้า/เงื่อนไขได้</b> เหมือนกัน</li>
+    <li>Toffoli ทำ <code class="code">c = c XOR (a AND b)</code> — คือ AND ที่ตามด้วย XOR
+      ไม่ใช่การเขียนทับ นั่นแหละที่ทำให้มัน<b>ย้อนกลับได้</b> ต่างจาก NAND</li>
+    <li>ประกอบ Toffoli กับ ⊕ ไม่กี่ตัว ได้ประตูลอจิก<b>ครบ 6 ตัว</b>: NOT · XOR · AND · OR · NAND · NOR
+      → <b>ท่องตารางนี้ให้ได้ ออกสอบแน่</b></li>
+    <li>ป้าย “c = a AND b” จริงเฉพาะเมื่อ <b>c เริ่มที่ |0⟩</b> — เพราะวงจรทำ
+      <code class="code">c = c XOR f(a,b)</code> เสมอ</li>
+    <li>4 ใน 6 ช่องต้องเสีย <b>scratch qubit</b> → การลดจำนวน scratch คือโจทย์ใหญ่ของวงการ
+      และ <b>uncomputing</b> คือเครื่องมือหลักที่ใช้แก้</li>
+    <li><b>จบ Lec 05</b> · บทหน้า Lec 06 = <b>amplitude amplification</b> —
+      วิธีดึงคำตอบออกจาก superposition ให้ได้จริง</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b> — <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia — บทที่ 5 หัวข้อ
+      <i>Mapping Boolean Logic to QPU Operations</i> / <i>Basic Quantum Logic</i> ·
+      โค้ดรันเองได้ที่ <a href="https://oreilly-qc.github.io/#/toolkit">QCEngine</a> ·
+      สไลด์ <code class="code">QuantumProg_Lec05.pdf</code> หน้า 55–61</p>
+    <p><b>บทที่เกี่ยวข้อง</b> —
+      <a href="0021b-uncomputing.html">0021b · uncomputing</a> ·
+      <a href="0021-scratch-qubit-and-abs.html">0021 · scratch qubit และ abs(a)</a> ·
+      <a href="0017-quantum-arithmetic-must-be-rethought.html">0017 · เลขคณิตควอนตัมต้องคิดใหม่</a> ·
+      <a href="../../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> — จุดที่คนพลาดบ่อยในบทนี้:
+      ① ทำไม Toffoli ถึงไม่ใช่ NAND เป๊ะๆ ② OR กับ NOR ต่างกันตรงไหนกันแน่
+      ③ ถ้าอยากได้ <code class="code">c = a XOR b</code> โดยไม่ทับสาย b ต้องทำยังไง
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

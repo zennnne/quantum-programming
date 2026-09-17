@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0024 — วน AA กี่รอบดี?</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+<script defer src="../assets/bars.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 06 · บทที่ 0024</div>
+  <h1>วน AA กี่รอบดี? — ทำซ้ำได้ แต่ทำเกินแล้วร่วง</h1>
+  <p class="lead">บทที่แล้ว (<a href="0023-flip-and-mirror.html">0023</a>) flip + mirror 1 รอบดันค่าที่ mark
+    จาก 6.25% ขึ้นไป <b>47.3%</b> — ดีขึ้นมาก แต่ยังเกือบโยนเหรียญ · คำถามที่ค้างไว้คือ
+    <b>ทำซ้ำอีกได้ไหม?</b> บทนี้ตอบว่า “ได้” แล้วตามด้วยคำถามที่สำคัญกว่า: <b>ต้องหยุดตรงไหน</b></p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b> — ถ้าคิดว่า “วนยิ่งเยอะยิ่งดี” จะได้คำตอบผิดแบบไม่รู้ตัว · บทนี้จับหลัก 3 อย่าง:
+    ① <b>AA iteration</b> = flip + mirror (ต้อง flip ใหม่ทุกรอบ)
+    ② ความน่าจะเป็น<b>แกว่งเป็นคลื่น</b> ไม่ได้ขึ้นอย่างเดียว
+    ③ สูตร <b>N<sub>AA</sub> = ⌊π√(2ⁿ)/4⌋</b> บอกว่าหยุดรอบไหน — ทั้งสูตรและกรอบ “AA” ในวงจรออกสอบได้
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · ทำซ้ำ → AA iteration และ phase logic</h2></div>
+
+  <h3>ลองทายก่อน: ใส่ mirror ซ้ำเฉยๆ ได้ไหม?</h3>
+  <p>ตอนนี้เราอยู่ที่ <b>B₁</b> (หลัง flip + mirror 1 รอบ) — ∣3⟩ วงใหญ่ 47.3% ที่เหลือหด
+    และ<b>เข็มทุกวงชี้ทางเดียวกันหมด</b> (ไม่มีความต่างของเฟสเหลือ)</p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">ถ้าที่ B₁ เราใส่ <b>mirror อีกครั้งเลย โดยไม่ flip ก่อน</b> จะได้อะไร?
+      (ใบ้: mirror แปลงความต่างได้<b>ทั้งสองทาง</b> — บท 0023)</div>
+    <button class="opt">ขยายต่อจนได้ประมาณ 90.8%</button>
+    <button class="opt">ย้อนกลับไปเป็นสถานะ B เดิม</button>
+    <button class="opt">ค่าที่ mark ลดลงจนเหลือศูนย์</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — สไลด์ p11: mirror ซ้ำ = <b>กลับไปที่เดิม</b>
+      เพราะมันแปลงความต่างของ magnitude <b>กลับ</b>เป็นความต่างของเฟส (เหมือนกดสวิตช์ซ้ำ)</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — ที่ B₁ ไม่มีความต่างของเฟสเหลือให้ mirror แปลงไปข้างหน้า
+      มีแต่ความต่างของ magnitude → mirror จึงแปลง<b>ย้อนกลับ</b>เป็นเฟส = กลับไปสถานะ B (p11)</div>
+  </div>
+
+  <h3>ทางที่ถูก: flip ใหม่ก่อน แล้วค่อย mirror</h3>
+  <p>ถ้า <b>flip ค่า 3 อีกครั้ง</b> เราจะได้ความต่างของเฟส “ชุดใหม่” ให้ mirror แปลง → ผลคือ (p11):</p>
+
+  <div class="wide">
+    <p class="meta" style="margin:.5rem 0 0;"><b>หลัง flip + mirror ครบ 2 รอบ (B₂)</b> — ∣3⟩ ≈ 90.8% · ที่เหลือ ≈ 0.6% ต่อค่า</p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.00613,0.00613,0.00613,0.908,0.00613,0.00613,0.00613,0.00613,0.00613,0.00613,0.00613,0.00613,0.00613,0.00613,0.00613,0.00613"
+         data-phase="0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0" data-hl="3"></div>
+    <p class="src">สไลด์ p11 · “After applying flip-mirror a second time on state B”</p>
+  </div>
+
+  <table class="cmp">
+    <thead><tr><th>จำนวนรอบ flip + mirror</th><th>โอกาส READ ได้ 3</th></tr></thead>
+    <tbody>
+      <tr><td data-label="จำนวนรอบ flip + mirror">0 (หลัง flip อย่างเดียว)</td><td data-label="โอกาส READ ได้ 3">6.25%</td></tr>
+      <tr><td data-label="จำนวนรอบ flip + mirror">1</td><td data-label="โอกาส READ ได้ 3">≈ 47.3%</td></tr>
+      <tr><td data-label="จำนวนรอบ flip + mirror">2</td><td data-label="โอกาส READ ได้ 3"><b>≈ 90.8%</b></td></tr>
+    </tbody>
+  </table>
+
+  <h3>ตั้งชื่อ: 1 AA iteration = flip + mirror</h3>
+  <p>สไลด์ p12 เรียกคู่นี้รวมกันว่า <b>amplitude amplification iteration (AA iteration — รอบของการขยายแอมพลิจูด)</b>
+    · flip <b>เล็ง</b>ค่าเป้าหมายแล้วทำให้เฟสต่าง · mirror <b>แปลง</b>ความต่างนั้นเป็นขนาด</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8"
+         data-groups="0-2:flip; 3-7:mirror"
+         data-ops="X:2 + X:3; CZ:0,1,2,3; X:2 + X:3;
+                   H:0 + H:1 + H:2 + H:3;
+                   X:0 + X:1 + X:2 + X:3; CZ:0,1,2,3; X:0 + X:1 + X:2 + X:3;
+                   H:0 + H:1 + H:2 + H:3"
+         data-cap="A single AA iteration (สไลด์ p12, mark ค่า 3) · ทั้ง 8 คอลัมน์นี้ = <b>AA 1 รอบ</b>"></div>
+  </div>
+
+  <div class="box warn">
+    <b>หน้าตาในสไลด์ (เรื่องสอบ)</b> — สไลด์วาด 8 คอลัมน์นี้ไว้ใน<b>กรอบมุมมนพื้นเทา มีป้าย “AA” ทั้งบนและล่าง</b>
+    (ไม่ได้แบ่งเป็นกล่อง flip/mirror แยกแบบรูปด้านบน — หนูแบ่งให้ดูว่าส่วนไหนเป็นอะไร)
+    · เวลาวนหลายรอบ สไลด์วาดกรอบ AA <b>ต่อกันเป็นขบวน</b>ที่เนื้อในเหมือนกันทุกกรอบ
+  </div>
+
+  <h3>“ต้องรู้คำตอบก่อนถึงจะ flip ได้ แล้วจะค้นหาไปทำไม?”</h3>
+  <p>คำถามนี้สไลด์ p13 ตั้งไว้เองเลย — กล่อง flip ของเรา<b>เขียนเลข 3 ฝังไว้ในวงจร</b> ถ้ารู้อยู่แล้วว่าคำตอบคือ 3
+    ก็ไม่ต้องใช้ QPU · คำตอบคือ <b>flip เป็นแค่ตัวอย่างที่ง่ายที่สุด</b>ของ subroutine ที่พลิกเฟส</p>
+
+  <div class="analogy">
+    <div class="cell"><b>flip (ตัวอย่างในห้องเรียน)</b><small>เหมือนครูติดสติกเกอร์ไว้ที่คำตอบข้อ 3 เอง —
+      ใช้สาธิตว่าเครื่องทำงานยังไง แต่ในงานจริงไม่มีใครติดให้</small></div>
+    <div class="arrow">→</div>
+    <div class="cell"><b>phase logic (งานจริง)</b><small>เหมือน<b>กฎตรวจคำตอบ</b> เช่น “ค่านี้ทำให้สมการเป็นจริงไหม”
+      ใครผ่านกฎก็โดนพลิกเฟสเอง โดยที่เราไม่ต้องรู้ล่วงหน้าว่าเป็นค่าไหน</small></div>
+  </div>
+
+  <p><b>phase logic (ลอจิกบนเฟส)</b> = การคำนวณที่ทำบนเฟสของรีจิสเตอร์ล้วนๆ พลิกเฟสหลายค่าตามตรรกะของโจทย์
+    (ต่อยอดจาก phase-encoded result ใน <a href="midterm/0020-quantum-conditional-execution-and-phase-encoding.html">บท 0020</a>)</p>
+
+  <div class="box aha">
+    <b>ประโยคทองสไลด์ p13</b> — เอา subroutine แก้เฟสที่ซับซ้อนกว่า flip มาต่อกับ mirror
+    ก็<b>ยังแปลงการเปลี่ยนแปลงของเฟส → ความต่างของ magnitude ได้เหมือนเดิม</b>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">เปลี่ยนโจทย์จาก “หาเลข 3” เป็นโจทย์อื่น ต้องแก้ส่วนไหนของ AA iteration?</div>
+    <button class="opt">แก้แค่ส่วน flip ส่วน mirror คงเดิม</button>
+    <button class="opt">แก้แค่ส่วน mirror ส่วน flip คงเดิม</button>
+    <button class="opt">ต้องแก้ทั้งส่วน flip และส่วน mirror</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — flip (หรือ phase logic) คือส่วนที่<b>รู้จักโจทย์</b>
+      ส่วน mirror = <code class="code">Grover()</code> หน้าตาเดียวทุกงาน (บท 0023)</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — mirror ไม่รู้เลยว่าโจทย์คืออะไร มันแค่แปลงเฟสเป็นขนาด
+      · ส่วนที่ “รู้โจทย์” มีแค่ flip ซึ่งในงานจริงถูกแทนด้วย phase logic</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · วนต่อไปเรื่อยๆ → คลื่น และสูตร N<sub>AA</sub></h2></div>
+
+  <p>90.8% แล้ว — วนต่อก็น่าจะแตะ 100% สิ? สไลด์ p14 ลองด้วยโค้ดที่เปลี่ยนแค่
+    <code class="code">number_of_iterations</code>:</p>
+
+<pre class="code-blk">var number_to_flip = 3;
+var number_of_iterations = 4;
+
+var num_qubits = 4;
+qc.reset(num_qubits);
+var reg = qint.new(num_qubits, 'reg');
+reg.write(0);
+reg.hadamard();                          // prep
+
+for (var i = 0; i &lt; number_of_iterations; ++i) {
+  reg.not(~number_to_flip);              // ┐
+  reg.cphase(180);                       // ├ flip
+  reg.not(~number_to_flip);              // ┘
+  reg.Grover();                          //   mirror
+  var prob = reg.peekProbability(number_to_flip);   // แอบดู % ของค่า 3
+}</pre>
+  <p class="meta"><code class="code">peekProbability</code> = <b>แอบดู</b>ความน่าจะเป็นโดยไม่ READ ·
+    ทำได้เพราะรันบน simulator (บน QPU จริงแอบดูไม่ได้ — ดูได้ทางเดียวคือ READ ซึ่งทำลายสถานะ)</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2 + H:3;
+                   BOX:0,3:AA:1; _; BOX:0,3:AA:1; _; BOX:0,3:AA:1; _; BOX:0,3:AA:1"
+         data-cap="ผังย่อของสไลด์ p15: prep แล้วตามด้วยกรอบ AA 4 กรอบ (เนื้อในเหมือนกันทุกกรอบ)"></div>
+    <p class="src">ลูกศรในสไลด์: <b>B</b> = กลางกรอบ AA แรก (หลัง flip ก่อน mirror) ·
+      <b>B₁ B₂ B₃ B₄</b> = ท้ายกรอบที่ 1, 2, 3, 4</p>
+  </div>
+
+  <h3>ไล่ผังทีละรอบ (สไลด์ p15–16)</h3>
+  <div class="wide">
+    <p class="meta" style="margin:.5rem 0 0;"><b>B</b> — หลัง flip · ทุกวง 6.25% · มีแต่ ∣3⟩ ที่เข็มชี้ลง</p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625"
+         data-phase="0,0,0,180,0,0,0,0,0,0,0,0,0,0,0,0" data-hl="3"></div>
+    <p class="meta" style="margin:.5rem 0 0;"><b>B₁</b> — 47.3% · เข็ม<b>ชี้ลงทุกวง</b> (เฟสตรงกันหมด)</p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.035,0.035,0.035,0.473,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035,0.035"
+         data-phase="180,180,180,180,180,180,180,180,180,180,180,180,180,180,180,180" data-hl="3"></div>
+    <p class="meta" style="margin:.5rem 0 0;"><b>B₂</b> — 90.8% · เข็ม<b>ชี้ขึ้นทุกวง</b> (เฟสตรงกันหมด)</p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.00613,0.00613,0.00613,0.908,0.00613,0.00613,0.00613,0.00613,0.00613,0.00613,0.00613,0.00613,0.00613,0.00613,0.00613,0.00613"
+         data-phase="0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0" data-hl="3"></div>
+    <p class="meta" style="margin:.5rem 0 0;"><b>B₃</b> — <b>96.1%</b> · ∣3⟩ ชี้ลง แต่ที่เหลือชี้ขึ้น ← <b>สวนเฟสกัน!</b></p>
+    <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.00258,0.00258,0.00258,0.961,0.00258,0.00258,0.00258,0.00258,0.00258,0.00258,0.00258,0.00258,0.00258,0.00258,0.00258,0.00258"
+         data-phase="0,0,0,180,0,0,0,0,0,0,0,0,0,0,0,0" data-hl="3"></div>
+    <p class="src">สไลด์ p15 · หนูซูมยืนยันทิศเข็มแถว B₃/B₄ แล้วตรงกับที่คำนวณเอง</p>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">ที่ B₃ ค่า ∣3⟩ เฟส 180° แต่ค่าอื่น 0° · รอบที่ 4 เริ่มด้วย <b>flip ∣3⟩ อีกที</b> —
+      หลัง flip นั้นสถานะเป็นยังไง แล้ว mirror จะทำอะไรต่อ?</div>
+    <button class="opt">เฟสตรงกันหมด ไม่มีความต่างเฟสให้ขยาย จึงเริ่มหด</button>
+    <button class="opt">เฟสสวนกันแรงขึ้นอีก mirror จึงขยายได้เกิน 99%</button>
+    <button class="opt">flip ลดขนาดวงของ ∣3⟩ ลงเองทันทีเหลือราวครึ่ง</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — flip ทำให้ ∣3⟩ ชี้ขึ้นเหมือนเพื่อน (p16 “in alignment”)
+      → เหลือแต่ความต่างของ<b>ขนาด</b> → mirror แปลง<b>ย้อนกลับ</b>เหมือนตอน mirror ซ้ำในส่วนที่ 1 · ร่วงเหลือ <b>58.2%</b></div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — flip ไม่แตะขนาดวงเลย มันแค่พลิกเข็ม ∣3⟩ จาก 180° → 0°
+      ซึ่ง<b>ตรงกับเพื่อนพอดี</b> · ไม่มีความต่างเฟสให้แปลง mirror จึงทำงานย้อนทาง</div>
+  </div>
+
+  <details class="recall">
+    <summary>เปิดดูผัง B₄ (ตอบข้อด้านบนก่อนนะคะ)</summary>
+    <div class="wide">
+      <p class="meta" style="margin:.5rem 0 0;"><b>B₄</b> — ร่วงเหลือ <b>58.2%</b> · ∣3⟩ ชี้ขึ้น ที่เหลือชี้ลง และวงเล็กๆ โตกลับมา</p>
+      <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+           data-mag="0.02788,0.02788,0.02788,0.582,0.02788,0.02788,0.02788,0.02788,0.02788,0.02788,0.02788,0.02788,0.02788,0.02788,0.02788,0.02788"
+           data-phase="180,180,180,0,180,180,180,180,180,180,180,180,180,180,180,180" data-hl="3"></div>
+      <p class="src">สไลด์ p15–16 · “the probability … has dropped to 58.2%”</p>
+    </div>
+  </details>
+
+  <div class="box aha">
+    <b>จำรูปแบบเฟส</b> — B₁, B₂ เฟส<b>ตรงกันหมด</b> (ยังขาขึ้น) · B₃, B₄ ∣3⟩ <b>สวนเฟส</b>กับที่เหลือ
+    · พอ marked “สวน” เมื่อไร flip รอบถัดไปจะ<b>หักล้าง</b>ความต่างทิ้ง → AA เริ่มพาถอยหลัง
+  </div>
+
+  <h3>ความน่าจะเป็นแกว่งเป็นคลื่น (สไลด์ p17)</h3>
+  <p>วนต่อไปอีก ค่าไม่ได้หายไปเฉยๆ แต่<b>ขึ้นๆ ลงๆ แบบคาดเดาได้ (oscillate)</b> · คาบราว 6 รอบ ·
+    กราฟนี้หนูคำนวณเองทุกแท่ง (ตรงกับตัวเลขที่สไลด์พิมพ์ไว้):</p>
+
+  <div class="wide">
+    <div class="bars"
+         data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-vals="6.25,47.3,90.8,96.1,58.2,12.5,2.0,36.5,83.6,99.2,68.7,20.6,0.1,26.4,74.8,99.96"
+         data-max="100"
+         data-hl="3:ok; 9:on; 15:on"
+         data-cap="% ที่ READ ได้ 3 (แกน y) เทียบจำนวนรอบ AA (แกน x) · 4 qubit · mark 1 ค่า"></div>
+  </div>
+
+  <div class="box warn">
+    <b>สไลด์ p17 พิมพ์ไม่เป๊ะ</b> — สไลด์ว่ายอดสูงสุดคือ <b>“รอบ 9 หรือ 15” ได้ 99.9563%</b> →
+    <b>ตอบตามนี้ตอนสอบ</b> · แต่ของจริงรอบ 15 = 99.956% ✓ ส่วน<b>รอบ 9 = 99.22%</b> (ใกล้ แต่ไม่เท่า)
+  </div>
+
+  <h3>หยุดที่ไหนดี? — ไม่ต้องไล่ล่ายอดที่สูงที่สุด</h3>
+  <p>สไลด์ p18 เสนอว่าถ้าแต่ละรอบ “แพง” ให้<b>หยุดที่ยอดแรก 3 รอบ</b> (96.1%) แล้ว READ · ถ้าพลาดก็รันใหม่ทั้งโปรแกรม</p>
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> โอกาสพลาดต่อครั้ง = 1 − 0.961 = <b>0.039</b></div>
+    <div class="step"><span class="lbl">②</span> พลาด<b>ทั้งสองครั้ง</b> = 0.039 × 0.039 ≈ 0.00152</div>
+    <div class="step"><span class="lbl">③</span> สำเร็จอย่างน้อย 1 ใน 2 ครั้ง = 1 − 0.00152 = <b>99.848%</b>
+      · ใช้ AA รวม<b>ไม่เกิน 6 รอบ</b> (เทียบรอยอด 15 รอบได้ 99.956%)</div>
+  </div>
+  <p class="meta">แถม: READ ได้เลขมาแล้ว<b>ตรวจง่ายมาก</b>ว่าใช่ไหม — จึงรู้ทันทีว่าต้องรันซ้ำหรือเปล่า</p>
+
+  <h3>สูตรจำนวนรอบที่ดีที่สุด (สไลด์ p19)</h3>
+  <div class="eq">N<sub>AA</sub> = ⌊ π √(2ⁿ) / 4 ⌋</div>
+  <p><b>n</b> = จำนวน qubit · <b>⌊ ⌋</b> = ปัดลง (floor) · ได้จำนวนรอบที่ให้ยอด<b>ของลูกคลื่นแรก</b></p>
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> n = 4 → 2⁴ = 16 → √16 = 4</div>
+    <div class="step"><span class="lbl">②</span> π × 4 / 4 = π ≈ 3.14</div>
+    <div class="step"><span class="lbl">③</span> ⌊3.14⌋ = <b>3</b> ✓ ตรงกับยอด 96.1% ในกราฟ</div>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">รีจิสเตอร์ <b>6 qubit</b> mark ค่าเดียว — ควรวน AA กี่รอบ? (คิดตามสูตรเองก่อนนะคะ)</div>
+    <button class="opt">6 รอบ</button>
+    <button class="opt">7 รอบ</button>
+    <button class="opt">8 รอบ</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ — 2⁶ = 64 → √64 = 8 → π×8/4 = 2π ≈ 6.28 → ปัดลง = <b>6</b>
+      (ยอดที่ได้ ≈ 99.7%)</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ — 2⁶ = 64 → √64 = <b>8</b> (อย่าลืมหาร 4) → π×8/4 ≈ 6.28
+      → <b>ปัดลง</b> ไม่ใช่ปัดขึ้น = 6</div>
+  </div>
+
+  <details class="recall">
+    <summary>อยากรู้ว่าทำไมเป็น √ (เสริม · ไม่ออกสอบ)</summary>
+    <p>มองแบบเรขาคณิต: สถานะเริ่มต้นเอียงจาก “ไม่ใช่คำตอบ” ไปหา “คำตอบ” เป็นมุมเล็กๆ θ โดย sin θ = 1/√(2ⁿ)
+      · AA แต่ละรอบ<b>หมุนเพิ่ม 2θ</b> · ความน่าจะเป็น = sin²((2k+1)θ) ซึ่งเป็นคลื่นจริงๆ
+      · จะหมุนไปถึง 90° ต้องใช้ราว (π/2)/(2θ) ≈ <b>π√(2ⁿ)/4</b> รอบ → นี่คือที่มาของ √ และสูตรข้างบน</p>
+    <p>ผลคือค้นใน 2ⁿ ค่าได้ด้วยราว √(2ⁿ) รอบ (คอมคลาสสิกต้องไล่ราว 2ⁿ ครั้ง) ·
+      อ่านเพิ่ม: <a href="https://en.wikipedia.org/wiki/Grover%27s_algorithm#Geometric_proof_of_correctness">Wikipedia: Grover's algorithm — geometric proof</a>
+      · ส่วนมุมมอง “mirror สะท้อนรอบค่าเฉลี่ย” ของสไลด์ เก็บไว้บท 0026 ค่ะ</p>
+  </details>
+
+  <p>ปิดท้ายสไลด์ p19: ตอนนี้เราแปลงความต่างเฟส<b>จุดเดียว</b>เป็นขนาดได้แล้ว — แต่ phase logic ของจริง
+    มักพลิกเฟส<b>หลายค่าพร้อมกัน</b> · AA รับมือได้ไหม? → บท 0025</p>
+
+  <!-- ============================================================ -->
+  <details class="recall">
+    <summary>ทดสอบความจำ (ตอบในใจก่อนเปิด)</summary>
+    <ol>
+      <li>ที่ B₁ ใส่ mirror ซ้ำเลยโดยไม่ flip ได้อะไร เพราะอะไร?
+        <br><b>กลับไปสถานะ B — ไม่มีความต่างเฟสเหลือ mirror จึงแปลงขนาดย้อนกลับเป็นเฟส</b></li>
+      <li>1 AA iteration ประกอบด้วยอะไร?
+        <br><b>flip + mirror (สไลด์วาดเป็นกรอบมุมมนป้าย “AA” บน-ล่าง)</b></li>
+      <li>% ของ marked value หลัง AA 0, 1, 2, 3, 4 รอบ (4 qubit)?
+        <br><b>6.25 → 47.3 → 90.8 → 96.1 → 58.2</b></li>
+      <li>ถ้าต้องรู้คำตอบก่อนถึงจะ flip ได้ AA มีประโยชน์ตรงไหน?
+        <br><b>flip เป็นแค่ตัวอย่าง งานจริงใช้ phase logic ที่พลิกเฟสตามกฎของโจทย์ mirror ยังใช้ได้เหมือนเดิม</b></li>
+      <li>ทำไมรอบที่ 4 ร่วง?
+        <br><b>ที่ B₃ marked สวนเฟส → flip ทำให้เฟสตรงกันหมด → mirror แปลงย้อนทาง</b></li>
+      <li>ความน่าจะเป็นเมื่อวน AA ไปเรื่อยๆ มีหน้าตาแบบไหน?
+        <br><b>แกว่งเป็นคลื่นคาดเดาได้ คาบราว 6 รอบ (4 qubit)</b></li>
+      <li>ตามสไลด์ ยอดสูงสุด 99.9563% อยู่รอบไหน · ของจริงล่ะ?
+        <br><b>สไลด์: 9 หรือ 15 · จริง: 15 = 99.956% ส่วน 9 = 99.22%</b></li>
+      <li>หยุดที่ 3 รอบแล้วรันซ้ำถ้าพลาด ได้โอกาสเท่าไร ใช้กี่รอบ?
+        <br><b>99.848% ใน 2 ครั้ง ใช้ไม่เกิน 6 รอบ</b></li>
+      <li>เขียนสูตร N<sub>AA</sub> แล้วแทน n = 8
+        <br><b>⌊π√(2ⁿ)/4⌋ → √256 = 16 → 4π ≈ 12.57 → 12 รอบ</b></li>
+    </ol>
+  </details>
+
+  <div class="part"><h2>สรุปบทนี้</h2></div>
+  <ul>
+    <li>mirror ซ้ำเฉยๆ = <b>ย้อนกลับ</b> · ต้อง <b>flip ใหม่ทุกรอบ</b> → flip + mirror = <b>1 AA iteration</b></li>
+    <li>flip = ตัวอย่างง่ายสุด · งานจริงใช้ <b>phase logic</b> · mirror ไม่เปลี่ยน</li>
+    <li>4 qubit: <b>6.25 → 47.3 → 90.8 → 96.1 → 58.2%</b> · ร่วงเพราะ B₃ สวนเฟส แล้ว flip ทำให้ตรงกัน</li>
+    <li>ความน่าจะเป็น<b>แกว่งเป็นคลื่น</b> · หยุดยอดแรกแล้วรันซ้ำถ้าพลาดคุ้มกว่า (99.848% ใน ≤ 6 รอบ)</li>
+    <li><b>N<sub>AA</sub> = ⌊π√(2ⁿ)/4⌋</b> → n = 4 ได้ 3 · ⚠️ สไลด์ p17 “รอบ 9 หรือ 15” — รอบ 9 จริงๆ 99.22%</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b> — <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia — บทที่ 6
+      <i>Amplitude Amplification</i> หัวข้อ <i>The Amplitude Amplification Iteration</i> และ <i>More Iterations?</i> ·
+      โค้ดรันเองได้ที่ <a href="https://oreilly-qc.github.io/#/toolkit">QCEngine</a>
+      (ลองตั้ง <code class="code">number_of_iterations</code> เป็น 3, 4, 9 แล้วดูผัง) ·
+      สไลด์ <code class="code">QuantumProg_Lec06.pdf</code> หน้า 11–19</p>
+    <p><b>บทที่เกี่ยวข้อง</b> —
+      <a href="0023-flip-and-mirror.html">0023 · flip + mirror</a> ·
+      <a href="midterm/0020-quantum-conditional-execution-and-phase-encoding.html">0020 · phase-encoded result</a> ·
+      <a href="midterm/0003-amplitude-and-phase.html">0003 · amplitude และ phase</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> — จุดที่คนงงบ่อยในบทนี้:
+      ① ทำไม mirror ซ้ำถึงย้อนกลับ แต่ flip + mirror ถึงไปต่อได้ ② B₃ “สวนเฟส” แล้วทำไมรอบหน้าถึงแย่ลง
+      ③ ทำไมสูตรต้องปัดลง ไม่ปัดเศษปกติ
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

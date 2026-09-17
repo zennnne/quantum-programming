@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0021b — Uncomputing: ยืม scratch มาแล้วต้องคืนให้เนียน</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/lesson-bits.css">
+<script defer src="../../assets/quiz.js"></script>
+<script defer src="../../assets/circles.js"></script>
+<script defer src="../../assets/circuit.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 05 · บทที่ 0021b</div>
+  <h1>Uncomputing — ยืม scratch มาแล้วต้องคืนให้เนียน</h1>
+  <p class="lead">บทที่แล้วเราสร้าง <b>scratch qubit</b> (คิวบิตทด) ขึ้นมาแก้ปัญหา
+    <code class="code">abs(a)</code> ที่ย้อนกลับไม่ได้ — แล้วจบบทด้วยปัญหาใหม่: scratch ตัวนั้น
+    <b>ค้าง entangled อยู่กับ a</b> เอาไปใช้ต่อไม่ได้ · บทนี้คือคำตอบของปัญหานั้น
+    และมันคือ<b>สูตรที่จะใช้ซ้ำไปตลอดวิชานี้</b></p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b> — สูตร <b>compute → use → uncompute</b> คือรูปแบบที่พบบ่อยที่สุด
+    อันหนึ่งใน quantum computation ทั้งวงการ · ตั้งแต่บทหน้าเป็นต้นไป (oracle, amplitude
+    amplification, Grover) ทุกวงจรที่ “ทำอะไรบางอย่างแล้วเก็บผลไว้ในเฟส” ล้วนมีโครงนี้อยู่ข้างใน
+    <br>จับ <b>3 อย่าง</b>: ① ทำไม READ scratch ทิ้งไม่ได้ ② ทำไมต้อง<i>ใช้คำตอบก่อน</i>แล้วค่อยย้อน
+    ③ อ่านวงจร 3 กล่องให้ออก
+  </div>
+
+  <div class="part"><h2>ส่วนที่ 1 · ปัญหา 2 ข้อของ scratch qubit</h2></div>
+
+  <p>สไลด์ p46 บอกตรงๆ ว่า scratch qubit “มักไปพัวพันกับ QPU register ของเรา — พูดให้ตรงคือมัน
+    <b>entangled</b>” แล้วยกปัญหา 2 ข้อที่เกี่ยวโยงกันขึ้นมา:</p>
+
+  <div class="twocol">
+    <div class="c"><b>ปัญหาข้อที่ 1 — scratch ไม่กลับ ∣0⟩ เอง</b>
+      <p>จบวงจร <code class="code">abs(a)</code> แล้ว scratch ค้างอยู่ที่ “บิตเครื่องหมายของ a”
+        ซึ่งไม่ใช่ ∣0⟩ · แต่ขั้นถัดไปของโปรแกรมต้องการ scratch สะอาดไปใช้ใหม่
+        (qubit เป็นของหายาก จะเปลืองตัวใหม่ทุกครั้งไม่ได้)</p></div>
+    <div class="c"><b>ปัญหาข้อที่ 2 — จะ READ แล้ว NOT ก็ไม่ได้</b>
+      <p>ทางแก้แบบสัญชาตญาณคือ “ก็ READ มันสิ ได้ 1 ก็ NOT ทิ้ง” — แต่ scratch
+        <b>entangled กับ a อยู่</b> · การ READ มันจึงยุบ superposition ของ a ไปด้วย
+        สไลด์ p47 ใช้คำว่า <b>“ทำลายครึ่งหนึ่งของ quantum state ของ a”</b></p></div>
+  </div>
+
+  <div class="box warn">
+    <b>ย้ำจากบทที่แล้ว:</b> CNOT ตัวแรกที่เอาบิตเครื่องหมายไปพักที่ scratch
+    <b>ไม่ได้ copy</b> — มัน <b>entangle</b> · ถ้ามันเป็นการ copy จริง เราก็คงอ่าน scratch ทิ้งได้สบายๆ
+    แล้วปัญหาข้อที่ 2 จะไม่มีอยู่เลย · ปัญหาทั้งบทนี้เกิดจากคำว่า entangle คำเดียว
+  </div>
+
+  <p>ทางออกที่สไลด์เสนอชื่อว่า <b class="term">uncomputing</b> (การย้อนคำนวณ) และแนวคิดมันเรียบง่ายมาก:
+    <b>ย้อน operation ทุกตัวที่ทำให้ scratch entangled</b> เพื่อพามันกลับสู่ ∣0⟩ ที่ไม่ entangled
+    เหมือนตอนเริ่ม — ทำได้เพราะทุก gate ของ QPU (ยกเว้น READ) <b>ย้อนกลับได้</b>อยู่แล้ว
+    รันย้อนลำดับก็จบ</p>
+
+  <div class="box aha">
+    <b>แต่ยังไม่จบ</b> — p48 พูดตรงๆ ว่า: เราได้ scratch กลับมาที่ ∣0⟩ แล้วก็จริง
+    <b>แต่เราก็ล้างงานคำนวณ absolute value ทั้งหมดทิ้งไปด้วย</b>
+    <br><small>ก็แน่นอน — “ย้อนทุกอย่าง” ย่อมแปลว่าย้อนคำตอบด้วย นี่คือใจกลางของบทนี้</small>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q"><b>ข้อ ① </b> ถ้าเราต่อวงจร <code class="code">abs(a)</code> ด้วยวงจรย้อนของมันทันที
+      โดยไม่มีอะไรคั่นกลางเลย — ไล่วงจรในหัวแล้วตอบว่าจบแล้วเราได้อะไร</div>
+    <button class="opt">scratch กลับมาเป็น ∣0⟩ แต่ค่า abs ก็หายเกลี้ยงไปแล้วเช่นกัน</button>
+    <button class="opt">scratch ค้างอยู่ที่ ∣1⟩ ส่วนค่า abs ยังอยู่ครบทุกกิ่งตามเดิม</button>
+    <button class="opt">scratch กลับมาเป็น ∣0⟩ และค่า abs ก็ยังอยู่ครบทุกกิ่งเช่นกัน</button>
+    <div class="fb ok" data-for="ok">ถูกต้อง — และนี่คือเหตุผลที่ต้องมีส่วนที่ 2 ของบทนี้ ·
+      ถ้า uncompute แล้วคำตอบยังอยู่ นั่นจะเท่ากับเรา copy ข้อมูลควอนตัมได้ ซึ่งผิดกฎ no-copying</div>
+    <div class="fb no" data-for="no">ลองไล่ใหม่: ย้อนวงจรทั้งชุด = ย้อน<b>ทุกอย่าง</b>ที่วงจรทำ
+      รวมถึงการ negate ค่า a ด้วย · จะได้สถานะกลับไปเหมือนก่อนเริ่มเป๊ะๆ — คำตอบก็หายไปด้วย</div>
+  </div>
+
+  <div class="part"><h2>ส่วนที่ 2 · สูตร compute → use → uncompute</h2></div>
+
+  <p>ถ้าย้อนแล้วคำตอบหาย ทำไม uncompute ถึงยังมีประโยชน์? สไลด์ p49 ตอบด้วยประโยคเดียว:</p>
+
+  <div class="eq">เรามัก <b>ใช้คำตอบเสียก่อน</b> แล้วค่อย uncompute</div>
+
+  <p>เพราะจริงๆ แล้วเราแทบไม่เคยอยากได้ <code class="code">abs(a)</code> เดี่ยวๆ —
+    เราอยากได้มันเป็นชิ้นส่วนของการคำนวณที่ใหญ่กว่า เช่น
+    <b>“บวกค่าสัมบูรณ์ของ a เข้าไปใน b”</b> · ถ้าเราแทรกการบวกนั้นไว้<i>ตรงกลาง</i>
+    ผลลัพธ์จะไปตกอยู่ที่ b ซึ่งไม่ถูกกล่อง uncompute ย้อนด้วย</p>
+
+  <div class="analogy">
+    <div class="cell"><b>ยืมกระดาษทดในห้องสอบ</b><small>ทดเลขลงกระดาษ → <b>ลอกคำตอบลงใบตอบ</b>
+      → ลบกระดาษทดจนขาวแล้วคืนครู · คำตอบอยู่ในใบตอบ ไม่ได้หายไปกับกระดาษทด</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>compute → use → uncompute</b><small>คำนวณลง scratch → <b>ใช้ผลไปทำอะไรกับ b</b>
+      → ย้อนจน scratch กลับเป็น ∣0⟩ · คำตอบอยู่ใน b ไม่ได้หายไปกับ scratch</small></div>
+  </div>
+
+  <p>นี่คือวงจรจริงจากสไลด์ p49–p50 — 7 สาย (b 3 บิต, a 3 บิต, scratch 1 บิต) แบ่งเป็น 3 กล่องพอดี:</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="7"
+      data-names="b,b,b,a,a,a,scratch"
+      data-wire-labels="0x1,0x2,0x4,0x1,0x2,0x4,0x1"
+      data-groups="1-5:compute abs(a); 6-11:b += abs(a); 12-16:uncompute abs(a)"
+      data-out="0-2:b + abs(a); 3-5:a; 6:∣0⟩"
+      data-ops="WRITE:6;
+        CNOT:5,6; CTRL:6 + X:3,4,5; CTRL:3,4,6 + X:5; CCNOT:3,6,4; CNOT:6,3;
+        CTRL:0,1,3 + X:2; CCNOT:0,3,1; CNOT:3,0; CCNOT:1,4,2; CNOT:4,1; CNOT:5,2;
+        CNOT:6,3; CCNOT:3,6,4; CTRL:3,4,6 + X:5; CTRL:6 + X:3,4,5; CNOT:5,6"
+      data-cap="วงจร b += abs(a) (สไลด์ p49–p50) — จบแล้ว scratch กลับเป็น ∣0⟩ พร้อมใช้ใหม่"></div>
+  </div>
+
+  <p><b>อ่านวงจรนี้ยังไงให้ไม่ตาลาย</b> — อย่าอ่านทีละ gate ให้อ่านทีละกล่อง แล้วสังเกตว่า
+    <b>กล่องที่ 3 คือกล่องที่ 1 กลับหลัง</b> ตัวต่อตัว:</p>
+
+  <table class="cmp">
+    <tr><th>กล่อง</th><th>ทำอะไร</th><th>แตะสายไหน</th></tr>
+    <tr><td><b>① compute abs(a)</b><br>5 คอลัมน์</td>
+        <td>XOR บิตเครื่องหมายไปพักที่ scratch แล้ว negate a เมื่อ scratch = 1
+          (= วงจรเดิมของบท 0021 เป๊ะๆ)</td>
+        <td><code class="code">a</code> + <code class="code">scratch</code></td></tr>
+    <tr><td><b>② b += abs(a)</b><br>6 คอลัมน์</td>
+        <td>วงจรบวกจากบท 0019 ตรงๆ — ตอนนี้ค่าใน a คือ abs(a) แล้ว จึงบวกได้เลย
+          <b>ไม่แตะ scratch เลยสักคอลัมน์</b></td>
+        <td><code class="code">b</code> + <code class="code">a</code></td></tr>
+    <tr><td><b>③ uncompute abs(a)</b><br>5 คอลัมน์</td>
+        <td>รันกล่อง ① <b>ย้อนลำดับ</b> → a กลับเป็นค่าเดิม (ติดลบก็กลับไปติดลบ)
+          และ scratch กลับเป็น ∣0⟩ ที่ไม่ entangled</td>
+        <td><code class="code">a</code> + <code class="code">scratch</code></td></tr>
+  </table>
+
+  <p>ผลรวม: <code class="code">b</code> ได้ค่าใหม่ที่ถูกต้อง · <code class="code">a</code>
+    ไม่เปลี่ยน · <code class="code">scratch</code> คืนสภาพ ·
+    และ operation <b>ก้อนใหญ่ทั้งก้อนกลายเป็น reversible</b> ทั้งที่ <code class="code">abs</code>
+    เพียวๆ ไม่ reversible (p51) — นั่นแหละคือทั้งหมดที่เราต้องการ</p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q"><b>ข้อ ② </b> ถ้ามีคนลบ<b>กล่องที่ 3</b> ออกจากวงจรข้างบนแล้วรันจริง
+      จะเกิดอะไรขึ้น — คิดจากสิ่งที่แต่ละกล่องแตะ</div>
+    <button class="opt">ค่าใน b ผิดทันทีเลย เพราะการบวกนั้นยังไม่จบจนกว่าจะครบทั้งสามกล่องพอดี</button>
+    <button class="opt">ค่าใน b ถูกอยู่ แต่ a ค้างที่ abs(a) และ scratch ยังพัวพันใช้ต่อไม่ได้</button>
+    <button class="opt">ค่าใน b ถูกอยู่ และ scratch ก็คืนสภาพเอง เพราะกล่องที่ 2 ไม่แตะมันเลย</button>
+    <div class="fb ok" data-for="ok">ใช่ — การบวกจบไปตั้งแต่กล่อง ② แล้ว b ไม่ผิด
+      แต่ที่เสียคือ<b>ของที่ต้องคืน</b>: a ยังเป็นค่าสัมบูรณ์อยู่ และ scratch ยัง entangled
+      → ขั้นถัดไปของโปรแกรมพัง</div>
+    <div class="fb no" data-for="no">ดูคอลัมน์ให้ดี: กล่อง ② ทำการบวกจนจบในตัวเองแล้ว
+      ส่วนกล่อง ③ มีหน้าที่เดียวคือ<b>คืนสภาพ a และ scratch</b> · ไม่มีกล่องไหนคืน scratch ให้ฟรีๆ</div>
+  </div>
+
+  <div class="part"><h2>ส่วนที่ 3 · ทางลัด CNOT และการเก็บผลไว้ในเฟส</h2></div>
+
+  <p>สไลด์ p51 เสริมสองอย่าง · อย่างแรก: ถ้าเรา<b>รู้ว่า b เริ่มต้นที่ 0</b>
+    เราไม่ต้องใช้วงจรบวก 6 คอลัมน์เลย — ใช้ CNOT สามตัวก็พอ เพราะ
+    <code class="code">0 + x = 0 XOR x = x</code></p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="7"
+      data-names="b,b,b,a,a,a,scratch"
+      data-wire-labels="0x1,0x2,0x4,0x1,0x2,0x4,0x1"
+      data-groups="1-5:compute abs(a); 6-8:b ^= abs(a); 9-13:uncompute abs(a)"
+      data-out="0-2:b XOR abs(a); 3-5:a; 6:∣0⟩"
+      data-ops="WRITE:6;
+        CNOT:5,6; CTRL:6 + X:3,4,5; CTRL:3,4,6 + X:5; CCNOT:3,6,4; CNOT:6,3;
+        CNOT:3,0; CNOT:4,1; CNOT:5,2;
+        CNOT:6,3; CCNOT:3,6,4; CTRL:3,4,6 + X:5; CTRL:6 + X:3,4,5; CNOT:5,6"
+      data-cap="วงจร b ^= abs(a) (สไลด์ p52) — กล่องกลางเหลือ CNOT แค่ 3 ตัว"></div>
+  </div>
+
+  <div class="box warn">
+    <b>อย่าเผลอเรียกมันว่า copy</b> — มันดูเหมือน “ก๊อป abs(a) ไปใส่ b” ก็จริง แต่ใช้ได้
+    <b>เฉพาะตอน b เริ่มที่ 0</b> เท่านั้น และผลที่ได้คือ b <i>entangled</i> กับ a ไม่ใช่สำเนาอิสระ ·
+    กฎ no-copying ยังอยู่ครบไม่มีใครละเมิด
+  </div>
+
+  <p>อย่างที่สอง และสำคัญกว่ามาก: เราเอา “ของที่ใช้ตรงกลาง” ไปเป็น
+    <b class="term">phase-encoded result</b> (ผลลัพธ์ที่เข้ารหัสในเฟส) ได้ด้วย —
+    ตราบใดที่กล่อง compute กับ uncompute ไม่ไปยุ่งกับเฟส เฟสที่เรา mark ไว้จะรอดออกมาครบ (p52)</p>
+
+  <p>วงจรนี้จากสไลด์ p53 ทำ <b>“กลับเฟส 180° ให้ทุกค่าที่ abs(a) เท่ากับ 1”</b>
+    — สังเกตว่ากล่องกลางเป็นทริกเดิมจากบท 0020: NOT คร่อมหัวท้ายเพื่อแปลงเงื่อนไข
+    <code class="code">a = 001</code> ให้กลายเป็น “ทุกบิตเป็น 1” แล้วค่อยใช้ CZ 3 ขา</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="4"
+      data-names="a,a,a,scratch" data-wire-labels="0x1,0x2,0x4,0x1"
+      data-groups="2-6:compute abs(a); 7-9:Z if abs(a)==1; 10-14:uncompute abs(a)"
+      data-out="0-2:a; 3:∣0⟩"
+      data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2;
+        CNOT:2,3; CTRL:3 + X:0,1,2; CTRL:0,1,3 + X:2; CCNOT:0,3,1; CNOT:3,0;
+        X:1,2; CZ:0,1,2; X:1,2;
+        CNOT:3,0; CCNOT:0,3,1; CTRL:0,1,3 + X:2; CTRL:3 + X:0,1,2; CNOT:2,3"
+      data-cap="วงจร phase(180) if abs(a)==1 (สไลด์ p53) — a เริ่มด้วย H ทั้ง 3 สาย = superposition ของ 0…7"></div>
+  </div>
+
+  <h3>เดินทีละสเต็ปด้วย circle notation (สไลด์ p54)</h3>
+  <p>กริดข้างล่างมี 16 วง = a 3 บิต × scratch 1 บิต · <b>คอลัมน์ = ค่าของ a</b> (two’s complement)
+    · <b>แถวบน = scratch 0 · แถวล่าง = scratch 1</b> · วงที่หมุนไป 180° คือวงที่ถูก mark ไว้ในเฟส</p>
+
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> <b>หลัง H ทั้ง 3 สาย</b> — a อยู่ในซูเปอร์โพซิชันเท่ากันของ 0…7
+      · scratch ยังเป็น ∣0⟩ สะอาด แถวล่างจึงว่างทั้งแถว</div>
+  </div>
+  <div class="crow" data-n="8" data-r="17" data-lab="scratch = 0"
+    data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125"
+    data-sub="a=0,a=1,a=2,a=3,a=−4,a=−3,a=−2,a=−1"></div>
+  <div class="crow" data-n="8" data-r="17" data-lab="scratch = 1"
+    data-labels="8,9,10,11,12,13,14,15" data-mag="0,0,0,0,0,0,0,0"></div>
+
+  <div class="work">
+    <div class="step"><span class="lbl">②</span> <b>หลัง CNOT ตัวแรก</b> (บิตเครื่องหมาย → scratch)
+      · ค่าลบทั้งสี่ (a = −4…−1) <b>ย้ายลงไปแถวล่าง</b> เพราะ scratch ของกิ่งนั้นกลายเป็น 1
+      · ค่าบวกอยู่แถวบนเหมือนเดิม</div>
+  </div>
+  <div class="crow" data-n="8" data-r="17" data-lab="scratch = 0"
+    data-mag="0.125,0.125,0.125,0.125,0,0,0,0"
+    data-sub="a=0,a=1,a=2,a=3,a=−4,a=−3,a=−2,a=−1"></div>
+  <div class="crow" data-n="8" data-r="17" data-lab="scratch = 1"
+    data-labels="8,9,10,11,12,13,14,15" data-mag="0,0,0,0,0.125,0.125,0.125,0.125"></div>
+
+  <div class="work">
+    <div class="step"><span class="lbl">③</span> <b>จบกล่อง compute abs(a)</b>
+      · แถวล่างถูก negate → −1,−2,−3,−4 กลายเป็น 1,2,3,4 (ไปอยู่ที่ ∣9⟩…∣12⟩)
+      · ตอนนี้ “ค่าใน a” ของทุกกิ่งคือค่าสัมบูรณ์แล้ว</div>
+  </div>
+  <div class="crow" data-n="8" data-r="17" data-lab="scratch = 0"
+    data-mag="0.125,0.125,0.125,0.125,0,0,0,0"
+    data-sub="abs=0,abs=1,abs=2,abs=3,,,,"></div>
+  <div class="crow" data-n="8" data-r="17" data-lab="scratch = 1"
+    data-labels="8,9,10,11,12,13,14,15" data-mag="0,0.125,0.125,0.125,0.125,0,0,0"
+    data-sub=",abs=1,abs=2,abs=3,abs=4,,,"></div>
+
+  <div class="work">
+    <div class="step"><span class="lbl">④</span> <b>จบกล่อง Z if abs(a)==1</b>
+      · <b>ขนาดวงไม่ขยับเลยแม้แต่วงเดียว</b> — เปลี่ยนแค่เฟส · วงที่ abs = 1 คือ ∣1⟩ (แถวบน)
+      กับ ∣9⟩ (แถวล่าง) หมุนไป 180° เข็มชี้ลง</div>
+  </div>
+  <div class="crow" data-n="8" data-r="17" data-lab="scratch = 0" data-hl="1"
+    data-mag="0.125,0.125,0.125,0.125,0,0,0,0" data-phase="0,180,0,0,0,0,0,0"
+    data-sub="abs=0,abs=1,abs=2,abs=3,,,,"></div>
+  <div class="crow" data-n="8" data-r="17" data-lab="scratch = 1" data-hl="1"
+    data-labels="8,9,10,11,12,13,14,15" data-mag="0,0.125,0.125,0.125,0.125,0,0,0"
+    data-phase="0,180,0,0,0,0,0,0" data-sub=",abs=1,abs=2,abs=3,abs=4,,,"></div>
+
+  <div class="work">
+    <div class="step"><span class="lbl">⑤</span> <b>จบกล่อง uncompute abs(a)</b>
+      · แถวล่างว่างสนิท = scratch กลับเป็น ∣0⟩ <b>ไม่ entangled แล้ว</b>
+      · a กลับมาเป็นค่าเดิมครบทั้ง 8 ค่า · <b>แต่ ∣1⟩ (a = +1) กับ ∣7⟩ (a = −1) ยังเป็น 180° อยู่</b>
+      — เฟสรอดออกมา นั่นคือคำตอบที่เราต้องการ</div>
+  </div>
+  <div class="crow" data-n="8" data-r="17" data-lab="scratch = 0" data-hl="1,7"
+    data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125"
+    data-phase="0,180,0,0,0,0,0,180"
+    data-sub="a=0,a=1,a=2,a=3,a=−4,a=−3,a=−2,a=−1"></div>
+  <div class="crow" data-n="8" data-r="17" data-lab="scratch = 1"
+    data-labels="8,9,10,11,12,13,14,15" data-mag="0,0,0,0,0,0,0,0"></div>
+
+  <div class="box aha">
+    <b>ประโยคทองของบท</b> — เราเพิ่งทำสิ่งที่ <code class="code">abs</code> ทำเดี่ยวๆ ไม่ได้
+    (มันไม่ reversible) โดยที่<b>ไม่มีอะไรเสียหายเลย</b>: a ครบ · scratch สะอาด ·
+    คำตอบถูก mark ไว้ในเฟสของวงที่ถูกต้อง · นี่คือรูปร่างของ <b>oracle</b> ที่บทหน้าๆ จะใช้ทั้งบท
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q"><b>ข้อ ③ </b> จากสแนปช็อต ⑤ — ทำไมวงที่เหลือเฟส 180° ถึงเป็น ∣1⟩ กับ ∣7⟩
+      ไม่ใช่ ∣1⟩ กับ ∣9⟩ เหมือนตอนสแนปช็อต ④</div>
+    <button class="opt">เพราะ CZ ในกล่องกลางกลับเฟสของสองวงนี้ไว้ตั้งแต่ต้นวงจรอยู่ก่อนแล้ว</button>
+    <button class="opt">เพราะกล่อง uncompute ลบเฟสของ ∣9⟩ ทิ้ง แล้วไปสร้างเฟสใหม่ที่ ∣7⟩ แทน</button>
+    <button class="opt">เพราะกล่อง uncompute พากิ่งนั้นกลับไปที่ค่าเดิมของ a คือ −1 ที่วง ∣7⟩</button>
+    <div class="fb ok" data-for="ok">ถูก — <b>เฟสติดไปกับกิ่ง ไม่ได้ติดกับช่องเลข</b> ·
+      กิ่งที่มี a = −1 ถูก mark ไว้ตอนที่มันแสดงเป็น abs = 1 พอ uncompute พามันกลับไปเป็น −1
+      เฟสก็เดินทางไปด้วย · ผลสุดท้ายคือ “ทุกค่าที่ abs(a) = 1 ถูกกลับเฟส” = a = +1 และ a = −1 พอดี</div>
+    <div class="fb no" data-for="no">uncompute ไม่ได้ลบหรือสร้างเฟสอะไรเลย มันแค่<b>ย้ายกิ่ง</b>กลับที่เดิม ·
+      กิ่งที่อยู่ ∣9⟩ ตอน ④ คือกิ่งที่ a จริงๆ เท่ากับ −1 · พามันกลับ ก็ไปโผล่ที่ ∣7⟩ พร้อมเฟสเดิม</div>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q"><b>ข้อ ④ </b> ในวงจร <code class="code">b ^= abs(a)</code> เงื่อนไข
+      “b ต้องเริ่มที่ 0” จำเป็นเพราะอะไร — ลองแทนตัวเลขจริงดูก่อนตอบ</div>
+    <button class="opt">เพราะ 0 XOR x = x การ XOR จึงให้ผลเท่ากับการบวกเฉพาะกรณีนี้</button>
+    <button class="opt">เพราะ CNOT ทำงานเร็วกว่า จึงให้ผลเหมือนวงจรบวกทุกกรณีที่ใช้</button>
+    <button class="opt">เพราะ CNOT จะพัง reversibility ทันทีเลยถ้า b ไม่ได้เริ่มที่ 0</button>
+    <div class="fb ok" data-for="ok">ใช่ · ลองแทน b = 2, abs(a) = 3 ดู: บวกได้ 5 (101) แต่ XOR ได้ 1 (001)
+      — คนละค่ากันเลย · เงื่อนไข b = 0 คือสิ่งเดียวที่ทำให้ทางลัดนี้ถูกต้อง</div>
+    <div class="fb no" data-for="no">ลองแทนตัวเลขจริงดู b = 2, abs(a) = 3 → บวกได้ 5 แต่ XOR ได้ 1 ·
+      CNOT ยัง reversible เสมอ (และไม่เกี่ยวกับความเร็ว) แต่มัน<b>ไม่ใช่การบวก</b> ถ้า b ไม่ได้เริ่มที่ 0</div>
+  </div>
+
+  <div class="box warn">
+    <b>สไลด์พิมพ์ผิด (p46–p54)</b> — หัวเรื่องทุกหน้าเขียนว่า <b>“Upcomputing”</b>
+    แต่คำที่ถูกคือ <b>“Uncomputing”</b> (เนื้อความในหน้าเดียวกันเองก็เขียน uncomputing ถูก) ·
+    <b>ตอนสอบให้ตอบตามสไลด์</b> แต่รู้ไว้ว่าศัพท์จริงในวงการคือ uncomputing
+  </div>
+
+  <details class="recall">
+    <summary>ทดสอบความจำก่อนปิดหน้า — ตอบในใจให้ครบก่อนกดดู</summary>
+    <ol>
+      <li>ปัญหา 2 ข้อของ scratch qubit คืออะไร</li>
+      <li>ทำไม “READ scratch แล้ว NOT ทิ้ง” ถึงใช้ไม่ได้</li>
+      <li>uncomputing แปลว่าทำอะไร ทำได้เพราะคุณสมบัติอะไรของ gate</li>
+      <li>ถ้า uncompute ทันทีหลัง compute จะได้อะไร เสียอะไร</li>
+      <li>สูตร 3 ขั้นของบทนี้ชื่อว่าอะไร</li>
+      <li>ในวงจร <code class="code">b += abs(a)</code> กล่องไหนไม่แตะสาย scratch เลย</li>
+      <li>กล่อง uncompute เกี่ยวข้องกับกล่อง compute ยังไง</li>
+      <li>ทำไม CNOT 3 ตัวแทนวงจรบวกได้ และต้องมีเงื่อนไขอะไร</li>
+      <li>ทำไมเฟสที่ mark ไว้ตรงกลางถึงรอดผ่านกล่อง uncompute ออกมาได้</li>
+      <li>ท้ายวงจร p53 วงไหนบ้างที่เฟส 180° และเพราะอะไร</li>
+    </ol>
+  </details>
+
+  <h2>สรุปบทนี้</h2>
+  <ul>
+    <li><b>scratch qubit ไม่ใช่ของฟรี</b> — ยืมมาแล้วมัน entangled กับ register ของเรา
+      และ READ ทิ้งไม่ได้เพราะจะทำลาย state ครึ่งหนึ่งไปด้วย</li>
+    <li><b>uncomputing</b> = รัน operation ที่ทำให้มัน entangled <b>ย้อนลำดับ</b>
+      เพื่อคืน scratch สู่ ∣0⟩ ที่ไม่ entangled — ทำได้เพราะ gate ทุกตัว (ยกเว้น READ) reversible</li>
+    <li>ย้อนแล้ว<b>คำตอบหายด้วย</b> → จึงต้องเรียงเป็น
+      <b>compute → use → uncompute</b> คือ<i>ใช้คำตอบให้เสร็จก่อน</i>แล้วค่อยย้อน</li>
+    <li>“use” จะเป็นการ<b>บวกลง b</b> · <b>XOR ลง b</b> (ถ้า b เริ่มที่ 0) ·
+      หรือ<b>กลับเฟส</b>ก็ได้ — แบบเฟสคือแบบที่จะใช้บ่อยที่สุดในบทถัดๆ ไป</li>
+    <li>ผลรวม: operation ก้อนใหญ่<b>กลายเป็น reversible</b> ทั้งที่ฟังก์ชันข้างในไม่ reversible</li>
+  </ul>
+
+  <div class="box why">
+    <b>บทหน้า (0022 — ปิด Lec 05)</b> — <b>Toffoli คือ NAND ของโลกควอนตัม</b>:
+    multi-condition CNOT สร้างประตูลอจิกดิจิทัลได้ครบทั้ง 6 ตัว
+    และเราจะได้เห็นว่า<b>ต้นทุน scratch qubit</b> ที่บทนี้พูดถึงเป็นโจทย์ใหญ่ของวงการแค่ไหน
+  </div>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b> — <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia — บทที่ 5 หัวข้อ
+      <i>Reversibility and Scratch Qubits</i> / <i>Uncomputing</i> ·
+      สไลด์ <code class="code">QuantumProg_Lec05.pdf</code> หน้า 46–54</p>
+    <p><b>บทที่เกี่ยวข้อง</b> —
+      <a href="0021-scratch-qubit-and-abs.html">0021 · scratch qubit และ abs(a)</a> ·
+      <a href="0020-quantum-conditional-execution-and-phase-encoding.html">0020 · เงื่อนไขควอนตัมและ phase encoding</a> ·
+      <a href="0019-adding-two-quantum-integers-and-negative-numbers.html">0019 · บวกควอนตัม + เลขติดลบ</a> ·
+      <a href="../../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> — โดยเฉพาะ 3 จุดที่คนพลาดบ่อยในบทนี้:
+      ① ทำไมย้อนวงจรแล้วคำตอบถึงหาย ② ทำไมเฟสถึงไม่หายไปด้วย
+      ③ <code class="code">data-groups</code> ในวงจร 3 กล่องนี้ ถ้าอยากลองเขียนเองต้องเขียนยังไง
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0030 — ข้างในวงจร invQFT</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 07 · บทที่ 0030 (บทปิดคาบ)</div>
+  <h1>ข้างในวงจร invQFT: H, CPHASE และ SWAP แต่ละตัวมีไว้ทำอะไร</h1>
+  <p class="lead">ตั้งแต่บท <a href="0027-qft-hidden-frequency.html">0027</a> เราใช้ QFT/invQFT เหมือน<b>กล่องดำ</b> ·
+    บทนี้จะเปิดกล่องดูว่า H 4 ตัว, CPHASE 90°/45°/22.5° และ SWAP ท้ายวงจรช่วยกันสร้าง
+    “เฟสที่หมุนเป็นคาบ” ได้ยังไง · สไลด์เลือกอธิบาย <b>invQFT</b> แทน QFT เพราะง่ายกว่า
+    และถ้าเข้าใจ invQFT แล้ว QFT ก็คือการเดินย้อนกลับเท่านั้นค่ะ</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 4 อย่าง
+    ① <b>เป้าหมาย</b>ของ invQFT: ถ้า register เก็บค่า n ไว้ วง |k⟩ ต้องหมุนไป <b>k × (n/2ᴺ × 360°)</b>
+    ② ทำ PHASE ให้ได้ “k เท่า” ด้วยการทำ <b>2ⁱ ครั้งบน qubit ที่ i</b> (เหมือนเลขฐานสอง)
+    ③ มุมฐาน θ ได้จาก <b>CPHASE ตามน้ำหนักบิตของ n</b> + <b>H ให้ส่วน 180°</b> · subroutine ถัดไป <b>roll left</b> (คูณ 2)
+    ④ ผลออกมา<b>กลับหัว</b> → ต้องมี <b>SWAP ท้าย</b> · และจำหน้าตาวงจร QFT 8 สาย / invQFT 4 สายได้ (เรื่องสอบ)
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · เป้าหมาย: วงถัดไปหมุนเพิ่มทีละ n/2ᴺ × 360°</h2></div>
+
+  <h3>1.1 หน้าตาวงจร QFT 8 สาย (Figure 7-24, p54)</h3>
+  <p>เริ่มจากภาพใหญ่ก่อน · QFT บน qubyte (8 qubit) มีโครงซ้ำๆ ที่เดาได้:
+    <b>H บนสายน้ำหนักสูงสุด</b> → CPHASE <b>มุมลบ</b>จับคู่สายนั้นกับสายที่เบากว่าทีละสาย มุมลดลงครึ่งหนึ่งทุกครั้ง →
+    เลื่อนขึ้นไปทำซ้ำกับสายถัดไป → ปิดด้วย <b>SWAP 4 คู่</b> กลับลำดับบิต</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="8" data-wire-labels="0x1,0x2,0x4,0x8,0x10,0x20,0x40,0x80"
+         data-ops="H:7; CP:6,7:-90; CP:5,7:-45; CP:4,7:-22.5; CP:3,7:-11.3; CP:2,7:-5.6; CP:1,7:-2.8; CP:0,7:-1.4;
+                   H:6; CP:5,6:-90; CP:4,6:-45; CP:3,6:-22.5; CP:2,6:-11.3; CP:1,6:-5.6; CP:0,6:-2.8;
+                   H:5; CP:4,5:-90; CP:3,5:-45; CP:2,5:-22.5; CP:1,5:-11.3; CP:0,5:-5.6;
+                   H:4; CP:3,4:-90; CP:2,4:-45; CP:1,4:-22.5; CP:0,4:-11.3;
+                   H:3; CP:2,3:-90; CP:1,3:-45; CP:0,3:-22.5;
+                   H:2; CP:1,2:-90; CP:0,2:-45;
+                   H:1; CP:0,1:-90;
+                   H:0; SWAP:0,7 + SWAP:1,6 + SWAP:2,5 + SWAP:3,4"
+         data-cap="Figure 7-24 · QFT 8 qubit ทีละ operation (รูปเล็ก ซูมหน้าเว็บดูได้ · ดูโครงให้ออกพอ) · สไลด์วาด SWAP ต่อกันทีละคู่ ในรูปนี้รวมไว้คอลัมน์เดียว"></div>
+  </div>
+
+  <table class="cmp">
+    <thead><tr><th>สายสองเส้นห่างกันกี่บิต</th><th>มุมบนสไลด์</th><th>มาจาก</th></tr></thead>
+    <tbody>
+      <tr><td data-label="ห่าง">1</td><td data-label="มุม">−90°</td><td data-label="มาจาก">−360°/2²</td></tr>
+      <tr><td data-label="ห่าง">2</td><td data-label="มุม">−45°</td><td data-label="มาจาก">−360°/2³</td></tr>
+      <tr><td data-label="ห่าง">3</td><td data-label="มุม">−22.5°</td><td data-label="มาจาก">−360°/2⁴</td></tr>
+      <tr><td data-label="ห่าง">4 · 5 · 6 · 7</td><td data-label="มุม">−11.3° · −5.6° · −2.8° · −1.4°</td><td data-label="มาจาก">ค่าปัดของ −11.25 · −5.625 · −2.8125 · −1.40625</td></tr>
+    </tbody>
+  </table>
+
+  <p>อธิบายวงจรนี้ตรงๆ ต้องคิดว่ามันทำอะไรกับ register ที่เฟสหมุนเป็นคาบทั้ง 256 วง ซึ่ง “ชวนปวดหัว” (สไลด์พูดเอง) ·
+    หนังสือเลยเลือกอธิบาย <b>invQFT 4 qubit</b> แทน</p>
+
+  <h3>1.2 invQFT 4 สายกับค่า 2 (Figure 7-25, 7-26, p55–56)</h3>
+  <div class="wide">
+    <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8"
+         data-ops="WRITE:0 + WRITE:1:1 + WRITE:2 + WRITE:3; H:3; CP:2,3:90; CP:1,3:45; CP:0,3:22.5; H:2; CP:1,2:90; CP:0,2:45; H:1; CP:0,1:90; H:0; SWAP:0,3 + XWIRE:1,2"
+         data-cap="Figure 7-25 · invQFT 4 qubit · ▷ เหลืองบน 0x2 = เขียน 1 → register = 2 · มุม<b>บวก</b>ทั้งหมด · SWAP อยู่<b>ท้าย</b>"></div>
+  </div>
+
+  <div class="wide">
+  <div class="crow" data-n="16" data-r="12" data-lab="input: |2⟩"
+       data-mag="0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0"
+       data-phase="0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"></div>
+  </div>
+  <div class="wide">
+  <div class="crow" data-n="16" data-r="12" data-lab="หลัง invQFT"
+       data-phase="0,45,90,135,180,225,270,315,0,45,90,135,180,225,270,315"
+       data-sub="0°,45°,90°,135°,180°,225°,270°,315°,0°,45°,90°,135°,180°,225°,270°,315°"></div>
+  </div>
+  <p class="meta">Figure 7-26 · magnitude เท่ากันหมด (1/4) · เฟสเพิ่มวงละ 45° ทวนเข็ม → ครบรอบทุก 8 วง = <b>หมุน 2 รอบใน 16 วง = ความถี่ 2</b>
+    (คาโฮะจำลองวงจรนี้ด้วย numpy ทีละ gate แล้ว ได้ตรงกับรูป)</p>
+
+  <div class="box warn">
+    <b>จุดสอบ: invQFT ในสไลด์มี 2 หน้าตา</b> · p49/p53 (บท <a href="0029-qft-fast-but-how-to-use-invqft.html">0029</a>) วาด SWAP ไว้<b>ต้น</b>วงจร
+    ส่วน p55/p63 วาด SWAP ไว้<b>ท้าย</b> · p56 บอกเองว่า “วงจร QFT/invQFT เขียนได้มากกว่าหนึ่งแบบ ถ้าเจอแบบที่ต่างไปนิดหน่อย
+    ให้เช็คว่า<b>สมมูล (equivalent)</b> กันไหม” → <b>ตำแหน่ง SWAP ใช้แยก QFT กับ invQFT ไม่ได้เสมอไป</b> ·
+    ตัวชี้ขาดที่ปลอดภัยคือ<b>เครื่องหมายมุม</b>: QFT = มุมลบ · invQFT = มุมบวก
+  </div>
+
+  <h3>1.3 กฎหมุน (The Intuition, Figure 7-27/7-28, p57–58)</h3>
+  <p>ลองมองจากฝั่ง “อยากได้อะไร” ก่อน · ถ้า register มี N qubit (2ᴺ วง) และเราเขียนค่า n ลงไป
+    เราอยากให้เฟสหมุนครบ 360° จำนวน <b>n รอบ</b> ตลอด 2ᴺ วง · แปลว่าหนึ่งรอบกินวงไป <b>2ᴺ/n วง</b>
+    และวงที่อยู่ติดกันต้องหมุนต่างกัน</p>
+  <div class="eq">มุมที่วงถัดไปหมุนเพิ่ม θ = <span class="frac"><span class="num">n</span><span class="den">2ᴺ</span></span> × 360°
+    &nbsp;&nbsp;⇒&nbsp;&nbsp; วง |k⟩ ต้องหมุนไป k × θ</div>
+
+  <div class="analogy">
+    <div class="cell"><b>เข็มวินาทีในนาฬิกา</b><small>ถ้าอยากให้เข็มหมุนครบ 2 รอบใน 16 ก้าว แต่ละก้าวต้องเดิน 720°/16 = 45° · ก้าวที่ k อยู่ที่ k × 45°</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>invQFT กับ n = 2, N = 4</b><small>θ = 2/16 × 360° = 45° · |9⟩ อยู่ที่ 9 × 45° = 405° ≡ 45° (มุมเกิน 360° ให้ลบ 360° ออก)</small></div>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">register 4 qubit เขียนค่า <b>n = 4</b> แล้ว invQFT · วง <b>|5⟩</b> มีเฟสเท่าไร? (ลองหา θ ก่อน)</div>
+    <button class="opt">เฟส 45°</button>
+    <button class="opt">เฟส 225°</button>
+    <button class="opt">เฟส 90°</button>
+    <button class="opt">เฟส 20°</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ θ = 4/16 × 360° = 90° · |5⟩ = 5 × 90° = 450° ≡ 90° · ครบรอบทุก 4 วง → 4 รอบใน 16 วง = ความถี่ 4</div>
+    <div class="fb no" data-for="no">ลองใหม่นะคะ: θ = n/2ᴺ × 360° = 4/16 × 360° = 90° ก่อน แล้วคูณด้วยเลขวง 5 · มุมเกิน 360° ให้ลบ 360° ออก</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · วงจรทำตามกฎนั้นได้ยังไง</h2></div>
+
+  <p>p59 แยกงานของ invQFT ออกเป็น 2 ข้อ แล้วบอกว่า<b>เริ่มจากข้อ 2 ก่อนจะง่ายกว่า</b> (ถึงจะดูย้อนศรก็ตาม):</p>
+  <div class="reasons">
+    <div class="r"><b>งานที่ 1 · หามุม θ</b><br>θ = n/2ᴺ × 360° จากค่า n ที่อยู่ใน register</div>
+    <div class="r"><b>งานที่ 2 · หมุนตามค่าวง</b><br>หมุนวง |k⟩ ไป k × θ (ตัวคูณ = ค่าฐานสิบของวงนั้น)</div>
+  </div>
+
+  <div class="box warn">
+    <b>สไลด์พิมพ์ตัวยกหาย (ตอบตามสไลด์ตอนสอบ แต่รู้ของจริงไว้)</b> ·
+    p59 เขียน <code class="code">θ = n/2 × 360°</code> → ที่ถูกคือ <b>n/2ᴺ × 360°</b> (ถ้าใช้ n/2 กับ n = 2 จะได้ 360° ไม่ใช่ 45°) ·
+    p60 “weighting of 20 … 21” → <b>2⁰ … 2¹</b> · p63 “21 times” → <b>2¹</b> · p67–68 “n/2N” → <b>n/2ᴺ</b>
+  </div>
+
+  <h3>2.1 งานที่ 2: ทำ PHASE ให้ได้ “k ครั้ง” (Figure 7-29, 7-30, p60–62)</h3>
+  <p>ปัญหา: อยากให้วง |k⟩ โดน PHASE 20° <b>k ครั้ง</b> ทั้งที่ทุกวงอยู่ใน superposition พร้อมกัน ·
+    ทริคคือ<b>เลขฐานสอง</b> (บท <a href="midterm/0008-multi-qubit-registers.html">0008</a>): qubit ที่ i มีน้ำหนัก 2ⁱ
+    → ทำ PHASE บน qubit ที่ i <b>ซ้ำ 2ⁱ ครั้ง</b> (0x1 = 1 ครั้ง · 0x2 = 2 · 0x4 = 4 · 0x8 = 8 รวม 15 ตัว)</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2 + H:3; P:0:20; P:1:20; P:1:20; P:2:20; P:2:20; P:2:20; P:2:20; P:3:20; P:3:20; P:3:20; P:3:20; P:3:20; P:3:20; P:3:20; P:3:20"
+         data-cap="Figure 7-29 · H ทุกสายให้เห็นผลกับทุก k พร้อมกัน · PHASE 20° ไม่มีเส้นควบคุม"></div>
+  </div>
+
+  <pre class="code-blk">qc.reset(4);
+qc.write(0);
+qc.had();                          // เห็นผลของทุก k พร้อมกัน
+for (var i=0; i&lt;4; i++) {
+  var val = 1&lt;&lt;i;                    // 1, 2, 4, 8 = mask ของ qubit ที่ i
+  for (var j=0; j&lt;val; j++)
+    qc.phase(20, val);             // ทำซ้ำ val ครั้งบน qubit นั้น
+}</pre>
+
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> วง |11⟩ = 1011₂ → บิต 0x8, 0x2, 0x1 เป็น 1</div>
+    <div class="step"><span class="lbl">②</span> โดน PHASE จากสาย 0x8 (8 ครั้ง) + 0x2 (2 ครั้ง) + 0x1 (1 ครั้ง) = <b>11 ครั้ง</b> พอดี</div>
+    <div class="step"><span class="lbl">③</span> เฟส = 11 × 20° = <b>220°</b> · ไม่ว่า k เป็นอะไร จำนวนครั้งที่โดนเท่ากับ k เสมอ</div>
+  </div>
+
+  <div class="wide">
+  <div class="crow" data-n="16" data-r="12" data-lab="Figure 7-30"
+       data-phase="0,20,40,60,80,100,120,140,160,180,200,220,240,260,280,300"
+       data-sub="0°,20°,40°,60°,80°,100°,120°,140°,160°,180°,200°,220°,240°,260°,280°,300°"></div>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">วงจร Figure 7-29 แต่เปลี่ยนมุมเป็น 30° · วง <b>|6⟩</b> โดน PHASE จากสายไหนบ้าง และได้เฟสเท่าไร?</div>
+    <button class="opt">สาย 0x2 กับ 0x8 ได้ 300°</button>
+    <button class="opt">สาย 0x2 กับ 0x4 ได้ 180°</button>
+    <button class="opt">สาย 0x1 กับ 0x4 ได้ 150°</button>
+    <button class="opt">สาย 0x4 อย่างเดียวได้ 120°</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ 6 = 0110₂ = 4 + 2 → โดน 4 + 2 = 6 ครั้ง × 30° = 180°</div>
+    <div class="fb no" data-for="no">ลองแปลง 6 เป็นฐานสองก่อนนะคะ: 0110₂ → บิตไหนเป็น 1 · แต่ละสายทำซ้ำเท่าน้ำหนักตัวเอง</div>
+  </div>
+
+  <h3>2.2 งานที่ 1: ประกอบ θ จากบิตของ n (subroutine 1, Figure 7-33, p65–66)</h3>
+  <p>ทริคข้างบนใช้มุม 20° ที่<b>รู้ล่วงหน้า</b> · แต่ invQFT ต้องใช้ θ = n/16 × 360° ซึ่ง n <b>ซ่อนอยู่ใน register เอง</b> ·
+    ทางออก: หมุนแบบ<b>มีเงื่อนไข</b>ด้วย CPHASE · บิตแต่ละตัวของ n มีส่วนใน θ ตามน้ำหนักของมัน</p>
+
+  <div class="twocol">
+    <div class="c">
+      <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8"
+           data-ops="H:3; CP:2,3:90; CP:1,3:45; CP:0,3:22.5"
+           data-cap="subroutine 1 · ทุกตัวเล็งไปที่ 0x8"></div>
+    </div>
+    <div class="c">
+      <table class="cmp">
+        <thead><tr><th>บิตของ n</th><th>ส่วนใน θ</th><th>ใครให้</th></tr></thead>
+        <tbody>
+          <tr><td data-label="บิต">0x1</td><td data-label="ส่วน">1/16 × 360° = 22.5°</td><td data-label="ใคร">CPHASE 0x1–0x8</td></tr>
+          <tr><td data-label="บิต">0x2</td><td data-label="ส่วน">2/16 × 360° = 45°</td><td data-label="ใคร">CPHASE 0x2–0x8</td></tr>
+          <tr><td data-label="บิต">0x4</td><td data-label="ส่วน">4/16 × 360° = 90°</td><td data-label="ใคร">CPHASE 0x4–0x8</td></tr>
+          <tr><td data-label="บิต">0x8</td><td data-label="ส่วน">8/16 × 360° = <b>180°</b></td><td data-label="ใคร"><b>H</b> บน 0x8 เอง</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="box aha">
+    <b>ทำไม H ถึงให้ 180° ได้</b> (บท <a href="midterm/0005-hadamard.html">0005</a>) ·
+    H|0⟩ = (|0⟩ + |1⟩)/√2 แต่ H|1⟩ = (|0⟩ <b>−</b> |1⟩)/√2 → ถ้าบิต 0x8 เดิมเป็น 1 ฝั่ง |1⟩ จะติดเฟส <b>180°</b> ·
+    แถม H ตัวเดียวกัน<b>สร้าง superposition</b> ให้ qubit นั้นไปด้วย → ทำสองงานในตัวเดียว สไลด์เรียกว่า “cleverly compact”
+  </div>
+
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> n = 2 (0010₂): มีแค่บิต 0x2 → 0x8 หมุน 45° = 2 × 22.5° ✓</div>
+    <div class="step"><span class="lbl">②</span> n = 10 (1010₂): H ให้ 180° + CPHASE 0x2 ให้ 45° → 225° = 10 × 22.5° ✓</div>
+  </div>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">หลัง subroutine 1 กับ <b>n = 6</b> · ฝั่ง |1⟩ ของ qubit 0x8 ติดเฟสเท่าไร และได้มาจาก gate ไหน?</div>
+    <button class="opt">180° จาก H กับ CPHASE 90°</button>
+    <button class="opt">67.5° จาก CPHASE 45° กับ 22.5°</button>
+    <button class="opt">270° จาก H กับ CPHASE 90°</button>
+    <button class="opt">135° จาก CPHASE 90° กับ 45°</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ 6 = 0110₂ → บิต 0x4 (90°) + 0x2 (45°) = 135° = 6 × 22.5° · บิต 0x8 เป็น 0 จึงไม่ได้ 180° จาก H</div>
+    <div class="fb no" data-for="no">แปลง 6 เป็นฐานสองก่อนค่ะ: 0110₂ · H ให้ 180° ก็ต่อเมื่อบิต 0x8 เป็น 1 เท่านั้น</div>
+  </div>
+
+  <h3>2.3 subroutine ถัดไป = roll left (คูณ 2) · Figure 7-31/7-32, p63–64, p67</h3>
+  <div class="wide">
+    <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8"
+         data-groups="1-4:① 1×θ → 0x8; 5-7:② 2×θ → 0x4; 8-9:③ 4×θ; 10:④ 8×θ"
+         data-ops="WRITE:0 + WRITE:1:1 + WRITE:2 + WRITE:3; H:3; CP:2,3:90; CP:1,3:45; CP:0,3:22.5; H:2; CP:1,2:90; CP:0,2:45; H:1; CP:0,1:90; H:0; SWAP:0,3 + XWIRE:1,2"
+         data-cap="Figure 7-31/7-32 · 4 subroutine · กล่อง 3 หมุน 0x2 · กล่อง 4 หมุน 0x1"></div>
+  </div>
+
+  <p>ดู subroutine 2: qubit 0x2 คู่กับ <b>90°</b> (ใน subroutine 1 เคยคู่กับ 45°) · 0x1 คู่กับ 45° (เคยเป็น 22.5°) ·
+    ทุกบิตได้มุม<b>เป็น 2 เท่า</b>ของเดิม = เลื่อนน้ำหนักขึ้นหนึ่งขั้น สไลด์เรียกว่า <b>roll left</b> → ได้ 2θ บน 0x4 ·
+    subroutine 3 ได้ 4θ บน 0x2 · subroutine 4 ได้ 8θ บน 0x1</p>
+
+  <div class="box mathref">
+    <b>คำอธิบายเพิ่มของคาโฮะ (สไลด์ไม่ได้พูดตรงๆ): ทำไมแต่ละกล่องมี gate น้อยลงทีละตัว</b> ·
+    2θ = n/8 × 360° → บิต 0x8 ควรให้ 8/8 × 360° = <b>360° ≡ 0°</b> คือไม่ต้องหมุนเลย เลยไม่ต้องมี CPHASE กับ 0x8 ·
+    ส่วนบิต 0x4 (สายตัวเอง) ได้ 4/8 × 360° = 180° จาก H พอดี · กล่องถัดๆ ไปก็ “ตกขอบ” ไปอีกบิตละตัวแบบเดียวกัน
+  </div>
+
+  <h3>2.4 ผลออกมากลับหัว → SWAP ท้ายวงจร (p64, p68)</h3>
+  <table class="cmp">
+    <thead><tr><th>qubit</th><th>ก่อน SWAP ได้</th><th>ที่ต้องการ (2ⁱ × θ)</th></tr></thead>
+    <tbody>
+      <tr><td data-label="qubit">0x1</td><td data-label="ก่อน SWAP">8θ</td><td data-label="ต้องการ">1θ</td></tr>
+      <tr><td data-label="qubit">0x2</td><td data-label="ก่อน SWAP">4θ</td><td data-label="ต้องการ">2θ</td></tr>
+      <tr><td data-label="qubit">0x4</td><td data-label="ก่อน SWAP">2θ</td><td data-label="ต้องการ">4θ</td></tr>
+      <tr><td data-label="qubit">0x8</td><td data-label="ก่อน SWAP">1θ</td><td data-label="ต้องการ">8θ</td></tr>
+    </tbody>
+  </table>
+  <p>ครบทุกตัวแต่<b>สลับลำดับ</b> → แก้ด้วย SWAP 0x1↔0x8 และ 0x2↔0x4 · ถ้าไม่ SWAP (n = 2, θ = 45°) จะได้แบบนี้:</p>
+  <div class="wide">
+  <div class="crow" data-n="16" data-r="12" data-lab="ก่อน SWAP"
+       data-phase="0,0,180,180,90,90,270,270,45,45,225,225,135,135,315,315"
+       data-sub="0°,0°,180°,180°,90°,90°,270°,270°,45°,45°,225°,225°,135°,135°,315°,315°"></div>
+  </div>
+  <p class="meta">เฟสไม่ไล่เป็นขั้นบันได (คำนวณด้วย numpy · สไลด์ไม่มีรูปนี้) · หลัง SWAP กลายเป็น 0°, 45°, 90°, … แบบ Figure 7-26</p>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">ถ้า<b>ลืม SWAP</b> ในวงจร invQFT 4 qubit · qubit <b>0x8</b> จะหมุนกี่เท่าของ θ?</div>
+    <button class="opt">หมุน 1 เท่าของ θ</button>
+    <button class="opt">หมุน 8 เท่าของ θ</button>
+    <button class="opt">หมุน 4 เท่าของ θ</button>
+    <button class="opt">หมุน 2 เท่าของ θ</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ 0x8 โดน subroutine 1 ที่ให้แค่ 1θ · ที่ถูกต้องได้ 8θ → จึงต้อง SWAP กับ 0x1</div>
+    <div class="fb no" data-for="no">ย้อนดูกล่อง 1 ค่ะ: มันเล็ง 0x8 และสร้าง θ แค่ครั้งเดียว</div>
+  </div>
+
+  <div class="box aha">
+    <b>สรุปวงจรเป็นประโยคเดียว</b> (p68): invQFT ทำ “หา θ” กับ “หมุนแต่ละวงตามค่า” <b>พร้อมกัน</b>ด้วย gate ชุดเล็กที่ทำหลายหน้าที่ ·
+    อธิบายด้วย input ค่าเดียว แต่ gate ชุดเดียวกันใช้กับ <b>superposition ของหลาย input</b> ได้ด้วย ·
+    และ <b>QFT = เดินวงจรนี้ย้อนกลับ</b> → มุมกลายเป็นลบ
+  </div>
+
+  <h3>2.5 ปิดคาบ Lec 07 (p69)</h3>
+  <table class="cmp">
+    <thead><tr><th>primitive</th><th>ดึงข้อมูลแบบไหน</th><th>บท</th></tr></thead>
+    <tbody>
+      <tr><td data-label="primitive">AA (amplitude amplification)</td><td data-label="ข้อมูล">ค่าเฉพาะ (discrete values) ที่ติดเฟสไว้</td><td data-label="บท"><a href="0023-flip-and-mirror.html">0023</a>–<a href="0026-inside-the-mirror.html">0026</a></td></tr>
+      <tr><td data-label="primitive">QFT</td><td data-label="ข้อมูล">รูปแบบ (patterns) ที่เข้ารหัสใน register</td><td data-label="บท"><a href="0027-qft-hidden-frequency.html">0027</a>–0030</td></tr>
+    </tbody>
+  </table>
+  <p>Lec 12 จะเห็นว่า QFT เป็นแกนของอัลกอริทึมสำคัญหลายตัว รวมถึง <b>Shor’s algorithm</b> ค่ะ</p>
+
+  <details class="recall">
+    <summary>ทดสอบความจำ (ลองตอบในหัวก่อนเปิด)</summary>
+    <ol>
+      <li>invQFT กับ n = 3, N = 4 · วงถัดไปหมุนเพิ่มทีละกี่องศา? → <b>67.5°</b></li>
+      <li>ทำไม CPHASE ระหว่าง 0x4 กับ 0x8 ใน subroutine 1 ถึงเป็น 90°? → <b>4/16 × 360°</b></li>
+      <li>ส่วน 180° ของบิต 0x8 มาจากไหน? → <b>H บน 0x8 (H|1⟩ ติดเครื่องหมายลบ)</b></li>
+      <li>roll left คืออะไร? → <b>subroutine ถัดไปใช้มุม 2 เท่าต่อบิต → ได้ 2θ, 4θ, 8θ</b></li>
+      <li>SWAP ท้ายวงจรมีไว้ทำไม? → <b>ผลกลับหัว 0x8 ได้ 1θ แต่ต้องได้ 8θ</b></li>
+      <li>แยก QFT กับ invQFT ในรูปยังไงให้ชัวร์? → <b>ดูเครื่องหมายมุม: ลบ = QFT</b></li>
+    </ol>
+  </details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li>เป้าหมาย: วง |k⟩ หมุนไป <b>k × n/2ᴺ × 360°</b> · ครบรอบทุก 2ᴺ/n วง</li>
+    <li>“ทำ k ครั้ง” = ทำ <b>2ⁱ ครั้งบน qubit ที่ i</b></li>
+    <li>subroutine 1: CPHASE มุม (น้ำหนักบิต/2ᴺ × 360°) + <b>H ให้ 180°</b> → θ บน 0x8</li>
+    <li>subroutine ถัดไป <b>roll left</b> → 2θ, 4θ, 8θ · ผลกลับหัว → <b>SWAP ท้าย</b></li>
+    <li>QFT 8 สาย: มุม −90, −45, −22.5, −11.3, −5.6, −2.8, −1.4 + SWAP 4 คู่ · invQFT มุมบวก</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 7 หัวข้อ
+      <i>Inside the QPU</i> (The Intuition, Operation by Operation, Figure 7-24 ถึง 7-33) ·
+      ลองรันโค้ด 20° เองได้ที่ <a href="https://oreilly-qc.github.io/">QCEngine online (oreilly-qc.github.io)</a> ·
+      สไลด์ <code class="code">QuantumProg_Lec07.pdf</code> หน้า 54–70</p>
+    <p><b>บทถัดไป</b>: จบ Lec 07 แล้วค่ะ · รอสไลด์คาบถัดไป</p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="0027-qft-hidden-frequency.html">0027 · QFT อ่านความถี่ในเฟส</a> ·
+      <a href="0029-qft-fast-but-how-to-use-invqft.html">0029 · invQFT</a> ·
+      <a href="midterm/0010-cphase-cz-phase-kickback.html">0010 · CPHASE</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① ทำไมเริ่มอธิบายจากงานที่ 2 ก่อนงานที่ 1 ② roll left ทำไมถึงคูณ 2 ได้ ③ ทำไม QFT ใน p54 ก็มี SWAP ท้ายเหมือน invQFT ใน p55
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

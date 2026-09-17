@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0028b — DFT ใช้ได้กับทุกสัญญาณ: ฮาร์มอนิกและ square wave ใน QPU</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+<script defer src="../assets/wave.js"></script>
+<script defer src="../assets/bars.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 07 · บทที่ 0028b (ครึ่งหลังของ “DFT ญาติฝั่งคลาสสิก”)</div>
+  <h1>DFT ใช้ได้กับทุกสัญญาณ — ฮาร์มอนิก และ square wave ใน QPU</h1>
+  <p class="lead">บท <a href="0028-dft-mirror-peaks.html">0028</a> ใช้แต่ sine ความถี่เดียว เลยได้ peak เดียว (บวกภาพสะท้อนของมัน) ·
+    แต่สไลด์ p17 สารภาพว่าตัวอย่างพวกนั้น <b>“เลือกมาแล้ว” (cherry-picked)</b> · บทนี้ลองกับสัญญาณที่<b>ไม่ใช่ sine</b>
+    เช่นสัญญาณผสม ค่าเส้นฐาน และ <b>square wave (คลื่นสี่เหลี่ยม)</b> · แล้วจะเห็นว่าพอเอา square wave ไปใส่ QPU register แล้วทำ QFT
+    ผลที่ได้ <b>ตรงกับ DFT ทุกอย่าง</b>ค่ะ</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 4 อย่าง
+    ① DFT/QFT บอก <b>ความถี่ + สัดส่วน + offset</b> ของคลื่น sine ที่เอามาบวกกันแล้วได้สัญญาณนั้น
+    ② ค่าที่ความถี่ 0 = <b>DC bias</b> (เส้นฐาน)
+    ③ square wave ไม่ใช่ sine เลยได้ <b>หลาย peak</b> ที่<b>ฮาร์มอนิกคี่</b> (f, 3f, 5f, …) และ peak เตี้ยลงเรื่อยๆ
+    ④ square wave ใน register (เฟส 0°/180°) → QFT ได้ peak คู่สมมาตร · READ ได้<b>ความถี่เดียวแบบสุ่มตามน้ำหนัก</b> (เรื่องสอบ)
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · DFT Everything: สัญญาณผสม, DC bias, square wave</h2></div>
+
+  <h3>DFT บอกอะไรเราแน่ๆ</h3>
+  <p>ที่ผ่านมาเราพูดกว้างๆ ว่า DFT “บอกความถี่ในสัญญาณ” · สไลด์ p32 ให้คำตอบที่ตรงกว่านั้น:</p>
+  <div class="box aha">
+    DFT (และ QFT) บอก <b>ความถี่ (frequencies)</b>, <b>สัดส่วน (proportions)</b> และ <b>offset</b> ของคลื่น sine ง่ายๆ
+    ที่<b>เอามาบวกกันแล้วได้</b>สัญญาณ input นั้น (p32)
+  </div>
+  <p>ลองนึกถึง <b>สูตรน้ำผลไม้ปั่น</b> ดูค่ะ: ชิมแก้วเดียวแล้วบอกได้ว่ามี “ส้ม 60% มะม่วง 30% สับปะรด 10%”
+    · DFT ก็ทำแบบนั้นกับสัญญาณ: บอกว่ามีคลื่น sine ความถี่ไหนบ้าง และแต่ละตัวใส่มากน้อยแค่ไหน ·
+    sine เดี่ยวจากบทก่อนก็คือน้ำส้มล้วน เลยได้ peak เดียว</p>
+
+  <h3>สัญญาณผสม 3 ความถี่ (Figure 7-14)</h3>
+  <p>สัญญาณข้างล่างเกิดจาก sine 3 ตัวบวกกัน: ตัวหลักความถี่ 4 และตัวเล็กอีก 2 ตัวที่ความแรงราว 1/3
+    · ดูทางซ้ายแทบเดาไม่ออก แต่ DFT แยกออกมาให้ทันที (ตัวเลขเลือกมาให้หน้าตาคล้ายรูปในสไลด์)</p>
+  <div class="wave" data-sig="sin:4 + sin:11:0.33 + sin:18:0.33" data-mark="4,11,18,238,245,252" data-half="1" data-dots="0"
+       data-lab="สัญญาณผสม → DFT" data-cap="3 peak ครึ่งซ้าย + ภาพสะท้อน 3 อันครึ่งขวา (p33)"></div>
+  <p><b>ความสูงของ peak = สัดส่วน</b>: peak ที่ 4 สูงกว่าอีก 2 ตัวราว 3 เท่า เพราะใส่มาแรงกว่า 3 เท่า ·
+    ถ้าดู<b>เฟส</b>ของค่าเชิงซ้อนที่ DFT คืนมาด้วย จะรู้ว่าแต่ละคลื่นเหลื่อมกัน (offset) เท่าไร (p34) ·
+    และเพราะ input เป็น<b>จำนวนจริง</b> ครึ่งขวาเป็นแค่ภาพสะท้อน <b>ตัดทิ้งได้เลย</b> (p34 · ทวนบท 0028)</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ลองคิดก่อนเลือก: สัญญาณจริงยาว 256 sample = sine ความถี่ 10 (แรง 1) + sine ความถี่ 30 (แรง 0.5) · กราฟ DFT จะมี peak กี่อันและอยู่ที่ไหน?</div>
+    <button class="opt">2 อัน ที่ 10 และ 30</button>
+    <button class="opt">2 อัน ที่ 10 และ 246</button>
+    <button class="opt">4 อัน ที่ 10, 30, 226, 246</button>
+    <button class="opt">4 อัน ที่ 10, 30, 236, 216</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! ความถี่ละ 1 peak ในครึ่งซ้าย แล้วสัญญาณจริงได้ภาพสะท้อนที่ N − f: 256 − 30 = 226 และ 256 − 10 = 246 · peak ที่ 10 สูงเป็น 2 เท่าของที่ 30</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ: มี sine 2 ตัว ครึ่งซ้ายเลยได้ 2 peak (10, 30) · สัญญาณเป็นจำนวนจริงจึงมีภาพสะท้อนที่ N − f ด้วย → 246 และ 226</div>
+  </div>
+
+  <h3>DC bias: ค่าที่ความถี่ 0</h3>
+  <p>ทุกสัญญาณที่ผ่านมาแกว่ง<b>รอบศูนย์</b> · ถ้ายกทั้งเส้นขึ้นไป (เช่นแกว่งรอบ 0.6 แทน) DFT จะมี peak โผล่ที่<b>ช่อง 0</b>
+    ค่านี้เรียกว่า <b>DC bias</b> = <b>baseline (เส้นฐาน)</b> ที่สัญญาณแกว่งรอบๆ · สไลด์บอกให้<b>เช็คช่อง 0 เสมอ</b> (p34)</p>
+  <div class="wave" data-sig="dc:0.6 + sin:8" data-mark="0,8,248" data-dots="0"
+       data-lab="sine ความถี่ 8 ที่ยกขึ้น 0.6" data-cap="peak ที่ 0 = DC bias · ความถี่ 0 = “ไม่แกว่งเลย” ไม่มีภาพสะท้อนคู่"></div>
+  <p class="meta">ทำไมความถี่ 0 ถึงหมายถึงเส้นฐาน? คลื่นที่แกว่ง 0 รอบคือ<b>เส้นตรงนิ่งๆ</b> · สัญญาณนี้ก็คือ “เส้นตรงสูง 0.6 + sine” นั่นเอง</p>
+
+  <h3>square wave: สัญญาณที่ไม่เหมือน sine เลย (Figure 7-15)</h3>
+  <p>square wave กระโดดขึ้นลงระหว่าง +1 กับ −1 เป็นเหลี่ยมๆ · ดูยังไงก็ไม่ใช่ sine แต่ DFT ก็ยังแยกมันเป็นผลบวกของ sine ได้
+    แค่ต้องใช้<b>หลายตัว</b>:</p>
+  <div class="wave" data-sig="sq:8" data-mark="8,24,40,56" data-half="1" data-dots="0"
+       data-lab="square wave 8 รอบ → DFT" data-cap="peak ที่ 8, 24, 40, 56, … ห่างกัน 16 · ความสูง 1, 1/3, 1/5, 1/7, … (p35)"></div>
+  <p>peak อยู่ที่ <b>8, 24, 40, 56 …</b> = <b>8 × 1, 8 × 3, 8 × 5, 8 × 7</b> ซึ่งเป็นจำนวนคี่เท่าของความถี่หลัก ·
+    เรียกพวกนี้ว่า <b>harmonic (ฮาร์มอนิก)</b>: ตัวหลัก 8 คือ <b>fundamental</b> ส่วน 24, 40, … คือฮาร์มอนิกคี่ ·
+    ครึ่ง 256 ช่องมีฮาร์มอนิกคี่ 8 ตัว รวมภาพสะท้อนอีก 8 = <b>16 peak ห่างเท่ากัน</b> ตรงกับรูปในสไลด์</p>
+  <p>อยากเห็นกับตาว่ามันจริงไหม? ลองบวก sine แค่ 3 ตัวแรกตามสูตรนั้น (8 แรง 1 · 24 แรง 1/3 · 40 แรง 1/5):</p>
+  <div class="wave" data-sig="sin:8 + sin:24:0.3333 + sin:40:0.2" data-show="time" data-dots="0"
+       data-lab="sin 8 + ⅓ sin 24 + ⅕ sin 40" data-cap="แค่ 3 ตัวก็เริ่มเป็นเหลี่ยมแล้ว · ยิ่งบวกฮาร์มอนิกมาก ยิ่งเหลี่ยมคม"></div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">square wave สั่น <b>4 รอบ</b> ใน 256 sample · peak <b>ครึ่งซ้าย</b> 3 อันแรกอยู่ที่ไหน?</div>
+    <button class="opt">4, 8, 12</button>
+    <button class="opt">4, 12, 20</button>
+    <button class="opt">4, 16, 36</button>
+    <button class="opt">8, 24, 40</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! ฮาร์มอนิกคี่ของ 4 = 4×1, 4×3, 4×5 → 4, 12, 20 · ความสูง 1, ⅓, ⅕</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ: square wave มีแต่ฮาร์มอนิก<b>คี่</b> (×1, ×3, ×5) ของความถี่หลัก → 4, 12, 20 · ไม่มี ×2 (8) และไม่ใช่ ×1, ×4, ×9</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · square wave ใน register 4 qubit</h2></div>
+
+  <h3>เฟส 180° = amplitude ติดลบ</h3>
+  <p>จะทำ square wave ใน QPU ได้ต้องมีค่า “+1” กับ “−1” · สไลด์ p18 บอกว่า<b>เข็มชี้ลง (เฟส 180°) เทียบเท่า amplitude ติดลบ</b> ·
+    ดังนั้นเข็มที่มีแค่ขึ้น/ลงคือสัญญาณ<b>จำนวนจริง</b> (ทวนกับดักจากบท 0028) → คาดได้เลยว่า QFT จะให้ <b>peak คู่สะท้อน</b></p>
+
+  <p>Figure 7-6: square wave 4 แบบ ขนาดวงเท่ากันหมด ต่างกันแค่ว่าเข็มพลิกทุกกี่ค่า (p17–18):</p>
+  <div class="wide">
+    <div class="crow" data-n="16" data-r="10" data-lab="A · พลิกทุก 1" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625"
+         data-phase="0,180,0,180,0,180,0,180,0,180,0,180,0,180,0,180"></div>
+    <div class="crow" data-n="16" data-r="10" data-lab="B · พลิกทุก 2" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625"
+         data-phase="0,0,180,180,0,0,180,180,0,0,180,180,0,0,180,180"></div>
+    <div class="crow" data-n="16" data-r="10" data-lab="C · พลิกทุก 4" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625"
+         data-phase="0,0,0,0,180,180,180,180,0,0,0,0,180,180,180,180"></div>
+    <div class="crow" data-n="16" data-r="10" data-lab="D · พลิกทุก 8" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625"
+         data-phase="0,0,0,0,0,0,0,0,180,180,180,180,180,180,180,180"></div>
+  </div>
+
+  <div class="box warn">
+    <b>⚠️ สไลด์ p17–18 วาดแค่ |0⟩ ถึง |14⟩</b>: register 4 qubit ต้องมี 16 วง วง <b>|15⟩ ถูกครอปหาย</b> ·
+    ในบทนี้หนูเติมให้ครบแล้ว (|15⟩ ของ A เข็มลง ส่วน B, C, D ก็เข็มลงเหมือนกัน) · ถ้าข้อสอบให้นับวงจากรูป ให้นึกไว้ว่ามี 16 วงเสมอ
+  </div>
+
+  <h3>พลิกทุก p ค่า → ความถี่เท่าไร</h3>
+  <p>พลิกทุก p ค่า = บวก p ค่า ลบ p ค่า → <b>คาบ 2p</b> · ใน 16 ค่ามีกี่รอบ? <b>16 ÷ 2p = 8/p</b></p>
+  <table class="cmp">
+    <thead><tr><th>แถว</th><th>พลิกทุก (p)</th><th>คาบ</th><th>ความถี่ = 8/p</th></tr></thead>
+    <tbody>
+      <tr><td data-label="แถว">A</td><td data-label="พลิกทุก">1</td><td data-label="คาบ">2</td><td data-label="ความถี่"><b>8</b></td></tr>
+      <tr><td data-label="แถว">B</td><td data-label="พลิกทุก">2</td><td data-label="คาบ">4</td><td data-label="ความถี่"><b>4</b></td></tr>
+      <tr><td data-label="แถว">C</td><td data-label="พลิกทุก">4</td><td data-label="คาบ">8</td><td data-label="ความถี่"><b>2</b></td></tr>
+      <tr><td data-label="แถว">D</td><td data-label="พลิกทุก">8</td><td data-label="คาบ">16</td><td data-label="ความถี่"><b>1</b></td></tr>
+    </tbody>
+  </table>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">ก่อนดูผล ลองทายเอง: แถว <b>C</b> (ความถี่ 2 · square wave) หลัง QFT วงไหนบ้างที่<b>ไม่ว่าง</b>?</div>
+    <button class="opt">|2⟩ เพียงวงเดียว</button>
+    <button class="opt">|2⟩ กับ |14⟩ แค่คู่เดียว</button>
+    <button class="opt">|2⟩, |4⟩, |6⟩, |8⟩</button>
+    <button class="opt">|2⟩, |6⟩, |10⟩, |14⟩</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! ฮาร์มอนิกคี่ของ 2 คือ 2 กับ 6 (6 = 2×3 · 10 = 2×5 เกินครึ่ง 8 แล้วเลยไม่นับเป็นฮาร์มอนิก) · ภาพสะท้อน 16 − 2 = 14 กับ 16 − 6 = 10</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ: เป็น square wave จึงมีฮาร์มอนิกคี่ 2×1 = 2 และ 2×3 = 6 · เป็นสัญญาณจริงเลยมีภาพสะท้อน 16 − 2 = 14 และ 16 − 6 = 10</div>
+  </div>
+
+  <h3>ผลหลัง QFT (Figure 7-7)</h3>
+  <div class="wide">
+    <div class="crow" data-n="16" data-r="10" data-lab="A หลัง QFT" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0" data-sub=",,,,,,,,100%"></div>
+    <div class="crow" data-n="16" data-r="10" data-lab="B หลัง QFT" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0,0,0,0,0.5,0,0,0,0,0,0,0,0.5,0,0,0" data-phase="0,0,0,0,45,0,0,0,0,0,0,0,315,0,0,0"
+         data-sub=",,,,50%,,,,,,,,50%"></div>
+    <div class="crow" data-n="16" data-r="10" data-lab="C หลัง QFT" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0,0,0.4268,0,0,0,0.0732,0,0,0,0.0732,0,0,0,0.4268,0" data-phase="0,0,67.5,0,0,0,22.5,0,0,0,337.5,0,0,0,292.5,0"
+         data-sub=",,43%,,,,7%,,,,7%,,,,43%"></div>
+    <div class="crow" data-n="16" data-r="10" data-lab="D หลัง QFT" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-mag="0,0.4105,0,0.0508,0,0.0226,0,0.0161,0,0.0161,0,0.0226,0,0.0508,0,0.4105"
+         data-phase="0,78.75,0,56.25,0,33.75,0,11.25,0,348.75,0,326.25,0,303.75,0,281.25"
+         data-sub=",41%,,5%,,2%,,2%,,2%,,2%,,5%,,41%"></div>
+  </div>
+  <p>อ่านรูปนี้ด้วยสิ่งที่รู้แล้วทั้งหมด:</p>
+  <ul>
+    <li><b>A</b> ได้ |8⟩ วงเดียว เพราะความถี่ 8 = ครึ่งพอดี ภาพสะท้อน 16 − 8 = 8 <b>ทับตัวเอง</b> · ฮาร์มอนิกถัดไป 24 ก็เกิน register</li>
+    <li><b>B</b> ได้ |4⟩ กับ |12⟩ (ฮาร์มอนิก 12 = ภาพสะท้อนของ 4 พอดี จึงไม่เห็นเป็น peak แยก)</li>
+    <li><b>C, D</b> ได้ฮาร์มอนิกคี่ + ภาพสะท้อน · วงใหญ่สุดคือ fundamental แล้วเล็กลงเรื่อยๆ เข้ากลาง เหมือน DFT เป๊ะ</li>
+    <li>คู่สะท้อน (k กับ 16 − k) <b>ขนาดเท่ากัน</b> และ<b>เข็มเอียงกลับด้านกัน</b> (เช่น B: +45° กับ −45°) · สไลด์บอกว่าแบบนี้
+      “ตีความยากกว่า” เพราะเฟส<b>กระโดด</b>บวก/ลบ แทนที่จะหมุนต่อเนื่องเหมือนบท 0027 (p18–19)</li>
+  </ul>
+  <p class="meta">ตัวเลข % ในรูปหนูจำลองด้วย numpy แล้วตรงกับขนาดวงในสไลด์ทุกวงค่ะ</p>
+
+  <h3>วงจรและโค้ด (Figure 7-8) · เรื่องสอบ</h3>
+  <p>สร้าง square wave ง่ายนิดเดียว: <b>HAD ทุกสาย</b> (ได้ superposition เท่ากัน) แล้ว <b>PHASE 180° สายเดียว</b> ·
+    สายที่โดน 180° กำหนดว่าพลิกทุกกี่ค่า (p20–21)</p>
+  <div class="wide">
+    <div class="circuit" data-wires="4" data-names="signal,,," data-wire-labels="0x1,0x2,0x4,0x8"
+         data-groups="1-2:prep; 3-13:QFT"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2 + H:3; P:1:180;
+                   H:3; CP:2,3:-90; CP:1,3:-45; CP:0,3:-22.5; H:2; CP:1,2:-90; CP:0,2:-45; H:1; CP:0,1:-90; H:0;
+                   SWAP:0,3 + XWIRE:1,2"
+         data-cap="Figure 7-8 (p20) · กรณี wave_period = 2 → φ 180° บนสาย 0x2 = แถว B · กล่อง QFT เหมือนบท 0027 ทุกตัว"></div>
+  </div>
+<pre class="code-blk">var num_qubits = 4;
+qc.reset(num_qubits);
+var signal = qint.new(num_qubits, 'signal')
+var wave_period = 2;       // A:1 B:2 C:4 D:8
+// prepare the signal
+signal.write(0);
+signal.hadamard();
+signal.phase(180, wave_period);
+signal.QFT()</pre>
+  <div class="box warn">
+    <b>⚠️ ชื่อตัวแปรหลอก:</b> <code class="code">wave_period</code> <b>ไม่ใช่คาบ</b> แต่เป็น <b>bitmask</b> ของ qubit ที่จะโดน 180° ·
+    ค่า 2 = สาย 0x2 = พลิกทุก 2 ค่า → คาบจริง 4 · ความถี่ 4 (ทวนตาราง p ข้างบน)
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">ถ้าแก้โค้ดเป็น <code class="code">signal.phase(180, 8)</code> วงจร prep จะเปลี่ยนยังไง และ READ หลัง QFT มีโอกาสสูงสุดที่จะได้ค่าไหน?</div>
+    <button class="opt">φ ย้ายไปสาย 0x8 · ได้ 1 หรือ 15</button>
+    <button class="opt">φ ย้ายไปสาย 0x8 · ได้ 8 เพียงค่าเดียว</button>
+    <button class="opt">φ อยู่สาย 0x2 ครบ 4 ตัว · ได้ 1 หรือ 15</button>
+    <button class="opt">φ อยู่สาย 0x2 ครบ 4 ตัว · ได้ 8 เพียงค่าเดียว</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! mask 8 = สาย 0x8 = แถว D (ความถี่ 1) · วงใหญ่สุดคือ |1⟩ กับ |15⟩ อย่างละ ~41%</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ: เลข 8 คือ bitmask → φ ไปอยู่สาย 0x8 ตัวเดียว (ไม่ใช่ทำ 8 ครั้ง) · พลิกทุก 8 = แถว D ความถี่ 1 → peak ใหญ่ที่ |1⟩, |15⟩</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 3 · square wave บน qubyte: QFT = DFT เป๊ะ</h2></div>
+
+  <p>ขยายเป็น <b>8 qubit (qubyte)</b> = 256 ค่า จะได้เทียบกับ DFT 256 sample ของ Figure 7-15 ตรงๆ (p36)</p>
+  <div class="twocol">
+    <div class="c">
+      <div class="circuit" data-wires="8" data-wire-labels="0x1,0x2,0x4,0x8,0x10,0x20,0x40,0x80"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1 + H:2 + H:3 + H:4 + H:5 + H:6 + H:7; P:4:180"
+           data-cap="Figure 7-16 (p36) · φ 180° บนสาย 0x10"></div>
+    </div>
+    <div class="c">
+<pre class="code-blk">qc.reset(8);
+qc.write(0);
+qc.had();
+// ใส่เครื่องหมายลบด้วยความถี่หนึ่ง
+qc.phase(180, 16);
+qc.QFT();</pre>
+    </div>
+  </div>
+  <div class="box warn">
+    <b>⚠️ สไลด์ p36 รูปวงจรไม่มีกล่อง QFT</b> (หนูเปิดรูปจริงเช็คแล้ว จบที่ φ แล้วลากเส้นเปล่า) แต่โค้ดมี <code class="code">qc.QFT()</code> ·
+    รูปนั้นเป็นแค่ส่วน <b>prep</b> · ของจริงต้องมีกล่อง QFT 8 สายต่อท้าย (หน้าตาวงจร 8 สายจะเจอบท 0030)
+  </div>
+
+  <p><b>input (p37)</b>: mask 16 → พลิกทุก 16 ค่า → คาบ 32 → <b>256 ÷ 32 = 8 รอบ</b> · 32 วงแรก (2 แถวแรกของกริด 16×16 ในสไลด์) หน้าตาแบบนี้ (ที่เหลือซ้ำไปอีก 7 รอบ):</p>
+  <div class="wide">
+    <div class="crow" data-n="16" data-r="10" data-lab="|0⟩–|15⟩" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+         data-phase="0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"></div>
+    <div class="crow" data-n="16" data-r="10" data-lab="|16⟩–|31⟩" data-labels="16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31"
+         data-phase="180,180,180,180,180,180,180,180,180,180,180,180,180,180,180,180"></div>
+  </div>
+  <p>เข็มขึ้น/ลงล้วน = สัญญาณจริง = <b>square wave ตัวเดียวกับ Figure 7-15</b> เลยค่ะ</p>
+
+  <p><b>output (p38–39)</b>: เหลือวงไม่ว่างแค่ <b>8 + 16k</b> = 8, 24, 40, …, 248 · กราฟความน่าจะเป็นตอน READ:</p>
+  <div class="bars"
+       data-labels="8,24,40,56,72,88,104,120,136,152,168,184,200,216,232,248"
+       data-vals="40.7,4.6,1.8,1.0,0.7,0.5,0.4,0.4,0.4,0.4,0.5,0.7,1.0,1.8,4.6,40.7" data-max="45"
+       data-hl="0:on:40.7%; 15:on:40.7%"
+       data-cap="Figure 7-19 (p39) · ความน่าจะเป็น (%) ที่ READ ได้แต่ละค่า · ค่าอื่นเป็น 0 ทั้งหมด"></div>
+
+  <div class="box mathref">
+    <b>ทำไมกราฟนี้เตี้ยลงเร็วกว่ากราฟ DFT?</b> DFT ของ square wave มี<b>ความสูง</b> 1, ⅓, ⅕ (= amplitude) ·
+    แต่การ READ ได้ความน่าจะเป็น = <b>|amplitude|²</b> → 1, 1/9, 1/25 · ลองเช็ค: 40.7 ÷ 9 ≈ 4.5 ≈ แท่งที่ 24 ✓
+  </div>
+
+  <div class="box aha">
+    register หลัง QFT <b>คือ DFT ของ square wave</b> ที่เก็บอยู่ใน magnitude + relative phase ·
+    <b>โอกาส READ ได้ค่าไหน = ความถี่นั้นมีส่วนในสัญญาณแรงแค่ไหน</b> (p39)
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">รันโค้ด qubyte นี้แล้ว READ <b>ครั้งเดียว</b> · ข้อไหนบรรยายผลได้ถูกที่สุด?</div>
+    <button class="opt">ได้ 8 แน่นอนทุกครั้งที่รัน</button>
+    <button class="opt">ได้ทั้ง 16 ค่าออกมาพร้อมกัน</button>
+    <button class="opt">ได้ค่าเดียว ~81% เป็น 8 หรือ 248</button>
+    <button class="opt">ได้ค่าเดียว สุ่มเท่ากันทั้ง 256</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! 40.7 + 40.7 ≈ 81% · ที่เหลือ ~19% อาจได้ฮาร์มอนิกอื่น (24, 232, …) · READ ได้ค่าเดียวเสมอ ไม่ได้ทั้ง spectrum</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ: READ ได้<b>ค่าเดียว</b>เสมอ (ไม่ได้ทั้งกราฟ) และค่าที่ได้สุ่มตาม<b>น้ำหนัก</b>ของกราฟ → 8 หรือ 248 รวม ~81% · ฮาร์มอนิกอื่นยังมีโอกาสออก</div>
+  </div>
+
+  <p>ข้อสุดท้ายนี้แหละคือ<b>ปัญหาใหญ่</b>ที่บทหน้าจะคุยกัน: DFT คลาสสิกให้ทั้งกราฟ แต่ QFT ให้เรา “จับฉลาก” ได้แค่ความถี่เดียวต่อการรันหนึ่งครั้ง
+    แล้วแบบนี้ QFT จะเอาไปใช้ทำอะไรได้บ้าง?</p>
+
+  <details class="recall">
+    <summary>ทดสอบความจำ: ปิดหน้าจอแล้วลองตอบก่อนกดเปิด</summary>
+    <ol>
+      <li>DFT/QFT บอกอะไรเกี่ยวกับสัญญาณ 3 อย่าง?
+        <br><b>ความถี่ · สัดส่วน · offset ของ sine ที่บวกกันเป็นสัญญาณ</b></li>
+      <li>DC bias คืออะไร อยู่ช่องไหน?
+        <br><b>เส้นฐานที่สัญญาณแกว่งรอบ · ช่องความถี่ 0</b></li>
+      <li>square wave ความถี่ f ได้ peak ที่ไหน สูงเท่าไร?
+        <br><b>f, 3f, 5f, … สูง 1, ⅓, ⅕ (+ภาพสะท้อน)</b></li>
+      <li><code class="code">qc.phase(180, 4)</code> บน register 4 qubit (หลัง had) → ความถี่เท่าไร?
+        <br><b>mask 4 → พลิกทุก 4 → คาบ 8 → ความถี่ 2</b></li>
+      <li>ทำไมความน่าจะเป็นตอน READ ลดแบบ 1/k² แทนที่จะเป็น 1/k?
+        <br><b>ความน่าจะเป็น = |amplitude|²</b></li>
+    </ol>
+  </details>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>สรุปบทนี้</h2></div>
+  <ul>
+    <li>DFT/QFT แยกสัญญาณเป็น sine หลายตัว: <b>ความถี่ + สัดส่วน (ความสูง peak) + offset (เฟส)</b> · สัญญาณจริงตัดครึ่งขวาทิ้งได้</li>
+    <li>ช่องความถี่ 0 = <b>DC bias</b> (เส้นฐาน) · เช็คทุกครั้ง</li>
+    <li>square wave → <b>ฮาร์มอนิกคี่</b> f, 3f, 5f … สูง 1, ⅓, ⅕ · 8 รอบใน 256 → 16 peak ห่างกัน 16</li>
+    <li>ใน QPU: <code class="code">had</code> + <code class="code">phase(180, mask)</code> = square wave · mask p → ความถี่ 2ⁿ/(2p) · เฟส 180° = ลบ = สัญญาณจริง → peak คู่ k กับ 2ⁿ − k</li>
+    <li>qubyte: หลัง QFT READ ได้ 8 หรือ 248 ~81% · ความน่าจะเป็น = |amp|² → ลด ~1/k² · <b>ผล QFT = DFT เป๊ะ แต่อ่านได้ค่าเดียว</b></li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 7 หัวข้อ
+      <i>Frequencies in a QPU Register</i> (Figure 7-6 ถึง 7-8) และ <i>DFT Everything</i> (Figure 7-14 ถึง 7-19) ·
+      ถ้าอยากเห็นว่าบวก sine ทีละตัวแล้วกลายเป็นเหลี่ยมได้ยังไง ดู
+      <a href="https://www.youtube.com/watch?v=r6sGWTCMz2k">3Blue1Brown: But what is a Fourier series?</a> ·
+      สไลด์ <code class="code">QuantumProg_Lec07.pdf</code> หน้า 17–21, 32–39</p>
+    <p><b>บทถัดไป</b>: 0029 · QFT เร็วแค่ไหน, ปัญหาใส่สัญญาณเข้า/อ่านผลออก และ invQFT (p40–53)</p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="0027-qft-hidden-frequency.html">0027 · QFT อ่านความถี่ในเฟส</a> ·
+      <a href="0028-dft-mirror-peaks.html">0028 · DFT และ peak สะท้อน</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① ทำไม square wave ถึงมีแต่ฮาร์มอนิก<b>คี่</b> ไม่มีคู่ ② ทำไมแถว A กับ B ถึงเห็น peak น้อยกว่าที่สูตรฮาร์มอนิกบอก
+      ③ ถ้าอยากได้ square wave ที่ offset (เลื่อนไป) จะต้องแก้วงจรตรงไหน
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

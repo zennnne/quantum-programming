@@ -1,0 +1,464 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บทที่ 5 — HAD (Hadamard): ประตูสู่ superposition และความลับของ "เครื่องหมายลบ"</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script defer src="../../assets/quiz.js"></script>
+<style>
+  /* --- circle notation (ยืมสไตล์บท 3–4) --- */
+  .circles { display:flex; gap:1.1rem; justify-content:center; flex-wrap:wrap; margin:1.2rem 0; align-items:center; }
+  .circ { text-align:center; }
+  .circ svg { display:block; margin:0 auto .3rem; }
+  .circ .cap { font-size:.85rem; color:var(--ink-soft); }
+  .circ .cap b { color:var(--ink); }
+  .op-arrow { font-size:1.3rem; color:var(--accent); font-weight:800; }
+  /* --- fraction แนวตั้ง อ่านง่าย --- */
+  .frac { display:inline-flex; flex-direction:column; vertical-align:middle;
+    text-align:center; margin:0 .15rem; line-height:1.15; }
+  .frac .num { border-bottom:1.5px solid var(--ink); padding:0 .35rem; }
+  .frac .den { padding:0 .35rem; }
+  .ket { font-style:normal; }
+  /* --- worked example block --- */
+  .work { background:#f2f4f8; border:1px solid #d5dbe6; border-radius:10px;
+    padding:1rem 1.2rem; margin:1.3rem 0; overflow-x:auto; }
+  .work .step { margin:.55rem 0; }
+  .work .lbl { display:inline-block; min-width:1.4rem; color:#3a5aa0; font-weight:800; }
+  /* --- matrix --- */
+  .mat { display:inline-grid; grid-template-columns:auto auto; gap:.05rem .7rem;
+    border-left:2px solid var(--ink); border-right:2px solid var(--ink);
+    padding:.25rem .5rem; margin:0 .2rem; vertical-align:middle; text-align:center; }
+  /* --- reasons cards --- */
+  .reasons { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:.7rem; margin:1.2rem 0; }
+  .reasons .r { border:1px solid var(--rule); border-radius:10px; background:#fff; padding:.7rem .8rem; }
+  .reasons .r b { color:var(--accent); display:block; margin-bottom:.2rem; font-size:.95rem; }
+  .reasons .r small { color:var(--ink-soft); }
+  /* --- circuit symbol strip --- */
+  .circuit-syms { display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; margin:1.2rem 0; }
+  .circuit-syms .sy { text-align:center; border:1px solid var(--rule); border-radius:10px;
+    background:#fff; padding:.6rem .5rem; min-width:9rem; }
+  .circuit-syms .sy svg { display:block; margin:0 auto; }
+  .circuit-syms .cap { font-size:.9rem; margin-top:.2rem; }
+  code.code { background:#f2f4f8; padding:.05rem .3rem; border-radius:4px; }
+</style>
+<div class="wrap">
+
+  <p class="kicker">Lesson 05 · QPU Instructions</p>
+  <h1>HAD (Hadamard) — คำสั่งที่สร้าง <em>superposition</em> จริงๆ และความลับของ "เครื่องหมายลบ"</h1>
+  <p class="lead">บทที่แล้วเราเจอ NOT / WRITE / READ ที่ยัง "เดาผลได้" อยู่ บทนี้คือ
+  <b>ก้าวแรกเข้าสู่ความควอนตัมของจริง</b> — HAD เป็น gate ที่ <em>ไม่มีคู่ในโลกคลาสสิก</em>
+  มันหยิบ qubit ที่แน่นอน (|0⟩ หรือ |1⟩) แล้วโยนเข้าสู่ superposition 50/50 ที่เราค้างไว้ตั้งแต่บท 3
+  และนี่คือบทแรกที่ <b>"เลขจริง" จะโผล่ออกมา</b> — หนูจะแทรก refresher คณิตให้ตรงจุดที่ต้องใช้ค่ะ</p>
+
+  <div class="box why">
+    <span class="tag">บทนี้ยาวหน่อย — จับหลักไว้ 3 อย่างพอ</span>
+    <p>เนื้อหา slide 34–47 อัดมาในบทเดียวตามที่พี่เลือก แต่ถ้าจำได้แค่ 3 อย่างนี้ก็ถือว่าได้แก่นแล้ว:
+    (1) HAD เปลี่ยนสถานะแน่นอน → superposition เท่าๆ กัน (2) <b>H|1⟩ มีเครื่องหมายลบ</b> ต่างจาก H|0⟩
+    (3) เครื่องหมายลบนั้น <b>ไม่ใช่ของประดับ</b> — มันคือหัวใจที่ทำให้ควอนตัมทำงานได้
+    มี checkpoint แทรกกลางทางเป็นระยะ ค่อยๆ ไปนะคะ</p>
+  </div>
+
+  <h2>1. HAD ทำอะไร? — จากเข็มเดียว สู่ "ครึ่งๆ"</h2>
+  <p>ทวนจากบท 3: circle notation วาด qubit เป็นวงกลม โดย <b>พื้นที่ทึบ = โอกาสวัดได้ค่านั้น</b>
+  (magnitude²) และ <b>ทิศเข็ม = phase</b> เดิมทีถ้า qubit เป็น |0⟩ แน่นอน วง |0⟩ ก็ทึบเต็ม วง |1⟩ ว่างเปล่า</p>
+  <p><span class="term">HAD</span> (ย่อจาก <b>Hadamard</b> อ่านว่า "ฮาดามาร์ด") ทำสิ่งเดียว:
+  ทำให้ <b>วง |0⟩ และ |1⟩ ทึบเท่ากันพอดี (ครึ่งๆ)</b> → วัดแล้วมีโอกาสได้ 0 หรือ 1
+  <b>เท่ากัน 50/50</b> นี่แหละคือ "superposition แบบสม่ำเสมอ (uniform superposition)"</p>
+
+  <p><b>แต่มีจุดพลิกสำคัญ:</b> HAD กระทำกับ |0⟩ กับ |1⟩ ออกมา <em>ไม่เหมือนกันเป๊ะ</em> —
+  ดูที่ <b>ทิศเข็ม (phase)</b> ของวง |1⟩:</p>
+
+  <div class="circles">
+    <div class="circ">
+      <svg width="130" height="72" viewBox="0 0 130 72" role="img" aria-label="input |0⟩: วง 0 ทึบเต็ม วง 1 ว่าง">
+        <!-- วง |0⟩ ทึบเต็ม เข็มขึ้น -->
+        <circle cx="30" cy="30" r="18" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+        <circle cx="30" cy="30" r="18" fill="#c9d6ef"/>
+        <circle cx="30" cy="30" r="18" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+        <line x1="30" y1="30" x2="30" y2="12" stroke="#3a5aa0" stroke-width="2"/>
+        <text x="30" y="64" text-anchor="middle" font-size="11" fill="#4a4a4a">|0⟩</text>
+        <!-- วง |1⟩ ว่าง -->
+        <circle cx="84" cy="30" r="18" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+        <text x="84" y="64" text-anchor="middle" font-size="11" fill="#4a4a4a">|1⟩</text>
+      </svg>
+      <div class="cap"><b>input:</b> |0⟩ แน่นอน</div>
+    </div>
+    <div class="op-arrow">—[H]→</div>
+    <div class="circ">
+      <svg width="130" height="72" viewBox="0 0 130 72" role="img" aria-label="ผลของ H บน 0: สองวงทึบครึ่ง เข็มขึ้นทั้งคู่">
+        <!-- วง |0⟩ ทึบครึ่ง (รัศมี ~0.707) เข็มขึ้น -->
+        <circle cx="30" cy="30" r="18" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+        <circle cx="30" cy="30" r="12.7" fill="#c9d6ef"/>
+        <line x1="30" y1="30" x2="30" y2="12" stroke="#3a5aa0" stroke-width="2"/>
+        <text x="30" y="64" text-anchor="middle" font-size="11" fill="#4a4a4a">|0⟩</text>
+        <!-- วง |1⟩ ทึบครึ่ง เข็มขึ้น -->
+        <circle cx="84" cy="30" r="18" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+        <circle cx="84" cy="30" r="12.7" fill="#c9d6ef"/>
+        <line x1="84" y1="30" x2="84" y2="12" stroke="#3a5aa0" stroke-width="2"/>
+        <text x="84" y="64" text-anchor="middle" font-size="11" fill="#4a4a4a">|1⟩</text>
+      </svg>
+      <div class="cap">ทึบครึ่งเท่ากัน · <b>เข็มชี้ขึ้นทั้งคู่</b></div>
+    </div>
+  </div>
+
+  <div class="circles">
+    <div class="circ">
+      <svg width="130" height="72" viewBox="0 0 130 72" role="img" aria-label="input |1⟩: วง 0 ว่าง วง 1 ทึบเต็ม">
+        <!-- วง |0⟩ ว่าง -->
+        <circle cx="30" cy="30" r="18" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+        <text x="30" y="64" text-anchor="middle" font-size="11" fill="#4a4a4a">|0⟩</text>
+        <!-- วง |1⟩ ทึบเต็ม เข็มขึ้น -->
+        <circle cx="84" cy="30" r="18" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+        <circle cx="84" cy="30" r="18" fill="#c9d6ef"/>
+        <circle cx="84" cy="30" r="18" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+        <line x1="84" y1="30" x2="84" y2="12" stroke="#3a5aa0" stroke-width="2"/>
+        <text x="84" y="64" text-anchor="middle" font-size="11" fill="#4a4a4a">|1⟩</text>
+      </svg>
+      <div class="cap"><b>input:</b> |1⟩ แน่นอน</div>
+    </div>
+    <div class="op-arrow">—[H]→</div>
+    <div class="circ">
+      <svg width="130" height="72" viewBox="0 0 130 72" role="img" aria-label="ผลของ H บน 1: สองวงทึบครึ่ง วง 1 เข็มชี้ลง">
+        <!-- วง |0⟩ ทึบครึ่ง เข็มขึ้น -->
+        <circle cx="30" cy="30" r="18" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+        <circle cx="30" cy="30" r="12.7" fill="#c9d6ef"/>
+        <line x1="30" y1="30" x2="30" y2="12" stroke="#3a5aa0" stroke-width="2"/>
+        <text x="30" y="64" text-anchor="middle" font-size="11" fill="#4a4a4a">|0⟩</text>
+        <!-- วง |1⟩ ทึบครึ่ง เข็มชี้ลง (phase 180 = เครื่องหมายลบ) -->
+        <circle cx="84" cy="30" r="18" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+        <circle cx="84" cy="30" r="12.7" fill="#c9d6ef"/>
+        <line x1="84" y1="30" x2="84" y2="48" stroke="#b23a48" stroke-width="2.5"/>
+        <text x="84" y="64" text-anchor="middle" font-size="11" fill="#4a4a4a">|1⟩</text>
+      </svg>
+      <div class="cap">ทึบครึ่งเท่ากัน · <b style="color:#b23a48">วง |1⟩ เข็มชี้ลง!</b></div>
+    </div>
+  </div>
+
+  <div class="box aha">
+    <span class="tag">จุดสังเกตหัวใจของบท</span>
+    <p>ทั้งสองกรณี "โอกาสวัดได้ 0 หรือ 1" เท่ากันหมด (พื้นที่ทึบเท่ากัน) — ถ้าดูแค่ความน่าจะเป็น
+    <b>มันเหมือนกันเป๊ะ</b> ต่างกันแค่ <b>เข็มของวง |1⟩</b>: มาจาก |0⟩ เข็มชี้ขึ้น, มาจาก |1⟩ เข็มชี้ลง
+    (relative phase = 180°) เจ้า "เข็มชี้ลง" นี้แหละที่ภาษาเลขเรียกว่า <b>เครื่องหมายลบ</b>
+    — ทั้งบทนี้จะวนอยู่รอบมัน</p>
+  </div>
+
+  <h2>2. เขียนเป็นสูตร — และ √2 มาจากไหน</h2>
+  <p>สิ่งที่เห็นในวงกลม เขียนเป็นสมการได้แบบนี้ (นี่คือสองสูตรที่ควรจำได้ขึ้นใจ):</p>
+
+  <div class="work" style="text-align:center;">
+    <div class="step">H<span class="ket">|0⟩</span> =
+      <span class="frac"><span class="num">|0⟩ + |1⟩</span><span class="den">√2</span></span>
+    </div>
+    <div class="step">H<span class="ket">|1⟩</span> =
+      <span class="frac"><span class="num">|0⟩ <b style="color:#b23a48">−</b> |1⟩</span><span class="den">√2</span></span>
+    </div>
+  </div>
+  <p>เห็นไหมคะว่าต่างกัน <b>แค่เครื่องหมายกลางวงเล็บ</b> — บวกกับลบ นั่นคือ "เข็มชี้ขึ้น vs ชี้ลง"
+  ในภาพเมื่อกี้เป๊ะๆ</p>
+
+  <div class="box mathref">
+    <span class="tag">Refresher: ทำไมต้องหารด้วย √2 (ไม่ใช่ 2)?</span>
+    <p>กฎเหล็กของ qubit (จากบท 3): <b>เอา magnitude ของทุกช่องมายกกำลังสอง แล้วบวกกันต้องได้ 1 พอดี</b>
+    (โอกาสรวมทั้งหมด = 100%) ลองเช็คสูตร H|0⟩ ที่ทั้งสองช่องมีค่า 1/√2:</p>
+    <p style="text-align:center;">
+      ( <span class="frac"><span class="num">1</span><span class="den">√2</span></span> )² +
+      ( <span class="frac"><span class="num">1</span><span class="den">√2</span></span> )² =
+      <span class="frac"><span class="num">1</span><span class="den">2</span></span> +
+      <span class="frac"><span class="num">1</span><span class="den">2</span></span> = 1 ✓
+    </p>
+    <p>ถ้าหารด้วย 2 เฉยๆ จะได้ (1/2)² + (1/2)² = 1/4 + 1/4 = 1/2 ≠ 1 → <b>ผิดกฎ!</b>
+    เจ้า √2 มีไว้ "ปรับสเกล" ให้โอกาสรวมเป็น 1 พอดี เราเรียกขั้นตอนนี้ว่า
+    <span class="term">normalization</span> (การทำให้เป็นบรรทัดฐาน) เจอบ่อยมากทั้งวิชา</p>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">✅ Checkpoint 1: ถ้าวัด (READ) qubit ที่อยู่ในสถานะ H|1⟩ = (|0⟩ − |1⟩)/√2 โอกาสได้ผลเป็น "1" คือเท่าไหร่?</div>
+    <button class="opt">100% เพราะสถานะนี้มาจาก |1⟩ ตอนแรกอยู่แล้ว</button>
+    <button class="opt">0% เพราะเครื่องหมายลบทำให้ช่อง |1⟩ หายไป</button>
+    <button class="opt">50% เพราะโอกาสคิดจาก magnitude² ไม่เกี่ยวกับเครื่องหมาย</button>
+    <button class="opt">25% เพราะต้องยกกำลังสองของ 1/2 อีกที</button>
+    <div class="fb ok" data-for="ok">เป๊ะค่ะ! magnitude ของช่อง |1⟩ คือ 1/√2 → ยกกำลังสอง = 1/2 = 50% เครื่องหมายลบ (phase)
+    <b>ไม่มีผลต่อโอกาสวัด</b> เลย (ทวนจากบท 4: phase ไม่กระทบ READ)</div>
+    <div class="fb no" data-for="no">ระวังกับดัก! เครื่องหมายลบคือ phase ซึ่ง <b>ไม่กระทบความน่าจะเป็น</b> โอกาส = magnitude² =
+    (1/√2)² = 1/2 = 50% ค่ะ</div>
+  </div>
+
+  <h2>3. HAD ในรูป matrix + ลองคูณให้เห็นกับตา</h2>
+  <p>gate ทุกตัวเขียนเป็น <b>matrix</b> (เมทริกซ์) ได้ และการ "ทำ gate กับ qubit" ก็คือ
+  <b>เอา matrix คูณกับ vector ของ qubit</b> matrix ของ Hadamard คือตัวที่ง่ายที่สุดที่สร้าง superposition ได้:</p>
+
+  <div class="work" style="text-align:center;">
+    H = <span class="frac"><span class="num">1</span><span class="den">√2</span></span>
+    <span class="mat"><span>1</span><span>1</span><span>1</span><span style="color:#b23a48">−1</span></span>
+  </div>
+
+  <div class="box mathref">
+    <span class="tag">Refresher: คูณ matrix 2×2 กับ vector ยังไง</span>
+    <p>qubit เขียนเป็น vector 2 แถว: <b>|0⟩ = [1, 0]</b> (บน=1 ล่าง=0) และ <b>|1⟩ = [0, 1]</b>
+    การคูณ: <b>เอาแต่ละแถวของ matrix ไป "จับคู่คูณแล้วบวก" กับ vector</b></p>
+    <p style="text-align:center; margin:.6rem 0;">
+      <span class="mat"><span>a</span><span>b</span><span>c</span><span>d</span></span>
+      <span class="mat"><span>x</span><span>y</span></span> =
+      <span class="mat"><span>a·x + b·y</span><span>c·x + d·y</span></span>
+    </p>
+  </div>
+
+  <p><b>ลองกับ |0⟩ = [1, 0]:</b></p>
+  <div class="work">
+    <div class="step"><span class="lbl">=</span> <span class="frac"><span class="num">1</span><span class="den">√2</span></span>
+      <span class="mat"><span>1</span><span>1</span><span>1</span><span>−1</span></span>
+      <span class="mat"><span>1</span><span>0</span></span>
+    </div>
+    <div class="step"><span class="lbl">=</span> <span class="frac"><span class="num">1</span><span class="den">√2</span></span>
+      <span class="mat"><span>1·1 + 1·0</span><span>1·1 + (−1)·0</span></span> =
+      <span class="frac"><span class="num">1</span><span class="den">√2</span></span>
+      <span class="mat"><span>1</span><span>1</span></span> =
+      <span class="frac"><span class="num">|0⟩ + |1⟩</span><span class="den">√2</span></span>
+    </div>
+    <div class="step" style="color:#3a5aa0;">➢ ทั้งสองช่องเป็น +1 → ไม่มีเครื่องหมายลบ ✓ (ตรงกับภาพเข็มชี้ขึ้นทั้งคู่)</div>
+  </div>
+
+  <p><b>ลองกับ |1⟩ = [0, 1]:</b></p>
+  <div class="work">
+    <div class="step"><span class="lbl">=</span> <span class="frac"><span class="num">1</span><span class="den">√2</span></span>
+      <span class="mat"><span>1</span><span>1</span><span>1</span><span>−1</span></span>
+      <span class="mat"><span>0</span><span>1</span></span>
+    </div>
+    <div class="step"><span class="lbl">=</span> <span class="frac"><span class="num">1</span><span class="den">√2</span></span>
+      <span class="mat"><span>1·0 + 1·1</span><span>1·0 + (−1)·1</span></span> =
+      <span class="frac"><span class="num">1</span><span class="den">√2</span></span>
+      <span class="mat"><span>1</span><span style="color:#b23a48">−1</span></span> =
+      <span class="frac"><span class="num">|0⟩ <b style="color:#b23a48">−</b> |1⟩</span><span class="den">√2</span></span>
+    </div>
+    <div class="step" style="color:#b23a48;">➢ ช่องล่างได้ −1 → เครื่องหมายลบโผล่! (phase = 180° = เข็มชี้ลง)</div>
+  </div>
+
+  <div class="box aha">
+    <span class="tag">เชื่อมภาพเข้าหากัน</span>
+    <p>เห็นไหมคะว่า "เข็มชี้ลงของวง |1⟩" ในภาพ = "−1 ในช่องล่างของ vector" = "เครื่องหมายลบในสูตร"
+    ทั้งสามอย่างคือ<b>เรื่องเดียวกัน</b> เล่าคนละภาษา (รูป / เลข / สมการ) พอเห็นว่ามันคือสิ่งเดียวกัน
+    HAD จะไม่น่ากลัวอีกเลยค่ะ</p>
+  </div>
+
+  <h2>4. ทำไม "ต้อง" มีเครื่องหมายลบ? — 3 เหตุผล</h2>
+  <p>คำถามที่อาจารย์ชอบถาม: ทำไม H|1⟩ ต้องเป็น (|0⟩ − |1⟩)/√2 ทำไมไม่ใช้บวกให้เหมือน H|0⟩ ไปเลย?
+  slide ให้ 3 เหตุผล — จำเป็น <b>ทั้งสามข้อ</b> ไม่ใช่ของประดับ:</p>
+
+  <div class="reasons">
+    <div class="r"><b>1. คงความตั้งฉาก</b><small>orthogonality — |0⟩ กับ |1⟩ ต้อง "แยกจากกันได้" ผลลัพธ์ก็ต้องแยกกันได้ด้วย</small></div>
+    <div class="r"><b>2. ย้อนกลับได้</b><small>reversibility — ทำให้ H เป็นตัวย้อนของตัวเอง (ทำสองที = กลับที่เดิม)</small></div>
+    <div class="r"><b>3. เกิด interference</b><small>การแทรกสอด — เปิดทางให้ amplitude "หักล้าง/เสริม" กันได้ หัวใจของอัลกอริทึมควอนตัม</small></div>
+  </div>
+
+  <h3>เหตุผล 1 — คงความตั้งฉาก (orthogonality)</h3>
+  <div class="box mathref">
+    <span class="tag">Refresher: "ตั้งฉาก" ในภาษา qubit คืออะไร</span>
+    <p>สองสถานะ "ตั้งฉาก (orthogonal)" แปลว่า <b>แยกจากกันได้สนิท 100%</b> — ถ้าเป็นอันหนึ่งแน่ๆ
+    ก็ไม่มีทางเป็นอีกอันเลย วัดด้วยเครื่องมือชื่อ <b>inner product</b> (ผลคูณภายใน) เขียน ⟨a|b⟩
+    ถ้าได้ <b>0 = ตั้งฉากสนิท</b> พื้นฐาน |0⟩ กับ |1⟩ ตั้งฉากกันอยู่แล้ว: ⟨0|1⟩ = 0
+    (กติกาที่ใช้: ⟨0|0⟩ = ⟨1|1⟩ = 1 ส่วน ⟨0|1⟩ = ⟨1|0⟩ = 0)</p>
+  </div>
+  <p>gate ควอนตัมที่ดี <b>ต้องรักษาความตั้งฉากไว้</b> ลองเช็ค inner product ของผลลัพธ์ H|0⟩ กับ H|1⟩:</p>
+  <div class="work">
+    <div class="step">⟨H0 | H1⟩ =
+      <span class="frac"><span class="num">1</span><span class="den">2</span></span>
+      ( ⟨0|0⟩ − ⟨0|1⟩ + ⟨1|0⟩ − ⟨1|1⟩ )</div>
+    <div class="step"><span class="lbl">=</span> <span class="frac"><span class="num">1</span><span class="den">2</span></span>
+      ( 1 − 0 + 0 − 1 ) =
+      <span class="frac"><span class="num">1</span><span class="den">2</span></span> ( 0 ) = <b>0</b> ✓ ตั้งฉาก!</div>
+    <div class="step" style="color:#b23a48;">➢ ถ้าใช้ <b>บวก</b> ทั้งคู่: จะได้ (1 + 0 + 0 + 1)/2 = 1 ≠ 0 → ไม่ตั้งฉาก → ผิดกฎ gate!</div>
+  </div>
+
+  <h3>เหตุผล 2 — ย้อนกลับได้ (H เป็นตัวย้อนของตัวเอง)</h3>
+  <p>ทวนจากบท 4: gate ควอนตัมแท้ๆ ต้อง <b>reversible</b> Hadamard เป็นแบบพิเศษ — เป็น
+  <b>ตัวย้อนของตัวเอง</b> เหมือน NOT คือทำ H สองครั้ง qubit กลับสถานะเดิมเป๊ะ
+  (H H |ψ⟩ = |ψ⟩)</p>
+  <div class="box warn">
+    <span class="tag">ลองคิดแบบขัดแย้ง (ทำไมบวกถึงพัง)</span>
+    <p>สมมติ (ผิด) ว่า H|1⟩ = (|0⟩ + |1⟩)/√2 เหมือน H|0⟩ เป๊ะ → แปลว่า H|0⟩ กับ H|1⟩
+    กลายเป็น <b>สถานะเดียวกัน</b> ถ้าอย่างนั้น พอเราทำ H ซ้ำเพื่อย้อนกลับ เราจะ
+    <b>แยกไม่ออกว่าเดิมมาจาก |0⟩ หรือ |1⟩</b> → ย้อนกลับไม่ได้ → ผิดกฎ reversibility
+    เครื่องหมายลบคือสิ่งเดียวที่ทำให้ H|0⟩ ≠ H|1⟩ จึงย้อนกลับได้</p>
+  </div>
+
+  <h3>เหตุผล 3 — เปิดทางให้ interference (การแทรกสอด)</h3>
+  <p>อันนี้คือเหตุผลที่ "ควอนตัมถึงเจ๋ง" เพราะมีทั้งบวกและลบ amplitude จึง <b>หักล้างกันได้</b>
+  เหมือนคลื่นน้ำสองลูกที่ยอดชนท้องแล้วราบไป ลองบวกสองสถานะ:</p>
+  <div class="work">
+    <div class="step">
+      <span class="frac"><span class="num">|0⟩ + |1⟩</span><span class="den">√2</span></span> +
+      <span class="frac"><span class="num">|0⟩ − |1⟩</span><span class="den">√2</span></span> =
+      <span class="frac"><span class="num">2|0⟩</span><span class="den">√2</span></span> = √2 |0⟩</div>
+    <div class="step" style="color:#3a5aa0;">➢ ช่อง |1⟩ <b>หักล้างกันหายเกลี้ยง</b> (+|1⟩ กับ −|1⟩ ลบกัน) เหลือแต่ |0⟩!</div>
+  </div>
+  <p>การที่ amplitude หักล้าง/เสริมกันแบบนี้แหละที่ทำให้อัลกอริทึมดังๆ อย่าง
+  <b>Grover</b> และ <b>Shor</b> เป็นไปได้ (เราจะเจอปลายคอร์ส) — ถ้าไม่มีเครื่องหมายลบ
+  ก็ไม่มีการหักล้าง ก็ไม่มีความได้เปรียบเชิงควอนตัม</p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">✅ Checkpoint 2: เหตุผลข้อไหน <b>อธิบายผิด</b> ว่าทำไม H|1⟩ ต้องมีเครื่องหมายลบ?</div>
+    <button class="opt">ถ้าไม่มีลบ H|0⟩ กับ H|1⟩ จะเหมือนกัน ทำให้ย้อนกลับ (reverse) ไม่ได้</button>
+    <button class="opt">เครื่องหมายลบทำให้โอกาสวัดได้ |1⟩ มากกว่า |0⟩ เล็กน้อย</button>
+    <button class="opt">ถ้าไม่มีลบ ผลลัพธ์สองอันจะไม่ตั้งฉากกัน (inner product ≠ 0)</button>
+    <button class="opt">เครื่องหมายลบเปิดทางให้ amplitude หักล้างกันได้ (interference)</button>
+    <div class="fb ok" data-for="ok">ใช่ค่ะ ข้อนี้ผิด! เครื่องหมายลบคือ phase ซึ่ง <b>ไม่กระทบโอกาสวัด</b> เลย (ยังคง 50/50)
+    อีกสามข้อคือเหตุผลจริงทั้งหมด</div>
+    <div class="fb no" data-for="no">ทบทวนนะ — เครื่องหมายลบเป็น phase ไม่เปลี่ยนความน่าจะเป็น (ข้อที่บอกว่า "วัดได้ |1⟩ มากกว่า"
+    จึงเป็นข้อที่ผิด) ส่วน reversibility / orthogonality / interference คือเหตุผลจริง</div>
+  </div>
+
+  <h2>5. HAD กับ qubit ที่อยู่ใน superposition อยู่แล้ว (worked example)</h2>
+  <p>ถ้า qubit ไม่ได้เป็น |0⟩ หรือ |1⟩ เป๊ะ แต่เป็น superposition อยู่แล้วล่ะ? หลักการง่ายมาก:
+  <b>HAD ทำกับแต่ละส่วนแยกกัน แล้วถ่วงน้ำหนักด้วย amplitude เดิม</b> ลองกับ
+  |ψ⟩ = 0.6|0⟩ + 0.8|1⟩ (เช็คก่อน: 0.6² + 0.8² = 0.36 + 0.64 = 1 ✓ ถูกกฎ)</p>
+
+  <div class="work">
+    <div class="step"><span class="lbl">=</span> H(0.6|0⟩ + 0.8|1⟩) = 0.6·H|0⟩ + 0.8·H|1⟩</div>
+    <div class="step"><span class="lbl">=</span> 0.6
+      <span class="frac"><span class="num">|0⟩ + |1⟩</span><span class="den">√2</span></span> + 0.8
+      <span class="frac"><span class="num">|0⟩ − |1⟩</span><span class="den">√2</span></span></div>
+    <div class="step"><span class="lbl">=</span>
+      <span class="frac"><span class="num">(0.6 + 0.8)|0⟩ + (0.6 − 0.8)|1⟩</span><span class="den">√2</span></span></div>
+    <div class="step"><span class="lbl">=</span>
+      <span class="frac"><span class="num">1.4|0⟩ − 0.2|1⟩</span><span class="den">√2</span></span></div>
+  </div>
+  <p>เห็นพลังของบวก/ลบชัดๆ: ช่อง |0⟩ ถูก <b>เสริม</b> (0.6+0.8 = 1.4 ใหญ่ขึ้น) ส่วนช่อง |1⟩ ถูก
+  <b>หักล้าง</b> (0.6−0.8 = −0.2 เล็กลง) → นี่คือ interference ในตัวอย่างจริง หลัง HAD
+  โอกาสวัดได้ 0 มากกว่า 1 เยอะเลย</p>
+
+  <h2>6. Reversibility: ทำ HAD สองที = ไม่ได้ทำ</h2>
+  <p>เหมือน NOT ในบทที่แล้วเป๊ะ — <b>HAD เป็นตัวย้อนของตัวเอง (its own inverse)</b>
+  ทำ HAD สองครั้งติดกัน qubit กลับสถานะเดิม จำง่ายๆ: superposition ที่ HAD สร้าง
+  ถ้าโดน HAD อีกที มันจะ "หักล้างตัวเอง" กลับไปเป็น |0⟩ หรือ |1⟩ เดิม (เหตุผลข้อ 2 กับ 3 รวมกันพอดี)</p>
+
+  <div class="box warn">
+    <span class="tag">กันสับสน: HAD ย้อนได้ ≠ READ ย้อนได้</span>
+    <p>อย่าปนกันนะคะ — <b>HAD reversible</b> (ทำซ้ำได้ของเดิม) แต่ <b>READ ยัง irreversible</b> เสมอ
+    ถ้าเผลอ READ ตรงกลางไป superposition ก็ยุบทิ้ง ทำ HAD ย้อนกลับไม่ได้แล้ว การ "หวง READ ไว้ท้ายสุด"
+    จากบท 4 จึงยังใช้อยู่</p>
+  </div>
+
+  <h2>7. หน้าตาในวงจร — สัญลักษณ์ [H] (ออกสอบ!)</h2>
+  <p>ในวงจร HAD วาดเป็น <b>กล่องสี่เหลี่ยมมีตัว H</b> อยู่ข้างใน วางบนเส้น qubit ตามปกติ
+  (ยืนยันจาก slide 34/35 แล้ว — สไตล์ QCEngine/O'Reilly)</p>
+
+  <div class="circuit-syms">
+    <div class="sy">
+      <svg width="150" height="64" viewBox="0 0 150 64" role="img" aria-label="สัญลักษณ์ HAD">
+        <line x1="0" y1="32" x2="150" y2="32" stroke="#1a1a1a" stroke-width="2"/>
+        <rect x="59" y="14" width="32" height="36" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <text x="75" y="39" text-anchor="middle" font-size="20" font-weight="800" fill="#1a1a1a">H</text>
+      </svg>
+      <div class="cap"><b>HAD (H)</b></div>
+    </div>
+  </div>
+
+  <p>ตัวอย่างวงจรที่จะเจอบ่อยสุด (บทหน้าเราจะเอาไปทำ <b>QRNG</b> — เครื่องสุ่มควอนตัมของจริง):</p>
+  <div class="circuit-syms">
+    <div class="sy" style="min-width:16rem;">
+      <svg width="260" height="64" viewBox="0 0 260 64" role="img" aria-label="วงจร write H read">
+        <line x1="8" y1="32" x2="252" y2="32" stroke="#1a1a1a" stroke-width="2"/>
+        <!-- write 0 -->
+        <circle cx="40" cy="32" r="5" fill="#6a3fb5"/>
+        <path d="M48,20 L68,32 L48,44 Z" fill="none" stroke="#1a1a1a" stroke-width="2" stroke-linejoin="round"/>
+        <!-- H -->
+        <rect x="120" y="16" width="30" height="32" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <text x="135" y="38" text-anchor="middle" font-size="18" font-weight="800" fill="#1a1a1a">H</text>
+        <!-- read -->
+        <path d="M212,16 A18,18 0 0 1 212,48" fill="#efe9fb" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="212" y1="16" x2="212" y2="48" stroke="#1a1a1a" stroke-width="2"/>
+      </svg>
+      <div class="cap">WRITE |0⟩ → <b>[H]</b> → READ &nbsp;=&nbsp; วัดได้ 0 หรือ 1 อย่างละ 50%</div>
+    </div>
+  </div>
+
+  <div class="box warn">
+    <span class="tag">อัปเดต Cheat Sheet แล้ว</span>
+    <p>หนูย้าย [H] จากช่อง "จะเรียนทีหลัง" ไปอยู่ช่อง "เรียนแล้ว" ใน
+    <a href="../../reference/circuit-cheatsheet.html"><b>📐 Cheat Sheet วงจร</b></a> เรียบร้อย
+    ตอนนี้พี่ท่องได้ 4 สัญลักษณ์แล้ว (WRITE, NOT, READ, HAD) พิมพ์ออกมาท่องก่อนสอบได้เลยค่ะ</p>
+  </div>
+
+  <h2>8. ลองรันจริงใน QCEngine 🖥️</h2>
+  <p>อย่าเพิ่งเชื่อหนู — ลองเองดีที่สุดค่ะ เปิด <a href="https://oreilly-qc.github.io">oreilly-qc.github.io</a>
+  แล้วพิมพ์โค้ดสั้นๆ นี้ (นี่คือวงจร WRITE→H→READ ข้างบนเป๊ะ):</p>
+  <div class="work">
+    <div class="step"><code class="code">qc.reset(1);</code>&nbsp;&nbsp;<span style="color:#3a5aa0;">// เตรียม 1 qubit เป็น |0⟩</span></div>
+    <div class="step"><code class="code">qc.write(0);</code>&nbsp;&nbsp;<span style="color:#3a5aa0;">// WRITE ให้เป็น |0⟩</span></div>
+    <div class="step"><code class="code">qc.had();</code>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3a5aa0;">// [H] → superposition 50/50</span></div>
+    <div class="step"><code class="code">qc.read();</code>&nbsp;&nbsp;&nbsp;<span style="color:#3a5aa0;">// READ → ได้ 0 หรือ 1 สุ่ม</span></div>
+  </div>
+  <p>จ้องที่ <b>circle notation</b> ของ QCEngine หลังบรรทัด <code class="code">qc.had()</code> —
+  จะเห็นวงกลมสองวงทึบครึ่งเท่ากันตรงกับภาพในบทนี้ ลองกดรันซ้ำหลายๆ ที ดูว่าผล READ สลับ 0/1 มั่วจริงไหม
+  (นี่แหละคือ <b>QRNG</b> ที่เราจะเจาะลึกบทหน้า!)</p>
+
+  <h2>เช็คความเข้าใจ (รอบใหญ่)</h2>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">1. HAD ต่างจาก NOT อย่างไร ตรงจุดที่สำคัญที่สุด?</div>
+    <button class="opt">HAD เร็วกว่า NOT เพราะทำงานกับหลาย qubit พร้อมกันได้</button>
+    <button class="opt">HAD ย้อนกลับไม่ได้ ส่วน NOT ย้อนกลับได้</button>
+    <button class="opt">HAD กับ NOT เหมือนกันทุกอย่าง ต่างแค่ชื่อเรียก</button>
+    <button class="opt">HAD สร้าง superposition ได้ (ไม่มีคู่คลาสสิก) ส่วน NOT แค่สลับ 0↔1</button>
+    <div class="fb ok" data-for="ok">ใช่เลยค่ะ! NOT มีคู่ในโลกคลาสสิก (แค่สลับค่า) แต่ HAD สร้าง superposition 50/50 ซึ่ง
+    <b>ไม่มีอะไรเทียบในคอมธรรมดา</b> — นี่คือ "ประตู" เข้าสู่ควอนตัมจริงๆ</div>
+    <div class="fb no" data-for="no">ทั้งคู่ reversible เหมือนกัน จุดต่างหัวใจคือ HAD <b>สร้าง superposition</b> ได้ (ไม่มีคู่คลาสสิก)
+    ส่วน NOT แค่สลับ 0↔1</div>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">2. ทำ HAD กับ qubit ที่เป็น |0⟩ แล้วตามด้วย HAD อีกครั้งหนึ่ง ผลเป็นอย่างไร?</div>
+    <button class="opt">กลับมาเป็น |0⟩ เท่าเดิม เพราะ HAD เป็นตัวย้อนของตัวเอง</button>
+    <button class="opt">กลายเป็น |1⟩ เพราะ HAD สองทีเท่ากับ NOT หนึ่งที</button>
+    <button class="opt">อยู่ใน superposition 50/50 ต่อไป เพราะ HAD ตอกย้ำ superposition</button>
+    <button class="opt">วัดค่าไม่ได้อีกเลย เพราะ superposition ซ้อนสองชั้น</button>
+    <div class="fb ok" data-for="ok">ถูกต้อง! HAD เป็น its own inverse ทำสองที = กลับที่เดิม (superposition ที่สร้างขึ้น
+    ถูก HAD ที่สองหักล้างตัวเองกลับไปเป็น |0⟩)</div>
+    <div class="fb no" data-for="no">HAD เป็นตัวย้อนของตัวเอง (เหมือน NOT) → ทำสองที qubit กลับไปเป็น |0⟩ เดิม ไม่ได้ค้างที่ superposition</div>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">3. "เครื่องหมายลบ" ใน H|1⟩ = (|0⟩ − |1⟩)/√2 มีผลต่อสิ่งใด?</div>
+    <button class="opt">ทำให้โอกาสวัดได้ 0 มากกว่า 1 อย่างเห็นได้ชัด</button>
+    <button class="opt">ทำให้ qubit วัดค่าไม่ได้จนกว่าจะลบเครื่องหมายทิ้งก่อน</button>
+    <button class="opt">เป็น relative phase — คงความตั้งฉาก, ย้อนกลับได้, และทำให้เกิด interference</button>
+    <button class="opt">ไม่มีผลอะไรเลย เป็นแค่ธรรมเนียมการเขียนให้ดูสวย</button>
+    <div class="fb ok" data-for="ok">เป๊ะค่ะ! เครื่องหมายลบ = relative phase ไม่กระทบโอกาสวัด (ยัง 50/50) แต่<b>จำเป็น</b>ต่อ
+    orthogonality + reversibility + interference ครบสามเหตุผล</div>
+    <div class="fb no" data-for="no">ระวัง — เครื่องหมายลบไม่กระทบความน่าจะเป็น (โอกาสยัง 50/50) แต่ก็ไม่ใช่ของประดับ
+    มันคือ phase ที่จำเป็นต่อ 3 เหตุผลหลัก (ตั้งฉาก/ย้อนได้/interference)</div>
+  </div>
+
+  <details class="recall">
+    <summary>ลองก่อนเปิด: อธิบายด้วยคำพูดตัวเอง — "ทำไม H|1⟩ ต้องมีเครื่องหมายลบ ทั้งที่มันไม่ทำให้โอกาสวัดเปลี่ยนเลย?"</summary>
+    <p>ตัวอย่างคำตอบที่ดี: <em>"เครื่องหมายลบคือ relative phase มันไม่กระทบ magnitude² เลยไม่เปลี่ยนโอกาสวัด
+    (ยัง 50/50) แต่จำเป็นเพราะ (1) ทำให้ H|0⟩ กับ H|1⟩ ตั้งฉากกัน — gate ต้องรักษาความตั้งฉาก
+    (2) ทำให้สองผลลัพธ์ต่างกัน HAD จึงย้อนกลับได้ (its own inverse) และ (3) การมีทั้ง +/− ทำให้
+    amplitude หักล้าง/เสริมกันได้ = interference ซึ่งเป็นหัวใจของอัลกอริทึมควอนตัม"</em></p>
+    <p class="src">นึกเองก่อนเปิดเฉลย (retrieval practice) ช่วยให้จำได้นานกว่าอ่านซ้ำเยอะค่ะ</p>
+  </details>
+
+  <h2>อ่าน/ดูต่อ (แหล่งหลัก)</h2>
+  <p>แหล่งที่ตรงที่สุดคือ <b>slide Lec 02 หน้า 34–47 (HAD)</b> ประกอบกับ
+  <b>บทที่ 2 หนังสือ "Programming Quantum Computers" (O'Reilly)</b> หัวข้อ <em>HAD</em> —
+  เปิดควบคู่กับ <b>QCEngine</b> ที่ <a href="https://oreilly-qc.github.io">oreilly-qc.github.io</a>
+  แล้วลองรันโค้ด <code class="code">qc.had()</code> ในหัวข้อ 8 จ้องดู circle notation ให้เห็นกับตา
+  จะเข้าใจบทนี้ลึกขึ้นอีกเยอะค่ะ</p>
+
+  <div class="ask">
+    <p><b>หนูเป็นครูของพี่นะคะ 🙋‍♀️</b> บทนี้ยาวและมีเลขเยอะ ถ้าตรงไหนสะดุด —
+    การคูณ matrix, √2 normalization, inner product/orthogonality, หรือ "ทำไมลบถึงสำคัญ" —
+    บอกหนูให้ขยายก่อนไปต่อได้เลย อยากให้หนูออกโจทย์คำนวณเพิ่มให้ฝึกมือก็ได้นะ
+    ถ้าพร้อมแล้ว บทหน้า (บท 6) คือ <b>QRNG</b> — เอาวงจร WRITE→H→READ ในบทนี้ไปทำ
+    <em>โปรแกรมควอนตัมตัวแรกของจริง</em> ที่สุ่มเลขได้แบบสุ่มแท้ (true random) ค่ะ</p>
+  </div>
+
+  <div class="footer">
+    <span class="pill">บทที่ 5</span>
+    <a href="0004-qpu-instructions-not-write-read.html">← บทที่ 4</a> &nbsp;·&nbsp;
+    <a href="0003-amplitude-and-phase.html">บทที่ 3</a> &nbsp;·&nbsp;
+    <a href="../../reference/glossary.html">📖 Glossary</a> &nbsp;·&nbsp;
+    <a href="../../reference/circuit-cheatsheet.html">📐 Cheat Sheet วงจร</a>
+    <p class="src" style="margin-top:.8rem;">บทถัดไป: <b>QRNG</b> — โปรแกรมควอนตัมตัวแรก, PRNG vs true random
+    และอ่านวงจร write→had→read เต็มๆ (slide 53–63)</p>
+  </div>
+
+</div>
