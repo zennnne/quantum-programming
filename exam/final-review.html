@@ -95,7 +95,323 @@
     <p class="kicker">Lec11 · ยาวปานกลาง</p>
     <h2>Quantum Supersampling (QSS)</h2>
     <!-- lec11:content-start — เนื้อหาของ page นี้เขียนระหว่าง start/end เท่านั้น -->
-    <div class="box"><p>🚧 กำลังเขียน — page นี้ยังไม่เสร็จ</p></div>
+    <div class="box aha"><span class="tag">ภาพรวมทั้งคาบในบรรทัดเดียว</span>
+      <p>วาดภาพความละเอียดสูงลงใน <b>phase</b> → แบ่งเป็น <b>tile</b> → นับว่าแต่ละ tile โดน flip กี่ subpixel ด้วย
+      <b>AA + QFT</b> (sum estimation) → แปลค่า READ ผ่าน <b>lookup table</b> → ได้ความสว่างของ pixel พร้อมบอกว่ามั่นใจแค่ไหน ·
+      QSS รวม primitive 3 ตัว: quantum arithmetic (Lec05) · amplitude amplification (Lec06) · QFT (Lec07)</p></div>
+
+    <!-- ---------- 1. noise character ---------- -->
+    <h3 id="lec11-noise">1. QSS ไม่ได้เร็วกว่า แต่ noise คนละแบบ</h3>
+    <p><b>supersampling</b> (การสุ่มหลายจุดต่อ pixel) ของ ray tracing = ยิงหลาย ray ต่อ pixel (ปกติหลักร้อยถึงหลักพัน)
+      แล้ว<b>เก็บแค่ค่าเฉลี่ย</b> ที่เหลือทิ้งหมด เรียกอีกชื่อว่า <b>Monte Carlo sampling</b> ·
+      เป็นงานขนานที่สุดท้ายต้องการแค่<b>ผลรวม</b> ไม่ใช่ผลรายตัว → ฟังดูเหมาะกับ QPU</p>
+    <p>QSS ถูกสร้างมาเพื่อ<b>เร่งความเร็ว</b> supersampling และ<b>ล้มเหลวตามเกณฑ์นี้</b> ·
+      error เฉลี่ยต่อ pixel พอๆ กับวิธีเดิม แต่<b>ลักษณะ (character) ของ noise ต่างกันมาก</b>:</p>
+    <table class="cmp">
+      <thead><tr><th>วิธี</th><th>Figure 11-1</th><th>Figure 11-12 (ภาพวงแหวน 64×64)</th><th>หน้าตา noise</th></tr></thead>
+      <tbody>
+        <tr><td data-label="วิธี">Conventional Monte Carlo</td>
+            <td data-label="Figure 11-1">error เฉลี่ย 2% · pixel ไม่ผิดเลย 34%</td>
+            <td data-label="Figure 11-12">error เฉลี่ย 9% · pixel ไม่ผิดเลย 23%</td>
+            <td data-label="หน้าตา noise"><b>ผิดนิดๆ ทุก pixel</b> (เม็ดหยาบทั่วภาพ)</td></tr>
+        <tr><td data-label="วิธี">Quantum Supersampling</td>
+            <td data-label="Figure 11-1">error เฉลี่ย 1% · pixel ไม่ผิดเลย 41%</td>
+            <td data-label="Figure 11-12">error เฉลี่ย 6% · pixel ไม่ผิดเลย 46%</td>
+            <td data-label="หน้าตา noise"><b>ส่วนใหญ่เป๊ะ บาง pixel ผิดแรง</b> (จุดดำ/ขาวเดี่ยวๆ)</td></tr>
+      </tbody>
+    </table>
+    <p>ตัวเลขที่สไลด์ (p35) สรุปจาก Figure 11-12: error เฉลี่ยของ QSS <b>ต่ำกว่าราว 33%</b> (9% → 6%) และ pixel ที่ถูกเป๊ะ
+      <b>เกือบ 2 เท่า</b> (23% → 46%) · ข้อได้เปรียบ<b>ไม่ได้อยู่ที่จำนวน drawing operation</b> แต่อยู่ที่ character ของ noise</p>
+    <div class="qcrow">
+      <div class="qcanvas" data-n="16" data-cell="9" data-mode="gray" data-axes="0"
+           data-gray="Math.round((x + y)/30*16)/16"
+           data-cap="ภาพอุดมคติ"></div>
+      <div class="qcanvas" data-n="16" data-cell="9" data-mode="gray" data-axes="0"
+           data-gray="Math.round((x + y)/30*16)/16 + (rnd(x,y) - 0.5)*0.3"
+           data-cap="แบบ Monte Carlo"></div>
+      <div class="qcanvas" data-n="16" data-cell="9" data-mode="gray" data-axes="0"
+           data-gray="rnd(x,y) &lt; 0.8 ? Math.round((x + y)/30*16)/16 : (rnd(y+5,x) &lt; 0.5 ? 0 : 1)"
+           data-cap="แบบ QSS"></div>
+    </div>
+    <p class="meta" style="text-align:center">ภาพประกอบที่คาโฮะทำเอง (ไม่ใช่รูปจากสไลด์) — แสดงแค่ "หน้าตา" ของ noise สองแบบ</p>
+    <table class="cmp">
+      <thead><tr><th>วิธี</th><th>เมื่อเพิ่มจำนวน sample (p36)</th></tr></thead>
+      <tbody>
+        <tr><td data-label="วิธี">Conventional</td><td data-label="เมื่อเพิ่ม sample">ผลลัพธ์ <b>converge เข้าหา</b>คำตอบที่ถูกเป๊ะ</td></tr>
+        <tr><td data-label="วิธี">QSS</td><td data-label="เมื่อเพิ่ม sample"><b>ความน่าจะเป็น</b>ที่จะได้คำตอบถูกเป๊ะ<b>เพิ่มขึ้น</b></td></tr>
+      </tbody>
+    </table>
+    <p><b>ทำไม noise แบบ QSS ดีกว่า</b> (thought experiment p5): ให้เวลา 15 นาทีลบ noise ด้วยมือ ·
+      ภาพ QSS ทำได้ค่อนข้างง่าย (จุดเดี่ยวไม่กี่จุด) · ภาพ conventional แทบเป็นไปไม่ได้ (เพี้ยนทุก pixel) ·
+      และ QSS shader <b>ไม่เคย output ค่า subpixel รายตัวออกมา</b> — ถ้าต้องการค่ารายตัว conventional เหมาะกว่า ·
+      ถ้าต้องการแค่<b>ผลรวม</b>ของกลุ่ม QPU น่าสนใจ</p>
+    <div class="box warn"><span class="tag">สไลด์พูดไม่ตรงกับตัวเลข (p4)</span>
+      <p>ข้อความบอกว่า error ของสองวิธี <i>"about the same"</i> แต่ตัวเลขใน Figure 11-1 คือ 2% กับ 1% ·
+      <b>ตอบตามสไลด์</b>: "noise เฉลี่ยพอๆ กัน แต่<b>ลักษณะ</b>ต่างกัน" — ประเด็นที่ข้อสอบต้องการคือ character ไม่ใช่ขนาด ·
+      ถ้าโจทย์ให้ตัวเลขมา ก็อ่านตัวเลขตามรูปได้เลย</p></div>
+
+    <h4>ผ้าใบเปล่า (blank canvas) + phase encoding</h4>
+    <p>วิธีแทนภาพที่ใช้ทั้งคาบคือ <b>phase encoding</b>: ค่าของ pixel อยู่ใน <b>phase</b> ของ superposition ·
+      ข้อดีคือ<b>เข้ากับ amplitude amplification</b> ได้ทันที (AA ทำงานกับการ flip phase อยู่แล้ว) ·
+      ผ้าใบ = register <code class="code">qx</code>, <code class="code">qy</code> อย่างละ 4 qubit → write 0 แล้ว HAD ทุกตัว
+      → <b>256 วง</b> (16×16) amplitude 1/16 เท่ากันหมด (ความน่าจะเป็น 1/256) phase 0° ทุกวง ·
+      pixel shader ควอนตัม = รับ (x, y) ใน superposition แล้วตอบดำ/ขาวด้วยการ flip หรือไม่ flip phase</p>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="circuit" data-wires="8" data-names="qx,qx,qx,qx,qy,qy,qy,qy"
+           data-wire-labels="0x1,0x2,0x4,0x8,0x1,0x2,0x4,0x8" data-groups="0-2:; 3-3::180°"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1 + H:2 + H:3; H:4 + H:5 + H:6 + H:7; P:3"
+           data-cap="Figure 11-4 + 11-5: กล่องซ้าย = ผ้าใบเปล่า (HAD ของ qx กับ qy อยู่คนละคอลัมน์) · กล่องขวา = PHASE(180°) บน qx 0x8 สายเดียว"></div>
+    </div>
+    <p class="meta"><a href="../lessons/0041-qss-noise-character-and-blank-canvas.html">อ่านตัวเต็ม → บท 0041</a></p>
+
+    <!-- ---------- 2. drawing in phase ---------- -->
+    <h3 id="lec11-draw">2. วาดภาพลงใน phase: ครึ่งจอ · ลายจุด · ลายทาง · เส้นโค้ง</h3>
+    <p>ทุกลายใช้สูตรเดียว: <b>คำนวณเงื่อนไข → flip phase 180° → uncompute คืนค่า</b> (ท่าเดียวกับ phase logic ของ Lec10) ·
+      ต่างกันแค่ขั้น "คำนวณ" · ในรูป circle notation: <b>ชมพู = 0°</b> (ไม่ flip) · <b>เขียว = 180°</b> (โดน flip)</p>
+    <div class="qcrow">
+      <div class="qcanvas" data-n="16" data-cell="9" data-axes="0" data-flip="x &gt;= 8"
+           data-cap="ครึ่งขวา · 128 วง"></div>
+      <div class="qcanvas" data-n="16" data-cell="9" data-axes="0"
+           data-flip="x &gt;= 8 &amp;&amp; !(y &gt;= 8 &amp;&amp; ((x ^ y) &amp; 1))"
+           data-cap="+ dither · 96 วง"></div>
+      <div class="qcanvas" data-n="16" data-cell="9" data-axes="0" data-flip="((x - 2*y) &amp; 15) &gt;= 8"
+           data-cap="ลายทาง · 128 วง"></div>
+      <div class="qcanvas" data-n="16" data-cell="9" data-axes="0" data-flip="x*x + y*y &lt; 169"
+           data-cap="เสี้ยววงกลม · 142 วง"></div>
+    </div>
+    <table class="cmp">
+      <thead><tr><th>ลาย</th><th>flip เมื่อ</th><th>ทำยังไง</th></tr></thead>
+      <tbody>
+        <tr><td data-label="ลาย">ครึ่งขวา (Fig 11-5)</td><td data-label="flip เมื่อ">qx ≥ 8</td>
+            <td data-label="ทำยังไง">PHASE(180) บน qx <b>0x8</b> ตัวเดียว (qx ≥ 8 ⇔ บิต 0x8 เป็น 1)</td></tr>
+        <tr><td data-label="ลาย">dither 50% gray (Fig 11-6)</td><td data-label="flip เมื่อ">qx ≥ 8 และ qy ≥ 8 และบิต 0x1 ของ qx ≠ ของ qy</td>
+            <td data-label="ทำยังไง">CNOT (qy 0x1 → qx 0x1) · <b>CZ 3 จุด</b> บน qx 0x1, qx 0x8, qy 0x8 · CNOT ซ้ำ (uncompute) ·
+            มุมขวาล่างโดน flip <b>รอบสอง</b>ครึ่งหนึ่ง → เหลือเขียว 32 จาก 64 = ลายหมากรุก</td></tr>
+        <tr><td data-label="ลาย">ลายทางเฉียง (Fig 11-7)</td><td data-label="flip เมื่อ">(qx − 2·qy) mod 16 ≥ 8</td>
+            <td data-label="ทำยังไง"><code class="code">subtractShifted</code> → PHASE บน qx 0x8 → <code class="code">addShifted</code>
+            (arithmetic จาก Lec05) · แถบกว้าง 8 เลื่อนขวา 2 ต่อแถว</td></tr>
+        <tr><td data-label="ลาย">เสี้ยววงกลม r = 13 (Fig 11-8)</td><td data-label="flip เมื่อ">qx² + qy² &lt; 169</td>
+            <td data-label="ทำยังไง">register <code class="code">qacc</code> <b>10 qubit</b> (15² + 15² = 450 เกิน 8 บิต) ·
+            addSquared ×2 → ลบ 169 → PHASE บนบิตบนสุด (บิตเครื่องหมาย) → ย้อนกลับทุกขั้น ·
+            ขอบพอดีอย่าง (13, 0), (12, 5) = 169 ไม่น้อยกว่า → ชมพู</td></tr>
+      </tbody>
+    </table>
+    <p>ถ้า <code class="code">qacc</code> <b>เล็กเกิน</b> ค่าจะ overflow → ได้<b>แถบโค้งหลายวง</b> (curved bands) แทนเสี้ยววงกลมเดียว ·
+      สไลด์ใช้ผลนี้<b>โดยตั้งใจ</b>ใน Figure 11-11 (ภาพวงแหวนความถี่สูง)</p>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="circuit" data-wires="8" data-names="qx,qx,qx,qx,qy,qy,qy,qy"
+           data-wire-labels="0x1,0x2,0x4,0x8,0x1,0x2,0x4,0x8" data-groups="0-2:; 3-3::180°; 4-6:"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1 + H:2 + H:3; H:4 + H:5 + H:6 + H:7; P:3; CNOT:4,0; CZ:0,3,7; CNOT:4,0"
+           data-cap="Figure 11-6 · กล่องกลาง = invert color if qx&gt;=8 · กล่องขวา = 50% gray in corner (CNOT – ●●● – CNOT)"></div>
+    </div>
+    <div class="box aha"><span class="tag">ปมที่ทำให้ต้องมีหัวข้อ 4</span>
+      <p>PHASE คำสั่ง<b>เดียว</b>ระบาย <b>128 pixel</b> พร้อมกัน (GPU ต้องรัน shader 128 ครั้ง) ·
+      แต่ถ้า READ จะได้แค่<b>ค่าสุ่มของ qx, qy</b> — phase ที่วาดไว้อ่านตรงๆ ไม่ได้
+      (flip phase ไม่เปลี่ยน magnitude ทุกวงยังมีโอกาส 1/256 เท่าเดิม) → วาดได้ แต่อ่านไม่ได้</p></div>
+    <p class="meta"><a href="../lessons/0042-drawing-in-phase-dither-stripes-curves.html">อ่านตัวเต็ม → บท 0042</a></p>
+
+    <!-- ---------- 3. tiles ---------- -->
+    <h3 id="lec11-tiles">3. แบ่งเป็น tile: วาด 16 subpixel พร้อมกัน</h3>
+    <p>มองผ้าใบ 16×16 เป็น <b>16 tile ขนาด 4×4</b> · 1 tile → 1 pixel ของภาพผลลัพธ์ (ได้ภาพ 4×4) · ภายใน tile:</p>
+    <table class="cmp">
+      <thead><tr><th>ตัวแปร</th><th>เป็นอะไร</th></tr></thead>
+      <tbody>
+        <tr><td data-label="ตัวแปร"><code class="code">qx</code>, <code class="code">qy</code></td>
+            <td data-label="เป็นอะไร">qubit <b>อย่างละ 2</b> = ตำแหน่ง subpixel ใน tile (0–3) · HAD → 16 subpixel ใน superposition</td></tr>
+        <tr><td data-label="ตัวแปร"><code class="code">qacc</code></td>
+            <td data-label="เป็นอะไร">accumulator <b>4 qubit</b> ไว้ทำ logic ที่ 2 qubit ใส่ไม่พอ</td></tr>
+        <tr><td data-label="ตัวแปร"><code class="code">tx</code>, <code class="code">ty</code></td>
+            <td data-label="เป็นอะไร"><b>เลข digital ธรรมดา</b> (ไม่ใช่ qubit) บอกว่ากำลังวาด tile ไหน ·
+            พิกัดจริง x = qx + 4·tx (y = qy + 4·ty)</td></tr>
+      </tbody>
+    </table>
+    <div class="qcanvas" data-n="16" data-cell="16" data-tiles="4" data-flip="(y == 3) != (x == 10)"
+         data-cap="Figure 11-9 (วาดใหม่) · เส้นนอน y = 3 + เส้นตั้ง x = 10 · จุดตัด |58⟩ โดน flip สองครั้ง (180° + 180°) จึงกลับเป็นชมพู"></div>
+    <table class="cmp">
+      <thead><tr><th>tile (tx, ty)</th><th>วงเขียวใน tile</th></tr></thead>
+      <tbody>
+        <tr><td data-label="tile">(2, 0)</td><td data-label="วงเขียว"><b>6</b> (แถวล่าง 3 + คอลัมน์ 3 · จุดตัดชมพู)</td></tr>
+        <tr><td data-label="tile">(0, 0) · (1, 0) · (3, 0)</td><td data-label="วงเขียว">4 (แถวล่างทั้งแถว)</td></tr>
+        <tr><td data-label="tile">(2, 1) · (2, 2) · (2, 3)</td><td data-label="วงเขียว">4 (คอลัมน์ x ใน tile = 2)</td></tr>
+        <tr><td data-label="tile">อีก 9 tile</td><td data-label="วงเขียว">0</td></tr>
+      </tbody>
+    </table>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="circuit" data-wires="8" data-names="qx,qx,qy,qy,qacc,qacc,qacc,qacc"
+           data-wire-labels="0x1,0x2,0x1,0x2,0x1,0x2,0x4,0x8"
+           data-groups="1-2:; 5-5:; 6-8:; 9-9:; 14-15:; 16-18:; 19-20:"
+           data-under="3-11:Horizontal line at y=3; 12-22:Vertical line at x=10"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1; H:2 + H:3; CNOT:2,4; CNOT:3,5; X:7; X:6,7; CZ:4,5,6,7; X:6,7; X:7; CNOT:2,4; CNOT:3,5; CNOT:0,4; CNOT:1,5; X:6; CNOT:6,7; X:4,6; CZ:4,5,6,7; X:4,6; CNOT:6,7; X:6; CNOT:0,4; CNOT:1,5"
+           data-cap="Figure 11-10 (ตามสไลด์) · แต่ละครึ่ง: qacc ^= พิกัด → บวก offset ของ tile → X ครอบ CZ 4 จุด = flip ถ้า qacc เท่ากับค่าที่ต้องการ → ย้อนกลับ"></div>
+    </div>
+    <div class="box warn"><span class="tag">ป้ายใน Figure 11-10 วางผิดครึ่ง (p25)</span>
+      <p>ป้าย <code class="code">flip if qacc==10</code> อยู่เหนือครึ่ง <b>"Horizontal line at y=3"</b> แต่ gate ใต้ป้าย
+      (X บน 0x4, 0x8 ครอบ CZ) <b>เช็คค่า 3</b> · ค่า <b>10</b> เป็นของครึ่ง <b>"Vertical line at x=10"</b> ·
+      และบล็อกบวก offset ของ tile สองครึ่งไม่ตรงกับ tile ที่รูปกรอบไว้ (tx = 2, ty = 3) ·
+      ถ้าโจทย์ถาม ตอบตามเหตุผล: <b>เส้นนอนเช็ค y = 3 · เส้นตั้งเช็ค x = 10</b></p></div>
+    <p><b>ภาพจริงของ QSS</b> (Figure 11-11 · 256×256): ใช้ <b>4,096 tile × 16 subpixel</b> = 65,536 = 256×256 ·
+      supersample tile ละ 1 pixel → ภาพผลลัพธ์ <b>64×64</b> (4,096 = 64×64)</p>
+    <p class="meta"><a href="../lessons/0043-tiles-drawing-16-subpixels-at-once.html">อ่านตัวเต็ม → บท 0043</a></p>
+
+    <!-- ---------- 4. sum estimation ---------- -->
+    <h3 id="lec11-sum">4. 🔴 Sum estimation: นับว่า tile โดน flip กี่ subpixel ด้วย AA + QFT</h3>
+    <p><b>เป้าหมายต่อ tile</b> (p30): ประมาณ<b>จำนวน subpixel ที่ถูก flip</b> (เรียก M จาก 16) · จำนวนนี้คือความสว่างของ pixel ·
+      วิธีเดิม (Monte Carlo) ต้องรันโปรแกรมวาดซ้ำหลายรอบ <b>สุ่ม qx, qy</b> ทุกรอบ ได้ดำหรือขาวทีละ sample แล้วเอามาบวกกัน ·
+      QSS ใช้ <b>Quantum Sum Estimation</b>: ให้โปรแกรมวาดรูปเป็น <b>flip</b> ของ AA แล้วต่อด้วย QFT</p>
+
+    <h4>ทำไมต้องมีทั้ง AA และ QFT</h4>
+    <div class="twocol">
+      <div class="c"><b>AA (Lec06) — แปลง "จำนวน" เป็น "ความถี่"</b>
+        phase ที่วาดไว้ READ ตรงๆ ไม่ได้ (หัวข้อ 2) · แต่ AA ทำให้เกิด<b>การแกว่ง</b>ที่ขึ้นกับจำนวนค่าที่ถูก flip ·
+        ถ้าทำ AA หลายจำนวนรอบพร้อมกันใน superposition การแกว่งจะไปกางอยู่ตลอด register และ
+        <strong>ความถี่ของมันขึ้นกับ M</strong> (p38)</div>
+      <div class="c"><b>QFT (Lec07) — อ่าน "ความถี่" ออกมาเป็นตัวเลข</b>
+        ความถี่ที่ซ่อนอยู่ใน register READ ตรงๆ ไม่ได้เหมือนกัน · ต้องใช้ QFT (ในโค้ดคือ <code class="code">invQFT</code>)
+        หาความถี่ → ได้จำนวนที่ถูก flip → ได้ความสว่าง (p38) · AA อย่างเดียวไม่มีตัวอ่าน · QFT อย่างเดียวไม่มีความถี่ให้อ่าน</div>
+    </div>
+    <div class="eq">จำนวนที่ถูก flip → ความถี่ของการแกว่ง → QFT อ่านความถี่ → READ → lookup table → ความสว่าง</div>
+
+    <h4>ไล่ทีละขั้น (ตามโค้ด Example 11-4 · p33–34)</h4>
+    <div class="work">
+      <div class="step"><span class="lbl">①</span> <b>เตรียม</b>: write 0 แล้ว HAD <code class="code">qx</code>, <code class="code">qy</code>
+        (ผ้าใบของ tile 16 subpixel) และ HAD register <b>counter</b> (ตัวนับ)</div>
+      <div class="step"><span class="lbl">②</span> <b>counter = จำนวนรอบ AA</b>: ค่าของ counter กำหนดว่าจะทำ AA กี่รอบ ·
+        HAD counter ไว้แล้ว = <b>superposition ของจำนวนรอบ AA ทุกค่าพร้อมกัน</b> (p37) ·
+        counter 4 qubit → 0 ถึง 15 รอบ</div>
+      <div class="step"><span class="lbl">③</span> <b>AA 1 รอบ (เรียกว่า G)</b> = <code class="code">shader_quantum</code> (flip = วาดรูป)
+        + <code class="code">grover_iteration</code> (mirror) · qubit ของ counter ที่มีน้ำหนัก 2ʲ คุม G ซ้ำ 2ʲ รอบ ·
+        เช่น counter = |6⟩ = 0x2 + 0x4 → G² · G⁴ = 6 รอบ</div>
+      <div class="step"><span class="lbl">④</span> <b>เกิดการแกว่ง</b>: แต่ละแขนงของ counter ทำ AA ไม่เท่ากัน →
+        amplitude แกว่งเป็นคาบตลอด counter register · ความถี่ขึ้นกับ M</div>
+      <div class="step"><span class="lbl">⑤</span> <b>invQFT บน counter</b> → ความถี่กลายเป็นค่าที่มีโอกาส READ สูง</div>
+      <div class="step"><span class="lbl">⑥</span> <b>READ counter</b> → แปลงผ่าน lookup table
+        (<code class="code">qss_count_to_hits</code>) เป็นจำนวน hits → <b>ความสว่าง = hits ÷ จำนวน subpixel ใน tile</b></div>
+    </div>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="circuit" data-wires="6" data-names="cnt,cnt,cnt,cnt,qx,qy"
+           data-wire-labels="0x1,0x2,0x4,0x8,,"
+           data-groups="0-0:เตรียม; 1-4:AA k รอบ; 5-7:อ่านความถี่"
+           data-ops="H:0 + H:1 + H:2 + H:3 + H:4 + H:5; CTRL:0 + BOX:4,5:G; CTRL:1 + BOX:4,5:G²; CTRL:2 + BOX:4,5:G⁴; CTRL:3 + BOX:4,5:G⁸; BOX:0,3:invQFT:2; _; READ:0 + READ:1 + READ:2 + READ:3"
+           data-cap="ผังที่คาโฮะวาดเองจากโค้ด (สไลด์ไม่มีรูปวงจรนี้) · cnt = counter · G = AA 1 รอบ · qx, qy สายละ 2 qubit"></div>
+    </div>
+    <p>หน้าตานี้คือ <b>phase estimation (Lec08)</b> ชุดใหม่: HAD register output → U แบบมีเงื่อนไข (U<sup>2ʲ</sup>) → invQFT → READ ·
+      โดยที่ U = AA 1 รอบ (คาโฮะเชื่อมเอง สไลด์ไม่ได้พูด)</p>
+
+    <h4>เห็นการแกว่งเป็นตัวเลข (คณิตเสริม · สไลด์ไม่ได้ให้สูตร)</h4>
+    <p>flip M จาก N ตัว: ตั้ง sin²θ = M/N · หลัง AA k รอบ amplitude ของส่วนที่ถูก flip = sin((2k+1)θ) ·
+      ก้าวทีละ 2θ ต่อรอบ → ใน counter 16 ช่อง peak อยู่ราว <b>16 × θ / 180°</b> · M มากขึ้น → θ ใหญ่ขึ้น → แกว่งเร็วขึ้น → peak ย้ายขวา</p>
+    <div class="wave" data-n="16" data-sig="sin:1.287:1:14.48" data-mark="1,15"
+         data-ax="k (รอบ AA),amplitude,QFT,ความถี่,ความแรง"
+         data-lab="ขาว 1 จาก 16 · θ ≈ 14.5°" data-cap="แกว่งช้า → peak ที่ 1 (และภาพสะท้อนที่ 15)"></div>
+    <div class="wave" data-n="16" data-sig="sin:2.667:1:30" data-mark="3,13"
+         data-ax="k (รอบ AA),amplitude,QFT,ความถี่,ความแรง"
+         data-lab="ขาว 4 จาก 16 · θ = 30°" data-cap="16 × 30 / 180 ≈ 2.7 → ไม่ลงช่องเต็ม peak บานไปช่อง 2–3"></div>
+    <table class="cmp">
+      <thead><tr><th>ขาว M จาก 16</th><th>θ (sin²θ = M/16)</th><th>peak ≈ 16θ/180</th></tr></thead>
+      <tbody>
+        <tr><td data-label="ขาว M">1</td><td data-label="θ">≈ 14.5°</td><td data-label="peak">≈ 1.3 → ช่อง 1</td></tr>
+        <tr><td data-label="ขาว M">4</td><td data-label="θ">30°</td><td data-label="peak">≈ 2.7 → ช่อง 3 (บาน)</td></tr>
+        <tr><td data-label="ขาว M">8</td><td data-label="θ">45°</td><td data-label="peak"><b>4 พอดี</b> → คมช่องเดียว</td></tr>
+        <tr><td data-label="ขาว M">12</td><td data-label="θ">60°</td><td data-label="peak">≈ 5.3 → ช่อง 5 (บาน)</td></tr>
+        <tr><td data-label="ขาว M">16</td><td data-label="θ">90°</td><td data-label="peak">8</td></tr>
+      </tbody>
+    </table>
+    <p>peak ที่<b>ไม่ลงช่องเต็มจะบาน</b> → READ ได้หลายค่า · และ QCEngine ยัง<b>สลับลำดับช่องอีกชั้น</b> ·
+      ตารางข้างบนจึงใช้ดู "ทำไม M ต่างกันให้ผลต่างกัน" เท่านั้น <b>ค่า READ จริงต้องแปลผ่าน lookup table</b> (หัวข้อ 5)</p>
+
+    <h4>สัดส่วนพื้นที่ = ความสว่าง</h4>
+    <div class="work">
+      <div class="step"><span class="lbl">สูตร</span> ความสว่าง = hits ÷ (res_aa × res_aa) · tile 4×4 → หาร 16 (จากโค้ด p34)</div>
+      <div class="step"><span class="lbl">ตัวอย่าง</span> READ ได้ 10 → ตารางบอก 5 subpixel (p43) → ความสว่าง = 5/16 ≈ <b>31%</b> ของพื้นที่ tile</div>
+      <div class="step"><span class="lbl">ต้นทุน</span> counter n qubit → รัน shader 1 + 2 + 4 + … + 2ⁿ⁻¹ = <b>2ⁿ − 1</b> ครั้งต่อ tile
+        (counter 4 qubit = 15 ครั้ง) · ตรงกับจำนวน iteration 1, 3, 7, 15, 31 ใน Figure 11-13 (คาโฮะอนุมานจากโค้ด สไลด์ไม่ได้เขียน)</div>
+    </div>
+    <p><b>trade-off</b> (p39–40): counter qubit มาก = ภาพดีขึ้น แต่ต้องรันโค้ดวาดรูปหลายครั้งขึ้น · จริงทั้งฝั่ง quantum และ conventional ·
+      Figure 11-13 เทียบ 1/3/7/15/31: Monte Carlo ยังมีเม็ดเทาทั่วภาพ · QSS พื้นเรียบ เหลือจุดผิดประปราย</p>
+    <p class="meta"><a href="../lessons/0044-sum-estimation-counting-flips-aa-qft.html">อ่านตัวเต็ม → บท 0044</a></p>
+
+    <!-- ---------- 5. lookup table + confidence ---------- -->
+    <h3 id="lec11-lut">5. Lookup table + confidence: READ ได้ค่านี้ มั่นใจกี่ %</h3>
+    <p>ค่าที่ READ จาก counter <b>"เกี่ยวข้องกับ แต่ไม่เท่ากับ"</b> จำนวน subpixel ขาว (p41) ·
+      <b>QSS lookup table</b> แปลง READ → จำนวน subpixel · <b>ไม่ขึ้นกับภาพ</b> (QSS นับแค่ว่าขาวกี่ตัว ไม่สนว่าตัวไหน) →
+      สร้างครั้งเดียว reuse ได้กับทุกงานที่ tile กับ counter ขนาดเท่ากัน</p>
+    <div class="lut" data-sub="16" data-cnt="4" data-cw="20" data-ch="18" data-conf="1" data-hl="10" data-pick="1"
+         data-lab="Figure 11-14 (คำนวณใหม่) · tile 4×4 · counter 4 qubit · แถบขวา = ความมั่นใจ"
+         data-cap="แถว = ค่า READ (0–15) · คอลัมน์ = จำนวนขาว (0–16) · ช่องยิ่งสว่าง = โอกาสยิ่งสูง · คลิกแถวเพื่อดู % (คาโฮะคำนวณเอง)"></div>
+    <div class="work">
+      <div class="step"><span class="lbl">①</span> ตัวอย่างสไลด์ (p43): READ <b>10</b> → ไปแถว 10</div>
+      <div class="step"><span class="lbl">②</span> ช่องสว่างสุดที่คอลัมน์ <b>5</b> → น่าจะขาว 5 ตัว</div>
+      <div class="step"><span class="lbl">③</span> แต่ <b>4 หรือ 6</b> ก็เป็นไปได้ (และน้อยลงไปคือ <b>3 หรือ 7</b>) → error มาจากตรงนี้</div>
+    </div>
+    <p><b>ขนาดตาราง (fingerprint ของอัลกอริทึม)</b>: แถว = 2<sup>จำนวน counter qubit</sup> · คอลัมน์ = จำนวน subpixel + 1 ·
+      เพิ่ม subpixel = เพิ่มคอลัมน์ (Fig 11-15: 5 / 17 / 65) · เพิ่ม counter = เพิ่มแถว (Fig 11-16: 2 / 4 / 8 / 16 / 32) ·
+      counter มากขึ้น → จุดสว่างแคบลง = READ ชี้จำนวนได้เจาะจงขึ้น</p>
+    <div class="box warn"><span class="tag">16 หรือ 17 คอลัมน์? (p47)</span>
+      <p>หัวรูป Figure 11-16 เขียน "4x4 tile, <b>16</b> columns" แต่ Figure 11-15 หน้าเดียวกันเขียน <b>17</b> ·
+      ที่ถูกคือ <b>17</b> เพราะขาวได้ 0 ถึง 16 = 17 ค่า · ถ้าโจทย์ถามให้ตอบ 17 พร้อมเหตุผลนี้</p></div>
+
+    <h4>Confidence: มั่นใจแค่ไหน</h4>
+    <p>เปิดแถวของค่า READ: <b>สว่างช่องเดียว = มั่นใจมาก</b> · <b>สว่างกระจายหลายช่อง = มั่นใจน้อย</b> ·
+      สไลด์ (p48) ยกตัวอย่าง: READ <b>0 หรือ 1</b> มั่นใจมาก · READ <b>2, 3 หรือ 4</b> มั่นใจน้อยลงมาก ·
+      ทำแบบนี้ทุก pixel → <b>confidence map</b> (Figure 11-17): <b>สว่าง = น่าจะถูก · มืด = น่าจะผิด</b> ·
+      มุมบนซ้ายที่ภาพคมจะสว่าง พื้นเทาที่เหลือมืด</p>
+    <table class="cmp">
+      <thead><tr><th>ค่า READ</th><th>น่าจะขาวกี่ตัว</th><th>มั่นใจราว</th></tr></thead>
+      <tbody>
+        <tr><td data-label="ค่า READ">0 / 1</td><td data-label="น่าจะขาว">16 / 0</td><td data-label="มั่นใจราว"><b>90%</b></td></tr>
+        <tr><td data-label="ค่า READ">8, 15 / 9, 14</td><td data-label="น่าจะขาว">15 / 1</td><td data-label="มั่นใจราว">80%</td></tr>
+        <tr><td data-label="ค่า READ">4, 7 / 5, 6</td><td data-label="น่าจะขาว">14 / 2</td><td data-label="มั่นใจราว">43%</td></tr>
+        <tr><td data-label="ค่า READ">11, 12 / 10, 13</td><td data-label="น่าจะขาว">11 / 5</td><td data-label="มั่นใจราว">36%</td></tr>
+        <tr><td data-label="ค่า READ">2 / 3</td><td data-label="น่าจะขาว">8</td><td data-label="มั่นใจราว"><b>33% (ต่ำสุด)</b></td></tr>
+      </tbody>
+    </table>
+    <p class="meta">"น่าจะขาวกี่ตัว" = ช่องสว่างสุดของแถวใน Figure 11-14 · <b>เปอร์เซ็นต์คาโฮะคำนวณเอง</b> จากการจำลองตาราง
+      (สมมติก่อนวัดทุกจำนวนมีโอกาสเท่ากัน) — สไลด์ไม่มีตัวเลขนี้ แต่ลำดับตรงกับที่สไลด์บอก (0/1 มั่นใจ · 2/3/4 ไม่มั่นใจ)</p>
+
+    <h4>เติมสีด้วย bitplanes (p50–52)</h4>
+    <p>ใส่ค่าสีหลายระดับลงใน phase/amplitude ตรงๆ <b>ไม่ได้</b> — sum estimation จะใช้ไม่ได้อีก ·
+      จึงใช้ <b>bitplanes</b>: render ภาพขาวดำแยกกัน แต่ละภาพ = 1 บิตของสี (เช่น R, G, B) แล้ว supersample แยกกันก่อนรวม ·
+      3 plane ให้ได้แค่ 2³ = <b>8 สี</b> · แต่หลัง supersampling ได้ผลเทียบเท่า <b>12-bit-per-pixel</b> (สไลด์ไม่อธิบายที่มาของเลข 12)</p>
+    <p><b>สรุปคาบ (p53–54)</b>: ข้อได้เปรียบบางทีต้อง<b>มองข้าม speedup</b> · การ redistribute sampling noise อาจใช้นอกกราฟิกได้
+      (งานที่ใช้ Monte Carlo หนัก เช่น AI, fluid dynamics, finance) · image representation อื่นที่สไลด์ยกชื่อ:
+      Qubit Lattice · FRQI · NEQR · GQIR</p>
+    <p class="meta"><a href="../lessons/0045-qss-lookup-table-confidence-color.html">อ่านตัวเต็ม → บท 0045</a></p>
+
+    <!-- ---------- 6. symbols ---------- -->
+    <h3 id="lec11-symbols">สัญลักษณ์วงจรของคาบนี้</h3>
+    <table class="cmp">
+      <thead><tr><th>สัญลักษณ์</th><th>ชื่อ</th><th>ทำอะไร</th></tr></thead>
+      <tbody>
+        <tr><td data-label="สัญลักษณ์"><div class="circuit" data-wires="2" data-ops="WRITE:0 + WRITE:1; H:0 + H:1" data-alt="write 0 แล้ว H ทุกสาย"></div></td>
+            <td data-label="ชื่อ">WRITE 0 + HAD ทุกสาย</td>
+            <td data-label="ทำอะไร">ผ้าใบเปล่า: ทุก pixel amplitude เท่ากัน phase 0°</td></tr>
+        <tr><td data-label="สัญลักษณ์"><div class="circuit" data-wires="1" data-wire-labels="0x8" data-groups="0-0::180°" data-ops="P:0" data-alt="PHASE 180 บนสายเดียว"></div></td>
+            <td data-label="ชื่อ">PHASE(180°) บน qubit เดียว</td>
+            <td data-label="ทำอะไร">flip ทุก pixel ที่บิตนั้นเป็น 1 (บน qx 0x8 = ครึ่งขวา)</td></tr>
+        <tr><td data-label="สัญลักษณ์"><div class="circuit" data-wires="3" data-ops="CZ:0,1,2" data-alt="จุดดำ 3 จุดเชื่อมเส้นตั้ง"></div></td>
+            <td data-label="ชื่อ">CZ / CPHASE(180°) หลายจุด ●—●—●</td>
+            <td data-label="ทำอะไร">flip phase เมื่อทุกสายเป็น 1 (AND ใน phase) · ใช้ทำ dither</td></tr>
+        <tr><td data-label="สัญลักษณ์"><div class="circuit" data-wires="3" data-ops="CNOT:2,0; CZ:0,1; CNOT:2,0" data-alt="CNOT แล้ว CZ แล้ว CNOT ซ้ำ"></div></td>
+            <td data-label="ชื่อ">CNOT – flip – CNOT</td>
+            <td data-label="ทำอะไร">คำนวณ XOR ชั่วคราว → flip → uncompute คืนค่า</td></tr>
+        <tr><td data-label="สัญลักษณ์"><div class="circuit" data-wires="4" data-ops="CNOT:1,3; CCNOT:0,1,3; CTRL:0,1,2 + X:3" data-alt="บันได CNOT CCNOT และ NOT 3 control"></div></td>
+            <td data-label="ชื่อ">บันได CNOT / CCNOT (add, subtract)</td>
+            <td data-label="ทำอะไร">arithmetic ของ Lec05 (เช่น subtractShifted) คำนวณพิกัดก่อน flip</td></tr>
+        <tr><td data-label="สัญลักษณ์"><div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8" data-ops="X:2,3; CZ:0,1,2,3; X:2,3" data-alt="X บนสองสายล่าง ครอบ CZ 4 จุด"></div></td>
+            <td data-label="ชื่อ">X ครอบ CZ ทุกสาย</td>
+            <td data-label="ทำอะไร">flip เมื่อ register เท่ากับค่าหนึ่งพอดี (ตัวอย่างนี้ = 3) · ใช้ใน Figure 11-10</td></tr>
+        <tr><td data-label="สัญลักษณ์"><div class="circuit" data-wires="3" data-names="cnt,qxy," data-ops="CTRL:0 + BOX:1,2:G²" data-alt="control จาก counter คุมกล่อง G ยกกำลังสอง"></div></td>
+            <td data-label="ชื่อ">G<sup>2ʲ</sup> คุมด้วย counter</td>
+            <td data-label="ทำอะไร">AA (flip + mirror) 2ʲ รอบ ถ้า counter บิตนั้นเป็น 1 (ผังวาดเอง)</td></tr>
+        <tr><td data-label="สัญลักษณ์"><div class="circuit" data-wires="4" data-ops="BOX:0,3:invQFT:2; _; READ:0 + READ:1 + READ:2 + READ:3" data-alt="กล่อง invQFT ตามด้วย READ"></div></td>
+            <td data-label="ชื่อ">invQFT + READ บน counter</td>
+            <td data-label="ทำอะไร">อ่านความถี่ของการแกว่ง → ค่า READ → ไปเปิด lookup table</td></tr>
+      </tbody>
+    </table>
     <!-- lec11:content-end -->
     <button type="button" class="next-btn" data-target="calc">บทถัดไป: 🧮 คำนวณ →</button>
   </section>
