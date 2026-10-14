@@ -55,7 +55,184 @@
     <p class="kicker">Lec07 · กระชับ</p>
     <h2>Quantum Fourier Transform (QFT)</h2>
     <!-- lec07:content-start — เนื้อหาของ page นี้เขียนระหว่าง start/end เท่านั้น -->
-    <div class="box"><p>🚧 กำลังเขียน — page นี้ยังไม่เสร็จ</p></div>
+    <div class="box aha"><span class="tag">ประโยคแกนของคาบนี้</span>
+      <p>AA ดึงข้อมูลของ<b>ค่าเฉพาะ</b>ที่ซ่อนในเฟส · <b>QFT ดึง "รูปแบบ" (pattern)</b> — คือ<b>ความถี่</b>ที่เฟสหมุนวนตลอด register —
+      ออกมาเป็น<b>จุดยอด (peak)</b> ที่ READ เห็นได้ (สไลด์ p2, p69)</p>
+    </div>
+
+    <!-- ---------- 1 ---------- -->
+    <h3 id="lec07-what">1. QFT ทำอะไร — ความถี่ในเฟส → จุดยอดที่ READ เห็น</h3>
+    <p>register 4 qubit ที่ magnitude เท่ากันทุกวง ต่างกันแค่เฟส: READ ตรงๆ ได้ค่าสุ่ม 1/16 เท่ากันหมด ·
+      AA ก็ช่วยไม่ได้เพราะไม่มีวงไหนโดดเด่น · แต่ถ้าใส่ <b>QFT ก่อน READ</b> → เหลือวงเต็มวงเดียว = <b>ความถี่</b> (p3–6)</p>
+    <div class="wide">
+      <div class="crow" data-n="16" data-r="10" data-lab="ก่อน QFT (C)" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+           data-mag="0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625"
+           data-phase="0,45,90,135,180,225,270,315,0,45,90,135,180,225,270,315"></div>
+      <div class="crow" data-n="16" data-r="10" data-lab="หลัง QFT" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+           data-mag="0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0" data-hl="2" data-sub=",,100%"></div>
+      <p class="cap">สถานะ C (Figure 7-3 / 7-2): เข็มเพิ่มทีละ 45° ทวนเข็ม → หมุนครบ <b>2 รอบ</b>ตลอด 16 วง → QFT → READ ได้ <b>2</b> แน่นอน</p>
+    </div>
+    <table class="cmp">
+      <thead><tr><th>สถานะ (Figure 7-1)</th><th>เฟสเพิ่มทีละ</th><th>คาบ (กี่วงวนครบ)</th><th>หมุนครบกี่รอบ = ความถี่</th><th>หลัง QFT</th></tr></thead>
+      <tbody>
+        <tr><td data-label="สถานะ">A</td><td data-label="เฟสเพิ่มทีละ">180° (0/180 สลับ)</td><td data-label="คาบ">2</td><td data-label="ความถี่">8</td><td data-label="หลัง QFT">|8⟩ 100%</td></tr>
+        <tr><td data-label="สถานะ">B</td><td data-label="เฟสเพิ่มทีละ">90°</td><td data-label="คาบ">4</td><td data-label="ความถี่">4</td><td data-label="หลัง QFT">|4⟩ 100%</td></tr>
+        <tr><td data-label="สถานะ">C</td><td data-label="เฟสเพิ่มทีละ">45°</td><td data-label="คาบ">8</td><td data-label="ความถี่">2</td><td data-label="หลัง QFT">|2⟩ 100%</td></tr>
+      </tbody>
+    </table>
+    <p><b>สูตรจำ</b>: ความถี่ = 2<sup>N</sup> ÷ คาบ = จำนวนรอบที่เฟสหมุนครบ 360° ตลอด register ·
+      ความถี่ 0 (เฟสเท่ากันหมด) → |0⟩ · QFT ทำงาน <b>in-place</b> (output อยู่บน register เดิม) เพราะวงจร reversible ในตัว — จึงเรียกว่า "transform" (p16)</p>
+    <p class="meta"><a href="../lessons/0027-qft-hidden-frequency.html">อ่านตัวเต็ม →</a></p>
+
+    <!-- ---------- 2 ---------- -->
+    <h3 id="lec07-peak">2. DFT · จุดยอดคู่ (กระจก) · ความถี่ไม่ลงตัว</h3>
+    <p>QFT = ทำ transform เดียวกับ <b>DFT</b> แต่ทำกับสัญญาณที่อยู่<b>ใน quantum register</b> · DFT = แบบคลาสสิก ·
+      <b>FFT</b> = อัลกอริทึมที่คำนวณ DFT ได้เร็วที่สุด = <b>คู่แข่งตัวจริงของ QFT</b> · ทั้ง FFT และ QFT ต้องใช้สัญญาณยาวเป็นกำลังของ 2 (p9–12)</p>
+    <p><b>DFT ของ sine wave จริง 8 Hz</b> (256 sample, p23–28): output เป็นจำนวนเชิงซ้อน 256 ค่า — magnitude = ความถี่นั้นมีมากแค่ไหน,
+      phase = offset · ได้ peak <b>สองอัน</b> ที่ 8 และ <b>256 − 8 = 248</b></p>
+    <div class="wide">
+      <div class="wave" data-sig="sin:8" data-mark="8,248" data-unit=" Hz" data-half="1" data-dots="0"
+           data-cap="sine 8 Hz (จำนวนจริง) → DFT → peak ที่ f และกระจกที่ N − f · ครึ่งขวา (แรเงา) เป็นแค่ภาพสะท้อน ใช้จริงแค่ 128 ช่องแรก"></div>
+    </div>
+    <div class="box warn"><span class="tag">สไลด์วาดไม่ตรงตัวเลข (p24/p26/p27)</span>
+      <p>รูปคลื่นในสไลด์นับได้แค่ <b>6 รอบ</b> แต่ข้อความบอก "สั่นครบ 8 รอบ = 8 Hz" และ peak ติดป้าย 8 / 248 →
+      <b>ตอบตามตัวเลขในสไลด์: 8 Hz, peak 8 กับ 248</b></p>
+    </div>
+    <p><b>ทำไมมีกระจก?</b> เกิดกับ<b>สัญญาณจริง</b>เท่านั้น (p28–31) · สัญญาณที่เข้ารหัสใน<b>เฟส</b>ของ register เป็น<b>จำนวนเชิงซ้อน</b> → ไม่มีกระจก ได้ peak เดียว
+      (ตัวอย่างข้อ 1) · แต่ถ้าเข้ารหัสใน <b>magnitude</b> (เฟสมีแค่ 0°/180° = บวก/ลบ ยังเป็นจำนวนจริง) → QFT ได้ peak คู่แบบ DFT เป๊ะ
+      เช่น cos 1 รอบใน magnitude (Figure 7-12) → |1⟩ กับ |15⟩ เท่ากัน (Figure 7-13) ⇒ <b>ต้องรู้ว่า input เข้ารหัสใน phase หรือ magnitude</b> ถึงจะตีความถูก</p>
+    <p><b>ความถี่ไม่ลงตัว → peak แผ่</b> (p27): รอบฐาน peak มีค่าเล็กๆ ไม่เป็นศูนย์ (สไลด์ให้เหตุผลว่า output มีจำนวน bit จำกัด)
+      และ <b>QFT ก็เป็นแบบนี้ได้</b> — ค่ารั่วไปช่องข้างเคียง · เห็นชัดเมื่อจำนวนรอบไม่ลงช่องพอดี เช่น 8.4 รอบ:</p>
+    <div class="wave" data-sig="sin:8.4" data-show="freq" data-mark="8" data-dots="0"
+         data-cap="สั่น 8.4 รอบ (ไม่ลงช่อง) → peak หลักอยู่ช่องที่ใกล้สุด (8) แต่รั่วไปช่องข้างๆ · ฝั่งกระจก 248 ก็เช่นกัน"></div>
+    <table class="cmp">
+      <thead><tr><th>input (N ช่อง)</th><th>peak อยู่ที่</th><th>ที่มา</th></tr></thead>
+      <tbody>
+        <tr><td data-label="input">เฟสหมุน<b>ทวนเข็ม</b> f รอบ (เชิงซ้อน)</td><td data-label="peak อยู่ที่">|f⟩ เดียว 100%</td><td data-label="ที่มา">p5–6, p14</td></tr>
+        <tr><td data-label="input">เฟสหมุน<b>ตามเข็ม</b> f รอบ</td><td data-label="peak อยู่ที่">|N − f⟩ เดียว (เช่น N=16, f=4 → |12⟩)</td><td data-label="ที่มา">บท 0028 (จำลอง numpy · สไลด์ไม่ได้เขียนตรงๆ)</td></tr>
+        <tr><td data-label="input">สัญญาณ<b>จริง</b> f รอบ (DFT หรือ magnitude ใน register)</td><td data-label="peak อยู่ที่">f <b>และ</b> N − f เท่ากัน · 8 → 8, 248 (N=256) · cos 1 รอบ → |1⟩, |15⟩ (N=16)</td><td data-label="ที่มา">p26–28, p31</td></tr>
+        <tr><td data-label="input">จำนวนรอบ<b>ไม่ลงตัว</b></td><td data-label="peak อยู่ที่">ช่องใกล้สุด + รั่วไปข้างๆ (ไม่แหลมเป็นช่องเดียว)</td><td data-label="ที่มา">p27</td></tr>
+      </tbody>
+    </table>
+    <p class="meta"><a href="../lessons/0028-dft-mirror-peaks.html">อ่านตัวเต็ม →</a></p>
+
+    <!-- ---------- 3 ---------- -->
+    <h3 id="lec07-harmonics">3. Harmonics — square wave → หลายจุดยอด</h3>
+    <p>พูดให้ตรงกว่า "บอกความถี่": DFT/QFT บอก <b>ความถี่ + สัดส่วน + offset</b> ของคลื่นไซน์ที่รวมกันได้เป็นสัญญาณ (p32) ·
+      ความสูงสัมพัทธ์ของ peak = ความถี่ไหนมีส่วนมากน้อย · ช่อง <b>0</b> = <b>DC bias</b> (เส้นฐานที่สัญญาณแกว่งรอบๆ) (p34)</p>
+    <p><b>square wave</b> ไม่ใช่ไซน์เลย → ได้ peak ที่<b>ฮาร์มอนิกคี่</b> ของความถี่หลัก (f, 3f, 5f, …) สูงลดลงราว 1, ⅓, ⅕ … (p35)</p>
+    <div class="wide">
+      <div class="wave" data-sig="sq:8" data-mark="8,24,40,56" data-half="1" data-dots="0"
+           data-cap="Figure 7-15: square wave 8 รอบ บน 256 จุด → peak ที่ 8, 24, 40, … (ห่างกันทีละ 16) + กระจกครึ่งขวา"></div>
+    </div>
+    <p><b>ใน QPU</b> (p36–39): <code class="code">qc.had()</code> แล้ว <code class="code">qc.phase(180, 16)</code> บน qubyte = สลับ +/− ทีละ 16 ค่า
+      = square wave 8 รอบ → QFT → peak ที่ <b>8 + 16k</b> (8, 24, …, 248 รวม 16 ค่า) · โอกาส READ ได้ 8 หรือ 248 ≈ 0.405 ต่ออัน (รวม ≈ 81%) ·
+      ฮาร์มอนิกลำดับ k ลดลงราว <b>1/k²</b> (เพราะความน่าจะเป็น = |amplitude|²)</p>
+    <div class="bars"
+         data-labels="8,24,40,56,72,88,104,120,136,152,168,184,200,216,232,248"
+         data-vals="40.5,4.7,1.8,1.0,0.6,0.4,0.3,0.3,0.3,0.3,0.4,0.6,1.0,1.8,4.7,40.5" data-max="45"
+         data-hl="0:on:≈40.5%; 15:on:≈40.5%"
+         data-cap="Figure 7-19 (p39) · ความน่าจะเป็น (%) ที่ READ ได้แต่ละค่า (อ่านจากกราฟสไลด์) · ค่าอื่นเป็น 0"></div>
+    <p><b>เวอร์ชัน 4 qubit</b> (Figure 7-6/7-7/7-8): <code class="code">phase(180, p)</code> หลัง HAD ทุกสาย → peak อยู่ที่<b>จำนวนคี่เท่าของ 8/p</b></p>
+    <div class="wide">
+      <div class="circuit" data-wires="4" data-names="signal,,," data-wire-labels="0x1,0x2,0x4,0x8"
+           data-groups="0-2:prep; 3-4:QFT"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2 + H:3; P:1:180; BOX:0,3:QFT:2; _"
+           data-cap="Figure 7-8 แบบย่อกล่อง (กรณี wave_period = 2): HAD ทุกสาย + PHASE 180° บนสาย 0x2 → QFT"></div>
+    </div>
+    <table class="cmp">
+      <thead><tr><th>p (bitmask ที่โดน 180°)</th><th>สลับเครื่องหมายทุก</th><th>peak หลัง QFT (โอกาส READ)</th></tr></thead>
+      <tbody>
+        <tr><td data-label="p">1 (A)</td><td data-label="สลับทุก">1 ค่า</td><td data-label="peak หลัง QFT">|8⟩ 100%</td></tr>
+        <tr><td data-label="p">2 (B)</td><td data-label="สลับทุก">2 ค่า</td><td data-label="peak หลัง QFT">|4⟩, |12⟩ อย่างละ 50%</td></tr>
+        <tr><td data-label="p">4 (C)</td><td data-label="สลับทุก">4 ค่า</td><td data-label="peak หลัง QFT">|2⟩, |14⟩ ≈ 43% · |6⟩, |10⟩ ≈ 7%</td></tr>
+        <tr><td data-label="p">8 (D)</td><td data-label="สลับทุก">8 ค่า</td><td data-label="peak หลัง QFT">เลขคี่ทุกตัว 1, 3, …, 15 · |1⟩, |15⟩ ≈ 41% สูงสุด</td></tr>
+      </tbody>
+    </table>
+    <div class="box warn"><span class="tag">จุดสับสนบ่อย</span>
+      <p>เลข p ใน <code class="code">phase(180, p)</code> / <code class="code">wave_period</code> คือ <b>bitmask</b> ของ qubit ไม่ใช่ความถี่ —
+      p ยิ่งใหญ่ ยิ่งสลับช้า ความถี่ยิ่งต่ำ (8/p) · peak เป็น<b>คู่กระจก k กับ 16 − k</b> เสมอ เพราะ 0°/180° = บวก/ลบ = สัญญาณจริง ·
+      รูป Figure 7-6 ในสไลด์ (p17–18) วาดแค่ |0⟩–|14⟩ — วง |15⟩ หายไป แต่ register 4 qubit มี 16 ค่า</p>
+    </div>
+    <p class="meta"><a href="../lessons/0028b-harmonics-square-wave-qft.html">อ่านตัวเต็ม →</a></p>
+
+    <!-- ---------- 4 ---------- -->
+    <h3 id="lec07-use">4. QFT เร็ว แต่ใช้ยังไง → invQFT</h3>
+    <table class="cmp">
+      <thead><tr><th>อัลกอริทึม</th><th>ขนาด input</th><th>จำนวน operation</th></tr></thead>
+      <tbody>
+        <tr><td data-label="อัลกอริทึม">FFT (คลาสสิก)</td><td data-label="ขนาด input">n บิต</td><td data-label="จำนวน operation">O(n·2ⁿ)</td></tr>
+        <tr><td data-label="อัลกอริทึม">QFT (ควอนตัม)</td><td data-label="ขนาด input">m qubit</td><td data-label="จำนวน operation">O(m²)</td></tr>
+      </tbody>
+    </table>
+    <p>ในทางปฏิบัติ สัญญาณเล็กกว่า <b>~22 บิต (≈ 4 ล้าน sample)</b> FFT บนโน้ตบุ๊กยังเร็วกว่า · เกินนั้น QFT ชนะและทิ้งห่างเร็วมาก (Figure 7-20, p41–42)</p>
+    <p><b>แต่ไม่ได้เอามาแทน FFT</b> เพราะผล QFT <b>ถูกล็อกอยู่ใน register</b> → ติด 2 ปัญหา (p43–45):</p>
+    <ol>
+      <li><b>ใส่สัญญาณเข้ายังไง</b> — ข้อมูลคลาสสิกทั่วไปอาจไม่มีวงจรง่ายๆ เตรียมให้ ต้นทุน initialize อาจ<b>กลืนความได้เปรียบของ QFT จนหมด</b> หรือต้องเพิ่มฮาร์ดแวร์นอก QPU</li>
+      <li><b>อ่านผลออกยังไง</b> — ถ้า output เป็น superposition หลายความถี่ (เช่น square wave) READ ได้แค่<b>ความถี่เดียวแบบสุ่ม</b></li>
+    </ol>
+    <p>ยังใช้ได้ 2 กรณี (p46–47): (1) แอปยอมรับ "ความถี่หลักหรือจำนวนเท่าของมัน" แบบสุ่มได้ · (2) แอป <b>verify คำตอบได้</b> → ผิดก็รันใหม่
+      (แบบนี้ใน <b>Shor's algorithm</b>, Lec12) ⇒ QFT มีค่าในฐานะ <b>phase manipulation primitive</b></p>
+
+    <p><b>invQFT</b> (p48–53): รับ register ที่แทน <b>frequency space</b> → คืน<b>สัญญาณ</b>ของความถี่นั้น · ใช้<b>เตรียม superposition ที่แปรเป็นคาบ</b>ได้ง่าย:
+      เขียนเลขความถี่ลง register แล้วใส่ invQFT</p>
+    <ul>
+      <li><b>ความถี่เดียว / ไม่สมมาตร</b> → สัญญาณแปรเป็นคาบใน<b>เฟส</b> · เฟสวงถัดไปเพิ่มทีละ <b>n/2<sup>N</sup> × 360°</b> ทวนเข็ม (p57)
+        เช่น <code class="code">write(2)</code> 4 qubit → ทีละ 45° · <code class="code">write(3)</code> → ทีละ 67.5° (เฟสแกว่ง 3 รอบ)</li>
+      <li><b>คู่สมมาตร</b> เช่น |1⟩ + |15⟩ → สัญญาณแปรเป็นคาบใน<b>magnitude</b> (สัญญาณจริง)</li>
+      <li><b>เปลี่ยนความถี่</b>: QFT → บวก 1 → invQFT (สัญญาณเชิงซ้อนความถี่ 2 กลายเป็น 3)</li>
+    </ul>
+    <div class="wide">
+      <div class="circuit" data-wires="4" data-names="signal,signal,signal,signal" data-wire-labels="0x1,0x2,0x4,0x8"
+           data-groups="0-3:prep; 4-5:QFT; 6-9:Add one; 10-12:invQFT"
+           data-ops="WRITE:0 + WRITE:1:1 + WRITE:2 + WRITE:3; BOX:0,3:invQFT:3; _; _; BOX:0,3:QFT:2; _; CTRL:0,1,2 + X:3; CCNOT:0,1,2; CNOT:0,1; X:0; BOX:0,3:invQFT:3; _; _"
+           data-cap="Figure 7-23 (p53) แบบย่อกล่อง: write(2) (▷ เหลือง = 1 บนสาย 0x2) → invQFT = สัญญาณความถี่ 2 → QFT → +1 → invQFT = ความถี่ 3"></div>
+    </div>
+    <p class="meta">ข้างในกล่อง (1 บรรทัดพอ): H + CPHASE มุมลดลงครึ่งหนึ่งทีละขั้น (90°, 45°, 22.5° …) + SWAP กลับลำดับบิต · QFT ใช้มุม<b>ลบ</b> · invQFT ใช้มุม<b>บวก</b></p>
+    <div class="box warn"><span class="tag">แยก QFT กับ invQFT ด้วยอะไร</span>
+      <p>ดูที่<b>เครื่องหมายมุม CPHASE</b> (QFT = −90°/−45°/… · invQFT = +90°/+45°/…) — <b>ไม่ใช่ตำแหน่ง SWAP</b>:
+      สไลด์วาด invQFT แบบ SWAP <b>ต้น</b>วงจร (p49, p53) และแบบ SWAP <b>ท้าย</b>วงจร (p55, p63) ซึ่งให้ผลเท่ากัน</p>
+    </div>
+    <p class="meta"><a href="../lessons/0029-qft-fast-but-how-to-use-invqft.html">อ่านตัวเต็ม →</a>
+      &nbsp;·&nbsp; ข้างในวงจร invQFT (ไม่เน้นสอบ): <a href="../lessons/0030-inside-the-invqft-circuit.html">บท 0030 →</a></p>
+
+    <!-- ---------- 5 ---------- -->
+    <h3 id="lec07-symbols">5. สัญลักษณ์วงจรของคาบนี้</h3>
+    <table class="cmp">
+      <thead><tr><th>สัญลักษณ์</th><th>ชื่อ</th><th>ทำอะไร</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="4" data-ops="BOX:0,3:QFT:2; _" data-alt="กล่อง QFT คร่อม 4 สาย"></div></td>
+          <td data-label="ชื่อ">QFT</td>
+          <td data-label="ทำอะไร">ความถี่ที่ซ่อนในเฟส → peak ที่ READ ได้ (in-place บน register เดิม)</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="4" data-ops="BOX:0,3:invQFT:3; _; _" data-alt="กล่อง invQFT คร่อม 4 สาย"></div></td>
+          <td data-label="ชื่อ">invQFT</td>
+          <td data-label="ทำอะไร">ย้อนกลับ: เลขความถี่ใน register → สัญญาณที่แปรเป็นคาบ</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="1" data-ops="WRITE:0:1" data-alt="สามเหลี่ยมเหลืองทึบ"></div></td>
+          <td data-label="ชื่อ">write 1 (▷ เหลืองทึบ)</td>
+          <td data-label="ทำอะไร">เขียนบิตนั้นเป็น 1 (▷ วงฟ้า = เขียน 0) · ใช้อ่านว่า write ค่าอะไร เช่น 0x1 + 0x2 เหลือง = write(3)</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="1" data-ops="P:0:180" data-alt="วง phi 180 องศา"></div></td>
+          <td data-label="ชื่อ">PHASE(180°)</td>
+          <td data-label="ทำอะไร">ใส่เครื่องหมายลบให้ค่าที่บิตนั้นเป็น 1 → สร้าง square wave (หลัง HAD ทุกสาย)</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="2" data-ops="CP:0,1:-90" data-alt="phi-phi เชื่อมเส้นตั้ง"></div></td>
+          <td data-label="ชื่อ">CPHASE φ—φ</td>
+          <td data-label="ทำอะไร">ชิ้นส่วนใน QFT/invQFT · มุมลบ = QFT, มุมบวก = invQFT</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="4" data-ops="SWAP:0,3 + XWIRE:1,2" data-alt="SWAP กากบาทและสายไขว้"></div></td>
+          <td data-label="ชื่อ">SWAP ×—× และ สายไขว้</td>
+          <td data-label="ทำอะไร">สลับสาย 2 แบบในคอลัมน์เดียว (0x1↔0x8 เป็น ×—×, 0x2↔0x4 เป็นเส้นไขว้) = กลับลำดับบิต</td>
+        </tr>
+      </tbody>
+    </table>
     <!-- lec07:content-end -->
     <button type="button" class="next-btn" data-target="lec08">บทถัดไป: Lec08 Phase Estimation →</button>
   </section>
