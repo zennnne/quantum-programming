@@ -156,9 +156,10 @@
            data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3:1 + WRITE:4; H:4; QRAM:0,4:00>011|01>110|10>100|11>111:4; _; _; _; _"
            data-cap="Figure 9-4 · กล่องเทา QRAM คร่อม output 3 สาย + address 2 สาย มีตาราง Address → Value ข้างใน"></div>
     </div>
+    <p>circle notation หลัง QRAM — แถวบน = address (4 วง) · แถวล่าง = output (8 วง)</p>
     <div class="scrollx">
-      <div class="crow" data-n="4" data-lab="address" data-mag="0,0.5,0,0.5" data-sub=",50%,,50%"></div>
-      <div class="crow" data-n="8" data-lab="output" data-mag="0,0,0,0,0,0,0.5,0.5" data-sub=",,,,,,50%,50%" data-hl="6,7"></div>
+      <div class="crow" data-n="4" data-r="13" data-mag="0,0.5,0,0.5" data-sub=",50%,,50%"></div>
+      <div class="crow" data-n="8" data-r="13" data-mag="0,0,0,0,0,0,0.5,0.5" data-sub=",,,,,,50%,50%" data-hl="6,7"></div>
     </div>
 
     <p><b>Figure 9-5 / Example 9-2</b> — increment ค่าที่อ่านจาก QRAM: <code class="code">a = [4,3,5,1]</code> ·
@@ -270,6 +271,7 @@
     <p>t = เวลาที่ทำ operation (ถือเป็นรายละเอียด hardware) · ชื่อ “simulation” มาจากฟิสิกส์ — H ที่อธิบายระบบเรียกว่า <b>Hamiltonian</b> ·
     matrix X ที่<b>ไม่</b> Hermitian → ห่อเป็น block matrix ที่ใหญ่ขึ้น:</p>
     <p class="eq">H = [ 0 &nbsp; X ; X† &nbsp; 0 ]</p>
+    <p>(บนซ้าย 0 · บนขวา X · ล่างซ้าย X† · ล่างขวา 0 → H† = H จึงเป็น Hermitian · overhead ทำครั้งเดียว มักไม่มีนัยสำคัญ)</p>
     <p><b>3 ขั้น</b> (เกือบทุกวิธี): ① <b>Deconstruct</b> — แตก H = H₁ + … + Hₙ ให้แต่ละชิ้น simulate ง่าย (เช่นมีแต่ diagonal หรือกระทำกับ qubit ไม่กี่ตัว)
     → ② <b>Simulate components</b> — หาวงจรของ Hᵢ แต่ละตัว → ③ <b>Reconstruction</b> — ประกอบกลับด้วย <b>Lie product formula</b>:
     ทำ U₁ = exp(−iH₁δt), …, Uₙ = exp(−iHₙδt) ต่อกันทีละช่วงสั้น δt แล้ว<b>วนทั้งชุดซ้ำ m รอบ</b></p>
