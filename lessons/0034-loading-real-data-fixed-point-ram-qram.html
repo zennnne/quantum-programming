@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0034 — โหลดข้อมูลจริงเข้า register: fixed point → RAM → QRAM</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 09 · บทที่ 0034 (บทเปิดคาบ)</div>
+  <h1>โหลดข้อมูลจริงเข้า register: fixed point → RAM → QRAM</h1>
+  <p class="lead">ตั้งแต่ Lec 02 ถึง Lec 08 เราใส่ input ด้วย <code class="code">WRITE</code> เป็น<b>จำนวนเต็มเล็กๆ ที่พิมพ์เองด้วยมือ</b> มาตลอด ·
+    แต่ข้อมูลจริงมีทศนิยม และถูกเก็บอยู่ใน memory เป็นพันเป็นหมื่นค่า ·
+    สไลด์เปิดคาบด้วยคำถาม 2 ข้อที่เราเคยข้ามไป (p2–4):
+    <b>① จะแทนข้อมูลที่ซับซ้อนใน register ยังไง</b> และ <b>② จะโหลดข้อมูลที่เก็บไว้เข้า register ยังไง</b> ·
+    บทนี้ตอบทั้งสองข้อในเวอร์ชันที่ง่ายที่สุดก่อน คือ <b>ตัวเลขทีละตัว</b> · ส่วน vector กับ matrix จะเป็นของบท 0035 กับ 0036</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 3 อย่าง
+    ① ตัวเลขที่ไม่เต็มเก็บแบบ <b>fixed point</b> และเขียนเป็น <b>Qn.m</b> (n บิตทั้งหมด, m บิตเป็นเศษ)
+    ② <b>RAM ธรรมดา</b> โหลดค่าเข้า register ได้ <b>ทีละค่าเดียว</b> (วงจร +1 ของ Lec 05 คือตัวอย่าง)
+    ③ ถ้าอยากได้ <b>superposition ของค่าที่เก็บไว้</b> ต้องใช้ <b>QRAM</b> ซึ่งรับ address ที่เป็น superposition ได้ ·
+    สัญลักษณ์ใหม่ที่น่าจะออกสอบ: <b>กล่อง QRAM</b> (Fig 9-4), <b>กล่อง D/A</b> (Fig 9-5), <b>detector ที่บอกค่า</b> (Fig 9-3)
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · ตัวเลขไม่เต็ม: fixed point และ Q notation (p6–9)</h2></div>
+
+  <h3>1.1 ทำไมต้องคิดเรื่องนี้</h3>
+  <p>register ที่เราใช้มาตลอดแทน<b>จำนวนเต็ม</b>: สายบนสุด (0x1) มีค่า 1, สายถัดไป 2, 4, 8, … (บท <a href="midterm/0008-multi-qubit-registers.html">0008</a>) ·
+    และเรายังรู้วิธีแทนเลขติดลบด้วย two's complement (บท <a href="midterm/0019-adding-two-quantum-integers-and-negative-numbers.html">0019</a>) ·
+    แต่ถ้าข้อมูลคือ 3.64 ล่ะ? คอมพิวเตอร์ธรรมดามีคำตอบอยู่ 2 แบบ (p6):</p>
+  <ul>
+    <li><b>floating point (จุดทศนิยมลอยตัว)</b>: ยืดหยุ่น ปรับช่วงค่าได้เอง แต่ซับซ้อน</li>
+    <li><b>fixed point (จุดทศนิยมตายตัว)</b>: ตกลงกันไว้ล่วงหน้าว่าบิตไหนเป็นจำนวนเต็ม บิตไหนเป็นเศษ · <b>ง่ายกว่า</b> และ qubit มีราคาแพง → สไลด์เลือกแบบนี้</li>
+  </ul>
+
+  <div class="analogy">
+    <div class="cell"><b>ราคาสินค้าในร้าน</b><small>ตกลงกันว่าหลังจุดมีเลข 2 หลักเสมอ (99.50 บาท) · จุดอยู่ที่เดิมทุกครั้ง ไม่ต้องเก็บว่าจุดอยู่ไหน</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>fixed point</b><small>ตกลงกันว่า m บิตล่างเป็นเศษ · register ไม่รู้หรอกว่ามีจุด <b>เราต้องจำเอง</b></small></div>
+  </div>
+
+  <h3>1.2 ค่าของแต่ละบิต: ฝั่งเต็มคูณ 2 ฝั่งเศษหาร 2</h3>
+  <p>fixed point แบ่ง register เป็น 2 ส่วน (p6):</p>
+  <ul>
+    <li><b>ส่วน integer (ส่วนจำนวนเต็ม)</b>: บิตมีค่า 2⁰, 2¹, 2², … เหมือนเดิมทุกอย่าง</li>
+    <li><b>ส่วน fractional (ส่วนเศษ)</b>: ไล่<b>ลง</b>จากจุดไป บิตมีค่า ½, ¼, ⅛, … (= 1/2¹, 1/2², 1/2³, …)</li>
+  </ul>
+  <p>มันคือกฎเดิมที่ต่อลงไปข้างล่าง: ถ้าขยับขึ้น 1 บิตค่า ×2 ขยับลง 1 บิตค่าก็ ÷2 · ต่ำกว่า 1 ลงไปจึงเป็น ½, ¼, …</p>
+
+  <h3>1.3 Q notation: บอกว่าจุดอยู่ตรงไหน (p7)</h3>
+  <div class="box aha">
+    <b>Qn.m</b> = register <b>n บิต</b> ซึ่ง <b>m บิตเป็นเศษ</b> → เหลือ <b>n − m บิตเป็นจำนวนเต็ม</b> ·
+    (Q ตรงนี้ไม่ได้ย่อมาจาก quantum นะคะ สไลด์บอกไว้เอง)
+  </div>
+  <p>ตัวอย่างในสไลด์ (Figure 9-1): เก็บ <b>3.640625</b> ใน register 8 qubit แบบ <b>Q8.6</b> → เศษ 6 บิต, จำนวนเต็ม 2 บิต · ป้ายซ้ายมือคือ<b>ค่าของแต่ละสาย</b> (เขียนแบบ QCEngine คือมี 0x นำหน้าแม้แต่เศษส่วน)</p>
+
+  <div class="circuit" data-wires="8" data-wire-labels="0x1/64,0x1/32,0x1/16,0x1/8,0x1/4,0x1/2,0x1,0x2"
+       data-out="0-5:ส่วนเศษ (6 บิต); 6-7:จำนวนเต็ม (2 บิต)"
+       data-ops="WRITE:0:1 + WRITE:1 + WRITE:2 + WRITE:3:1 + WRITE:4 + WRITE:5:1 + WRITE:6:1 + WRITE:7:1; _"
+       data-cap="Figure 9-1 · Q8.6 ของ 3.640625 · ▷ เหลืองทึบ = เขียน 1 · ▷ วงฟ้า = เขียน 0 · สายบนสุดคือบิตที่ค่าน้อยที่สุดเหมือนเดิม"></div>
+
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> อ่านจากสาย<b>ล่างขึ้นบน</b> (ค่ามากไปน้อย): 1 1 │ 1 0 1 0 0 1 → เขียนเป็นเลขฐานสอง <code class="code">11101001</code> (ตรงกับ caption ของสไลด์)</div>
+    <div class="step"><span class="lbl">②</span> บวกเฉพาะสายที่เป็น 1: 2 + 1 + ½ + ⅛ + 1/64</div>
+    <div class="step"><span class="lbl">③</span> = 2 + 1 + 0.5 + 0.125 + 0.015625 = <b>3.640625</b> ✓</div>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q"><b>ลองเอง</b>: register 4 qubit แบบ <b>Q4.2</b> · สายบน→ล่างเขียนค่าเป็น <b>1, 1, 0, 1</b> · register นี้เก็บเลขอะไร?
+      (คิดก่อนว่าสายบนสุดมีค่าเท่าไร)</div>
+    <button class="opt">ค่าที่เก็บคือ 13.00</button>
+    <button class="opt">ค่าที่เก็บคือ 3.250</button>
+    <button class="opt">ค่าที่เก็บคือ 2.750</button>
+    <button class="opt">ค่าที่เก็บคือ 2.500</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! Q4.2 → สายบน→ล่างมีค่า ¼, ½, 1, 2 · สายที่เป็น 1 คือ ¼ + ½ + 2 = <b>2.75</b></div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · Q4.2 มีเศษ 2 บิต → สายบน→ล่างมีค่า <b>¼, ½, 1, 2</b> (ไม่ใช่ 1, 2, 4, 8) · บวกสายที่เป็น 1: ¼ + ½ + 2 = 2.75 · ถ้าได้ 13 แปลว่าลืมไปว่ามีเศษ</div>
+  </div>
+
+  <h3>1.4 ข้อแลกเปลี่ยน: range กับ accuracy (p8)</h3>
+  <p>3.640625 ลงตัวพอดีเพราะบังเอิญเป็นผลรวมของ 2¹, 2⁰, ½, ⅛, 1/64 · ปกติเราไม่โชคดีขนาดนั้น ·
+    เช่นเลข 0.1 ไม่มีทางเขียนเป็นผลรวมของ ½, ¼, ⅛, … ได้พอดี จึงได้แค่<b>ค่าใกล้เคียง</b> · เวลาจะเพิ่มบิต เราต้องเลือกว่าจะเพิ่มฝั่งไหน:</p>
+  <table class="cmp">
+    <thead><tr><th>เพิ่มบิตฝั่ง</th><th>ได้อะไร</th><th>ตัวอย่าง (เทียบกับ Q4.2)</th></tr></thead>
+    <tbody>
+      <tr><td data-label="เพิ่มบิตฝั่ง"><b>integer</b></td><td data-label="ได้อะไร"><b>range (ช่วงค่า)</b> กว้างขึ้น: เก็บเลขใหญ่ได้ขึ้น</td><td data-label="ตัวอย่าง">Q5.2: ค่าสูงสุดจาก 3.75 เป็น 7.75</td></tr>
+      <tr><td data-label="เพิ่มบิตฝั่ง"><b>fractional</b></td><td data-label="ได้อะไร"><b>accuracy (ความแม่นยำ)</b> ละเอียดขึ้น: ขั้นเล็กลง</td><td data-label="ตัวอย่าง">Q5.3: ขั้นจาก ¼ เหลือ ⅛</td></tr>
+    </tbody>
+  </table>
+  <p class="meta">ตัวเลขในคอลัมน์ขวาหนูคำนวณเองเพื่อให้เห็นภาพ ไม่ได้อยู่ในสไลด์ค่ะ</p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">register <b>Q3.2</b> (ขั้นละ ¼) ต้องเก็บเลข <b>1.3</b> · ค่าที่ register เก็บได้ใกล้ที่สุดคือเท่าไร?</div>
+    <button class="opt">เก็บได้ใกล้สุด 1.30</button>
+    <button class="opt">เก็บได้ใกล้สุด 1.25</button>
+    <button class="opt">เก็บได้ใกล้สุด 1.50</button>
+    <button class="opt">เก็บได้ใกล้สุด 1.00</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · ค่าที่เก็บได้คือ 0, 0.25, 0.5, …, 1.25, 1.5, … · 1.3 ห่างจาก 1.25 แค่ 0.05 → error นี้แหละคือราคาของบิตเศษที่น้อย</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · Q3.2 มีเศษ 2 บิต → ค่าที่เก็บได้ก้าวทีละ ¼: …, 1.00, 1.25, 1.50, … · เก็บ 1.3 ตรงๆ ไม่ได้ · ที่ใกล้ที่สุดคือ 1.25</div>
+  </div>
+
+  <h3>1.5 สองเรื่องที่ต้องระวัง (p9)</h3>
+  <div class="box warn">
+    <b>① register ไม่รู้ว่าตัวเองใช้ encoding อะไร</b> · บิต <code class="code">1101</code> อาจเป็น 13 (binary ธรรมดา), −3 (two's complement) หรือ 3.25 (Q4.2) ก็ได้ · <b>เราต้องจำเอง</b>ว่า register ไหนเข้ารหัสแบบไหน ไม่งั้นตีความผิดหมด<br>
+    <b>② overflow (ล้น)</b> เกิดง่ายทั้งกับ two's complement และ fixed point = ผลลัพธ์ใหญ่เกินกว่าที่ register แทนได้ ได้เลขที่ไม่มีความหมาย ·
+    สไลด์บอกว่า<b>ทางแก้จริงมีทางเดียวคือเพิ่ม qubit</b> ให้ register
+  </div>
+  <p class="meta">ตัวอย่าง −3 กับ 3.25 ในข้อ ① หนูคิดเพิ่มเองเพื่อให้เห็นภาพ (1101 อ่านจากซ้าย = บิตค่ามาก) · ข้อความหลักมาจากสไลด์ค่ะ</p>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · โหลดค่าจาก RAM ธรรมดา ทีละค่า (p10–14)</h2></div>
+
+  <h3>2.1 RAM ทำงานยังไง (p10–11 · Figure 9-2)</h3>
+  <p>ตอนนี้เราแทนตัวเลขได้แล้ว แต่ถ้าต้องพิมพ์ <code class="code">WRITE</code> เองทุกค่าก็คงเหนื่อยแย่ ·
+    สิ่งที่อยากได้คือ <b>อ่านจาก memory โดยบอก address</b> · RAM ธรรมดา (conventional RAM) รับ register 2 ตัว:</p>
+  <ul>
+    <li><b>address register (register ที่อยู่)</b>: ตั้งค่าเป็นตำแหน่งที่อยากอ่าน</li>
+    <li><b>output register (register ผลลัพธ์)</b>: ยังว่างอยู่ RAM จะเขียนค่าที่เก็บไว้ ณ address นั้นลงมา</li>
+  </ul>
+
+  <div class="circuit" data-wires="5" data-names="out,out,out,addr,addr"
+       data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3:1 + WRITE:4; _; RAM:0,4:00>011|01>110|10>100|11>111:4; _; _; _; _"
+       data-out="0-2:ได้ 0,0,1 (บน→ล่าง); 3-4:1,0 (เหมือนเดิม)"
+       data-cap="Figure 9-2 · RAM ธรรมดา · address register (2 สายล่าง) บน→ล่าง = 1,0 · output register (3 สายบน) เริ่มที่ 0 · ฝั่งขวาตามรูปในสไลด์ · address ผ่านออกไปโดยไม่เปลี่ยน"></div>
+
+  <div class="box warn">
+    <b>⚠️ ลำดับบิตในรูปนี้ขัดกันเอง</b> · ถ้าอ่าน address บน→ล่าง = “10” ตารางให้ “100” แต่ output ที่ออกมาบน→ล่างคือ 0,0,1 (กลับด้าน) ·
+    ถ้าใช้ convention ของ QCEngine (สายบน = 0x1) address จะเป็น 01 → ตารางให้ 110 → ก็ยังไม่ตรงกับ 0,0,1 · <b>ไม่มี convention ไหนอธิบายรูปนี้ได้ทั้งรูป</b> ·
+    <b>ตอบตามสไลด์ตอนสอบ</b> (address 10 → ค่า 100) แต่รู้ไว้ว่ารูปนี้ไม่สอดคล้องกัน · หลักที่ต้องจำคือ<b>หน้าที่ของ RAM</b>: ใส่ address → ได้ค่าที่เก็บไว้ ณ address นั้น
+  </div>
+
+  <h3>2.2 ใช้ RAM โหลดค่าเดียว: ได้สบาย (p12–14 · Figure 9-3)</h3>
+  <p>ถ้าต้องการให้ register เป็น<b>ค่าธรรมดาค่าเดียว</b> RAM ใช้ได้ดีเลย: อ่านค่าจาก RAM แล้ว <code class="code">write()</code> ลง register, คำนวณเสร็จก็ <code class="code">read()</code> กลับไปเก็บ ·
+    สไลด์บอกว่า QCEngine ที่เราใช้มาตลอดก็คุยกับ register ด้วยวิธีนี้ (p12) · ตัวอย่างคือ <code class="code">a[2] += 1</code> โดยให้ QPU เป็นคนบวก:</p>
+
+<pre class="code-blk">// Using a QPU to increment a number in RAM
+var a=[4,3,5,1];
+qc.reset(3);
+var qreg = qint.new(3, 'qreg');
+  qc.print(a);          // 4,3,5,1
+  increment(2, qreg);
+  qc.print(a);          // 4,3,6,1
+function increment(index, qreg) {
+    qreg.write(a[index]);       // a[2] → qreg
+    qreg.add(1);                // บวก 1 บน QPU
+    a[index] = qreg.read();     // qreg → a[2]
+}</pre>
+  <p class="meta">ผลที่ print ในคอมเมนต์หนูคำนวณเอง · สไลด์ขึ้นต้นคอมเมนต์ด้วย <code class="code">#</code> ซึ่งใน JavaScript ต้องเป็น <code class="code">//</code> หนูแก้ให้แล้วค่ะ</p>
+
+  <div class="circuit" data-wires="3" data-names="qreg,," data-wire-labels="0x1,0x2,0x4"
+       data-groups="0-0:a[2]→qreg; 1-3:add 1; 4-4:qreg→a[2]"
+       data-ops="WRITE:0:1 + WRITE:1 + WRITE:2:1; CCNOT:0,1,2; CNOT:0,1; X:0; READ:0:0 + READ:1:1 + READ:2:1"
+       data-cap="Figure 9-3 · ช่วงแรกเขียน 5 (101) · ช่วงกลางคือวงจร +1 ของ Lec 05 (บท <a href='midterm/0018-increment-decrement.html'>0018</a>) · ช่วงท้าย READ"></div>
+
+  <div class="box aha">
+    <b>สัญลักษณ์ใหม่: detector ที่บอกค่า</b> (เรื่องสอบ) · ใน Figure 9-3 detector มีสีด้วย:
+    <b>เหลือง + ขีด = อ่านได้ 1</b> · <b>เทา + วงกลม = อ่านได้ 0</b> (เข้าชุดกับ ▷ ของ WRITE ที่ใช้สีและขีด/วงแบบเดียวกัน) ·
+    รูปนี้อ่านได้ 0x1 = 0, 0x2 = 1, 0x4 = 1 → 110 = <b>6</b> ✓ · หลัง READ เส้นสายจางลงเพราะค่าถูกส่งกลับไปที่ RAM แล้ว
+  </div>
+
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> เริ่มที่ 5: 0x1 = 1, 0x2 = 0, 0x4 = 1</div>
+    <div class="step"><span class="lbl">②</span> CCNOT: ต้องการ 0x1 <b>และ</b> 0x2 เป็น 1 → 0x2 เป็น 0 จึง<b>ไม่ทำงาน</b></div>
+    <div class="step"><span class="lbl">③</span> CNOT: 0x1 = 1 → พลิก 0x2 เป็น 1 · ④ NOT: พลิก 0x1 เป็น 0</div>
+    <div class="step"><span class="lbl">⑤</span> ได้ 0x1 = 0, 0x2 = 1, 0x4 = 1 = 2 + 4 = <b>6</b> ✓</div>
+  </div>
+
+  <div class="quiz" data-answer="3">
+    <div class="q"><b>ลองไล่เอง</b>: เปลี่ยนเป็น <code class="code">increment(1, qreg)</code> (a[1] = 3) · วงจรเดิมทุกอย่าง ·
+      ตอน READ detector สาย 0x1, 0x2, 0x4 จะเป็นสีอะไร?</div>
+    <button class="opt">เหลือง · เหลือง · เทา</button>
+    <button class="opt">เทา · เหลือง · เหลือง</button>
+    <button class="opt">เหลือง · เทา · เทา</button>
+    <button class="opt">เทา · เทา · เหลือง</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! 3 = 011 → CCNOT ทำงาน (0x1, 0x2 เป็น 1 ทั้งคู่) พลิก 0x4 → CNOT พลิก 0x2 เป็น 0 → NOT พลิก 0x1 เป็น 0 → <b>100 = 4</b> = 3 + 1 ✓ · มีแค่ 0x4 ที่เหลือง</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · 3 + 1 = 4 = มีแค่บิต 0x4 ที่เป็น 1 → เทา · เทา · เหลือง · ไล่ทีละ gate: 011 → CCNOT (ทำงาน เพราะ 0x1 และ 0x2 เป็น 1) → 0x4 = 1 → CNOT พลิก 0x2 → 0 → NOT พลิก 0x1 → 0</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 3 · อยากได้ superposition ของค่าที่เก็บไว้ → QRAM (p15–21)</h2></div>
+
+  <h3>3.1 RAM ธรรมดาตันตรงไหน (p15–16)</h3>
+  <p>ในตัวอย่างข้างบน คนที่เลือก <code class="code">a[index]</code> คือ <b>CPU ธรรมดา</b> แล้วส่ง<b>ค่าเดียว</b>ให้ QPU ·
+    ทีนี้ถ้าเราอยากให้ register เป็น <b>superposition ของค่าที่เก็บไว้ 2 ค่า</b> ล่ะ? เช่นอยากได้ a[2] กับ a[3] พร้อมกัน ·
+    <code class="code">write()</code> รับได้แค่ค่าเดียว และ CPU เลือก address ได้ทีละ address → <b>ไม่มีทางทำได้เลย</b> ด้วย RAM ธรรมดา</p>
+
+  <div class="box warn">
+    <b>⚠️ สไลด์ p15 เขียนตัวเลขผิด</b>: ยกตัวอย่างว่า RAM เก็บ “<b>3 (110)</b> ที่ address 0x01 และ <b>5 (111)</b> ที่ address 0x11” ·
+    แต่ 111 = 7 ไม่ว่าจะอ่านทางไหน · ถ้าอ่านบิตซ้ายเป็นค่ามาก จะได้ 110 = 6 และ 111 = 7 ซึ่ง<b>ตรงกับ Figure 9-4</b> ในหัวข้อถัดไป ·
+    ส่วน “0x01, 0x11” จริงๆ หมายถึงเลขฐานสอง 01 และ 11 · <b>ตอบตามสไลด์ตอนสอบ</b> แต่ให้ยึด Figure 9-4 เป็นหลักในการเข้าใจ
+  </div>
+
+  <div class="box aha">
+    <b>นิยาม QRAM (Quantum Random Access Memory)</b> (p16): เหมือน RAM ทุกอย่าง คือรับ <b>address register</b> กับ <b>output register</b> ·
+    ต่างกันตรงที่ <b>ทั้งสองตัวเป็น qubit register</b> · จึงใส่ address เป็น superposition ได้ และได้ output เป็น superposition ของค่าที่เก็บไว้กลับมา
+  </div>
+
+  <h3>3.2 QRAM ทำงานยังไง (p17 · Figure 9-4)</h3>
+  <div class="circuit" data-wires="5" data-names="out,out,out,addr,addr"
+       data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3:1 + WRITE:4; H:4; QRAM:0,4:00>011|01>110|10>100|11>111:4; _; _; _; _"
+       data-cap="Figure 9-4 · <b>กล่องเทา QRAM</b> คร่อมทั้ง 5 สาย มีตาราง Address/Value อยู่ข้างใน · address สายบนเขียน 1 · สายล่างเขียน 0 แล้วผ่าน H"></div>
+
+  <div class="crow" data-n="4" data-r="18" data-lab="address" data-mag="0,1,0,1" data-sub=",50%,,50%"></div>
+  <div class="crow" data-n="8" data-r="18" data-lab="output" data-mag="0,0,0,0,0,0,1,1" data-sub=",,,,,,50%,50%"></div>
+
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> address: สายบน (0x1) = 1 คงที่ · สายล่าง (0x2) โดน H เป็นได้ทั้ง 0 และ 1 → address = <b>|1⟩ + |3⟩</b> (= 01 กับ 11)</div>
+    <div class="step"><span class="lbl">②</span> ดูตาราง: 01 → <b>110</b> · 11 → <b>111</b></div>
+    <div class="step"><span class="lbl">③</span> อ่านบิตซ้ายเป็นค่ามาก: 110 = 6 · 111 = 7 → output = <b>|6⟩ + |7⟩</b> ตรงกับวงที่สไลด์วาด ✓</div>
+  </div>
+  <p class="meta">ป้าย 0x1/0x2 ของ address ไม่ได้อยู่ในรูป · หนูอนุมานจากวง |1⟩, |3⟩ ที่สไลด์วาดไว้ ซึ่งลงตัวพอดีค่ะ</p>
+
+  <div class="quiz" data-answer="0">
+    <div class="q"><b>ลองเอง</b>: ใช้ QRAM ตารางเดียวกับ Figure 9-4 · แต่เปลี่ยนให้ address สายบน (0x1) เขียน <b>0</b> (สายล่างยังเขียน 0 แล้ว H เหมือนเดิม) ·
+      output register จะเป็น superposition ของอะไร?</div>
+    <button class="opt">ได้ output เป็น |3⟩ + |4⟩</button>
+    <button class="opt">ได้ output เป็น |6⟩ + |7⟩</button>
+    <button class="opt">ได้ output เป็น |0⟩ + |2⟩</button>
+    <button class="opt">ได้ output เป็น |3⟩ + |6⟩</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! address = |0⟩ + |2⟩ = 00 กับ 10 → ตารางให้ 011 = 3 และ 100 = 4 · สังเกตว่า |0⟩ + |2⟩ คือ <b>address</b> ไม่ใช่ค่าที่ได้</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · ทำทีละขั้น: ① address = 0x1 เป็น 0, 0x2 เป็นได้ทั้ง 0/1 → |0⟩ + |2⟩ = 00, 10 · ② เปิดตาราง: 00 → 011, 10 → 100 · ③ แปลงเป็นเลข: 3 กับ 4</div>
+  </div>
+
+  <h3>3.3 ทำ a[2] + 1 ผ่าน QRAM (p18–20 · Figure 9-5 · Example 9-2)</h3>
+  <p>คราวนี้เอา<b>ตัวอย่างเดิม</b> <code class="code">a = [4,3,5,1]</code> + วงจร +1 มาทำใหม่ แต่โหลดค่าผ่าน QRAM ·
+    วางคู่กับ Figure 9-3 แล้วจะเห็นว่า<b>ต่างกันแค่ช่วงโหลด</b> ส่วน +1 เหมือนเดิมเป๊ะ</p>
+
+<pre class="code-blk">var a=[4,3,5,1];
+var reg_qubits = 3;
+qc.reset(2 + reg_qubits + qram_qubits());
+var qreg = qint.new(3, 'qreg');
+var addr = qint.new(2, 'addr');
+var qram = qram_initialize(a, reg_qubits);   // เอา array ใส่ QRAM
+
+qreg.write(0);
+addr.write(2);
+addr.hadamard(0x1);      // address = |2⟩ + |3⟩
+
+qram_load(addr, qreg);   // ← แทน qreg.write(a[index])
+qreg.add(1);</pre>
+
+  <div class="circuit" data-wires="5" data-names="qreg,,,addr," data-wire-labels="0x1,0x2,0x4,0x1,0x2"
+       data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4:1; H:3; QRAMDA:0,4:3; CCNOT:0,1,2; CNOT:0,1; X:0"
+       data-cap="Figure 9-5 · <b>กล่อง QRAM แบบแบ่ง D/A</b>: D (data) คร่อม qreg ที่รับค่ากลับมา · A (address) คร่อม addr · จุดดำครึ่งวงที่ขอบกล่องทุกสาย · ตามด้วย +1 บน qreg"></div>
+
+  <div class="twocol">
+    <div class="c"><b>Figure 9-3 (RAM)</b><br>CPU เลือก a[2] → <code class="code">qreg.write(5)</code> → +1 → <code class="code">read()</code> ได้ 6 · <b>ค่าเดียว</b></div>
+    <div class="c"><b>Figure 9-5 (QRAM)</b><br>address เป็น superposition → <code class="code">qram_load</code> → +1 · qreg เป็น <b>superposition</b> ของหลายค่า · ไม่มี READ</div>
+  </div>
+
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> <code class="code">addr.write(2)</code> = 10 · <code class="code">hadamard(0x1)</code> ทำให้บิต 0x1 เป็นได้ทั้ง 0/1 → addr = |2⟩ + |3⟩</div>
+    <div class="step"><span class="lbl">②</span> <code class="code">qram_load</code>: address 2 → a[2] = <b>5</b> · address 3 → a[3] = <b>1</b> · qreg = 5 กับ 1 <b>พร้อมกัน</b> (แต่ละค่าผูกกับ address ของมัน)</div>
+    <div class="step"><span class="lbl">③</span> <code class="code">add(1)</code> ทำกับทั้งสองค่าในคราวเดียว → qreg = <b>|6⟩ + |2⟩</b> (อย่างละ 50%)</div>
+  </div>
+  <div class="crow" data-n="8" data-r="18" data-lab="qreg หลัง +1" data-mag="0,0,1,0,0,0,1,0" data-sub=",,50%,,,,50%,"></div>
+  <p class="meta">ผลลัพธ์ 6/2 หนูคำนวณเอง สไลด์ไม่ได้แสดงผลไว้ค่ะ · คำว่า “ผูกกับ address” คือ qreg กับ addr พันกัน (entangled): ถ้า READ addr ได้ 2 qreg จะเป็น 6 แน่นอน</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">เปลี่ยน Example 9-2 เป็น <code class="code">addr.write(0); addr.hadamard(0x2);</code> (ที่เหลือเหมือนเดิม) · หลัง <code class="code">qreg.add(1)</code> qreg เป็น superposition ของอะไร?</div>
+    <button class="opt">qreg เป็น |4⟩ + |5⟩</button>
+    <button class="opt">qreg เป็น |0⟩ + |2⟩</button>
+    <button class="opt">qreg เป็น |5⟩ + |6⟩</button>
+    <button class="opt">qreg เป็น |4⟩ + |3⟩</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! addr = |0⟩ + |2⟩ → โหลดได้ a[0] = 4 กับ a[2] = 5 → +1 → <b>5 กับ 6</b></div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · ① hadamard(0x2) ทำบิตค่า 2 → addr = |0⟩ + |2⟩ · ② a[0] = 4, a[2] = 5 · ③ อย่าลืม +1 → 5 กับ 6 (ถ้าได้ 4, 5 แปลว่าลืม add)</div>
+  </div>
+
+  <h3>3.4 สิ่งที่ QRAM <u>ไม่</u>ใช่ และทำไมมันสำคัญ (p20–21)</h3>
+  <ul>
+    <li><b>เขียน superposition กลับลง QRAM ไม่ได้</b> · QRAM มีไว้ให้ <i>อ่าน</i>ค่าธรรมดาที่เขียนไว้ตามปกติ แบบ superposition · ส่วนที่เก็บ superposition ไว้ได้นานๆ เรียกว่า
+      <b>persistent quantum memory (หน่วยความจำควอนตัมถาวร)</b> เป็นฮาร์ดแวร์อีกชนิดเลย และน่าจะสร้างยากกว่า</li>
+    <li><b>หนังสือไม่ได้บอกว่าสร้าง QRAM จริงยังไง</b> (เหมือนหนังสือ C++ ที่ไม่สอนว่า RAM ทำงานยังไง) · <code class="code">qram_load</code> ใน QCEngine เป็นแค่ simulator ที่เลียนพฤติกรรม ·
+      สไลด์บอกด้วยว่า QPU ที่ทรงพลังอาจมาก่อน QRAM ที่ใช้งานได้จริงนานมาก (p16)</li>
+    <li>สิ่งที่ต้องจำคือมองมันเป็น <b>fundamental resource (ทรัพยากรพื้นฐาน)</b>: ใส่ address แบบ superposition → ได้ค่าที่เก็บไว้แบบ superposition ·
+      แล้วสร้างของที่ซับซ้อนกว่าบนมัน คือ <b>vector</b> (บทหน้า) และ <b>matrix</b></li>
+  </ul>
+
+  <!-- ============================================================ -->
+  <details class="recall"><summary>ทดสอบความจำก่อนปิดบท (พยายามตอบเองก่อนเปิด)</summary>
+    <ol>
+      <li>Q8.6 แปลว่าอะไร มีบิตจำนวนเต็มกี่บิต? → register 8 บิต เศษ 6 บิต จำนวนเต็ม 2 บิต</li>
+      <li>เพิ่มบิตฝั่ง integer ได้อะไร ฝั่ง fractional ได้อะไร? → range / accuracy</li>
+      <li>overflow แก้ยังไง (ตามสไลด์)? → เพิ่ม qubit ให้ register</li>
+      <li>วาด detector ที่อ่านได้ 1 กับอ่านได้ 0 → เหลือง+ขีด / เทา+วง</li>
+      <li>RAM ธรรมดาโหลดอะไรเข้า register ไม่ได้? → superposition ของค่าที่เก็บไว้หลายค่า</li>
+      <li>QRAM ต่างจาก RAM ตรงไหน? → address และ output เป็น qubit register ทั้งคู่</li>
+      <li>ใน Figure 9-5 ตัว D กับ A หมายถึงอะไร? → D = register ที่รับข้อมูล (qreg) · A = address register</li>
+      <li>เขียน superposition กลับลง QRAM ได้ไหม? → ไม่ได้ · นั่นคือ persistent quantum memory (คนละอย่างกัน)</li>
+    </ol>
+  </details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li>ตัวเลขไม่เต็ม → <b>fixed point</b> · <b>Qn.m</b> = n บิต เศษ m บิต · ฝั่งเศษมีค่า ½, ¼, ⅛, … · Figure 9-1: Q8.6 ของ 3.640625 = 11101001</li>
+    <li>บิต integer เพิ่ม <b>range</b> · บิต fractional เพิ่ม <b>accuracy</b> · ต้องจำ encoding เอง · overflow แก้ด้วยการเพิ่ม qubit</li>
+    <li><b>RAM ธรรมดา</b>: address → ค่าเดียว → <code class="code">write()</code> · Figure 9-3: 5 → +1 → READ ได้ 6 (detector เหลือง = 1, เทา = 0)</li>
+    <li>RAM ให้ <b>superposition ของค่าที่เก็บไว้</b> ไม่ได้ → <b>QRAM</b>: address + output เป็น qubit ทั้งคู่ · Figure 9-4: |1⟩+|3⟩ → |6⟩+|7⟩</li>
+    <li>Example 9-2: <code class="code">qram_initialize</code> + <code class="code">qram_load</code> · addr |2⟩+|3⟩ → 5, 1 → +1 → 6, 2 · กล่อง <b>D/A</b> ใน Figure 9-5</li>
+    <li>QRAM อ่านอย่างเดียว · มองเป็น fundamental resource · ปูทางไป vector และ matrix</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 9 <i>Real Data</i> หัวข้อ <i>Noninteger Data</i> และ <i>QRAM</i> (Figure 9-1 ถึง 9-5) ·
+      รันโค้ดเองได้ที่ <a href="https://oreilly-qc.github.io?p=9-1">QCEngine: Example 9-1</a> และ <a href="https://oreilly-qc.github.io?p=9-2">Example 9-2</a> — เปิด circle notation ดู qreg หลัง <code class="code">qram_load</code> ·
+      สไลด์ <code class="code">QuantumProg_Lec09.pdf</code> หน้า 1–21</p>
+    <p><b>บทก่อนหน้า</b>: <a href="0033-inside-phase-estimation-theta-as-frequency.html">0033 · ข้างใน phase estimation</a> ·
+      <b>บทถัดไป</b>: <a href="0035-vector-state-vs-amplitude-encoding.html">0035 · เก็บ vector: state vs amplitude encoding</a></p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="midterm/0008-multi-qubit-registers.html">0008 · ค่าบิต 2ⁱ</a> ·
+      <a href="midterm/0018-increment-decrement.html">0018 · วงจร +1</a> ·
+      <a href="midterm/0019-adding-two-quantum-integers-and-negative-numbers.html">0019 · two's complement</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① ทำไมสายบนของ Q8.6 มีค่า 1/64 ไม่ใช่ 1
+      ② ลำดับบิตใน Figure 9-2 กับ p15 ที่ขัดกันเอง
+      ③ qreg กับ addr “ผูกกัน” หลัง qram_load หมายความว่าอะไร
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

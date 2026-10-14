@@ -965,6 +965,309 @@
   <h3>AA vs QFT (สรุป Lec 07)</h3>
   <p>AA ดึง<b>ค่าเฉพาะ (discrete values)</b> · QFT ดึง<b>รูปแบบ (patterns)</b> · QFT เป็นแกนของ Shor (Lec 12) (p69)</p>
 
+  <h2>บท 0031 — eigenstate และ eigenphase (Lec 08 หน้า 1–11)</h2>
+
+  <h3>Phase estimation (การประมาณเฟส)</h3>
+  <p>QPU primitive ตัวที่ 3 (ต่อจาก AA, QFT) · บอกคุณสมบัติของ <b>operation</b> ไม่ใช่ของ state ·
+  ให้ U + eigenstate uⱼ → คืน<b>มุม eigenphase θⱼ</b> (แม่นระดับหนึ่ง) ไว้ใน register อีกตัวที่ READ ได้ (p2, p9–10)</p>
+
+  <h3>Eigenstate (สถานะเฉพาะ)</h3>
+  <p>state ที่ operation <b>ไม่เปลี่ยน</b> ยกเว้นอาจใส่ global phase ให้ · HAD มี 2 ตัวเท่านั้น:
+  85.35%|0⟩ + 14.64%|1⟩ (เฟส 0°, 0°) และ 14.64%|0⟩ + 85.35%|1⟩ (เฟส 180°, 0°) (p5–7) ·
+  ตัวอย่างอื่น: |−⟩ ของ NOT · |0⟩, |1⟩ ของ PHASE</p>
+
+  <h3>Eigenphase (เฟสเฉพาะ)</h3>
+  <p><b>global phase</b> ที่ eigenstate ได้รับจาก operation (มุม θ) · HAD: <b>0°</b> และ <b>180°</b> (Table 8-1) ·
+  เซต eigenstate + eigenphase <b>ระบุ operation ได้แบบไม่ซ้ำ</b> (p8) ·
+  ⚠️ อย่าปน 180° ของ eigenphase (global) กับ 180° ในวง |0⟩ ของ eigenstate 2 (relative) ·
+  เกร็ด: U|ψ⟩ = e<sup>iθ</sup>|ψ⟩ → e<sup>iθ</sup> = <b>eigenvalue</b></p>
+
+  <h3><code class="code">phase_est(qin, qout, cont_u)</code> — ภาพรวม (Figure 8-3)</h3>
+  <p><b>qout</b> = m qubit เริ่ม 0 → READ ได้ θ · <b>qin</b> = n qubit ใส่ eigenstate (ไม่ READ ออกมาเหมือนเดิม) ·
+  <b>cont_u</b> = subroutine ที่ทำ U แบบมีเงื่อนไข (controlled-U) ส่งเข้าไปให้ primitive ใช้ (p11)</p>
+
+  <h2>บท 0032 — ใช้ phase_est() จริง (Lec 08 หน้า 12–30)</h2>
+
+  <h3><code class="code">phase_est(qin, qout, cont_u)</code> — input 3 ตัว</h3>
+  <p><b>qin</b> = eigenstate n qubit · <b>qout</b> = m qubit เริ่ม 0 (m ใหญ่ = ละเอียดขึ้น) ·
+  <b>cont_u(qcontrol, qtarget, control_count)</b> = function ทำ <b>controlled-U</b> ที่ผู้ใช้เขียนเอง (p12–19) ·
+  ⚠️ สไลด์สะกด <code class="code">count_u</code> และบอก 2 argument แต่โค้ดจริงมี 3</p>
+
+  <h3>Controlled-U (U แบบมีเงื่อนไข) · <code class="code">chadamard</code></h3>
+  <p>ทำ U กับ qtarget เฉพาะเมื่อบิตควบคุมเป็น 1 · phase estimation ต้องใช้ตัวนี้ ไม่ใช่ U เปล่า ·
+  <code class="code">chadamard</code> = controlled-HAD ที่มีใน QCEngine · <code class="code">control_count</code> = จำนวนครั้งที่ต้องทำ U (1, 2, 4, 8 … = <code class="code">1 &lt;&lt; j</code>) ·
+  HAD เช็คแค่ <code class="code">control_count &amp; 1</code> เพราะ HAD ซ้ำจำนวนคู่ = ไม่ทำอะไร</p>
+
+  <h3>Equation 8-1 — อ่านค่า qout</h3>
+  <p><b>R = θ/360° × 2ᵐ</b> ⇔ θ = R × 360°/2ᵐ · HAD 180° กับ m = 4 → อ่านได้ <b>8</b> · 90° กับ m = 3 → 2 (p21–22) ·
+  = กฎ θ = n/2ᴺ × 360° ของ invQFT (บท 0030) · ⚠️ สไลด์ตัวยกหาย “23”, “24” = 2³, 2⁴</p>
+
+  <h3>Precision / resolution (ความละเอียด) ของ qout</h3>
+  <p>แสดงได้เป๊ะเฉพาะพหุคูณของ <b>360°/2ᵐ</b> (3 qubit → ทีละ 45°) · มุมไม่ลงขีด (เช่น 150°) → <b>superposition รอบค่าใกล้สุด</b>
+  (Figure 8-5: |3⟩ ≈ 69%, |4⟩ ≈ 17.5%) · โอกาสได้ค่าดีสุด <b>&gt; 40% เสมอ</b> (p23–27)</p>
+
+  <h3>p · ε · ⌈ ⌉ — สูตรเลือก m</h3>
+  <p><b>m = p + ⌈log(2 + 1/ε)⌉</b> (ตามสไลด์) · p = จำนวนบิตที่ต้องการ · ε (epsilon) = ความน่าจะเป็นที่ยอมให้พลาด ·
+  ⌈ ⌉ = ceiling (ปัดขึ้น) · ⚠️ ตำรา (Nielsen &amp; Chuang) ใช้ log₂(2 + 1/(2ε)) (p27)</p>
+
+  <h3>Complexity ของ phase estimation</h3>
+  <p><b>O(m²)</b> · ข้อจำกัดใหญ่สุด: ต้องมี cont_u ที่<b>เร็ว</b> · ถ้าแพงกว่า O(m²) ข้อได้เปรียบหาย (p28)</p>
+
+  <h3>Characterize (กำหนดลักษณะ) · parallelize (ทำขนาน)</h3>
+  <p>ใส่ superposition ของ eigenstate → ได้ superposition ของ eigenphase (magnitude เท่ากันเป๊ะ) · state ใดๆ = superposition ของ eigenstate →
+  primitive บอก eigenphase ที่ characterize การกระทำของ U ต่อ |x⟩ · ใช้ทำ linear algebra แบบ parallelize (p29–30)</p>
+
+  <h2>บท 0033 — ข้างใน phase estimation (Lec 08 หน้า 31–48)</h2>
+
+  <h3>θ เป็น “ความถี่” ของ register</h3>
+  <p>U บน eigenstate ได้แค่ global phase (อ่านไม่ได้ · Figure 8-7) → ต้องทำให้ <b>|k⟩ ได้ relative phase kθ</b> ·
+  register จะหมุนเป็นคาบด้วยความถี่ θ/360° → invQFT อ่านได้ R = θ/360° × 2ᵐ (θ = 90°, m = 3 → 2) (p33–38) ·
+  ⚠️ สไลด์ p37 เขียน “2/8 = 4/1” ที่ถูกคือ 1/4</p>
+
+  <h3>U^(2ʲ) · <code class="code">1 &lt;&lt; j</code></h3>
+  <p>U^(2ʲ) = ทำ U ซ้ำ 2ʲ ครั้ง · <code class="code">1 &lt;&lt; j</code> = bit shift = 2ʲ · บิตที่มีน้ำหนัก 2ʲ ของ register บนคุม U^(2ʲ) →
+  รวมเป็น <b>U^k</b> → หมุน kθ (k = 9 = 1001₂ → U¹·U⁸) (p39–40) · ยกกำลังแบบซื่อๆ ต้องเรียก U รวม 2ᵐ − 1 ครั้ง (exponential)
+  → ต้องส่ง cont_u ที่ทำกำลังได้เร็วในตัว (p45)</p>
+
+  <h3>Phase kickback ใน phase estimation</h3>
+  <p>มอง 2 แบบได้: (A) eigenstate ได้ global phase kθ ตามค่า k · (B) <b>|k⟩ ของ register บนได้ relative phase kθ</b> ← แบบนี้ที่อ่านได้ ·
+  register ล่าง<b>ยังเป็น eigenstate เดิม</b>ตอนจบ (p41–44)</p>
+
+  <h3>3 วัตถุดิบของ phase estimation</h3>
+  <p><b>phase kickback + controlled unitary + invQFT</b> · โค้ด 3 ขั้น: <code class="code">q_out.had()</code> →
+  loop <code class="code">cont_u(q_out, q_in, 1 &lt;&lt; j)</code> → <code class="code">q_out.invQFT()</code> ·
+  global phase → relative phase → READ (p31–32, p46)</p>
+
+  <h2>บท 0034 — โหลดข้อมูลจริงเข้า register (Lec 09 หน้า 1–21)</h2>
+
+  <h3>fixed point (จุดทศนิยมตายตัว) · floating point (จุดทศนิยมลอยตัว)</h3>
+  <p>fixed point = ตกลงล่วงหน้าว่าบิตไหนเป็น <b>integer part (ส่วนจำนวนเต็ม)</b> มีค่า 2⁰, 2¹, … บิตไหนเป็น <b>fractional part (ส่วนเศษ)</b> มีค่า ½, ¼, ⅛, … ·
+  floating point ยืดหยุ่นกว่าแต่ซับซ้อน · qubit แพง → สไลด์เลือก fixed point (p6)</p>
+
+  <h3>Q notation · Qn.m</h3>
+  <p>register <b>n บิต</b> ซึ่ง <b>m บิตเป็นเศษ</b> (n − m บิตเป็นจำนวนเต็ม) · Q ไม่ได้ย่อจาก quantum ·
+  Figure 9-1: <b>Q8.6</b> ของ 3.640625 = <code class="code">11101001</code> (สายบน = 1/64) (p7)</p>
+
+  <h3>range (ช่วงค่า) vs accuracy (ความแม่นยำ) · overflow</h3>
+  <p>เพิ่มบิต integer → range กว้างขึ้น · เพิ่มบิต fractional → accuracy สูงขึ้น (p8) · ต้องจำเองว่า register ใช้ encoding แบบไหน ·
+  <b>overflow</b> = ผลใหญ่เกินที่ register แทนได้ → ทางแก้คือเพิ่ม qubit (p9)</p>
+
+  <h3>conventional RAM · address register · output register</h3>
+  <p>RAM ธรรมดารับ 2 register: <b>address</b> (ตำแหน่ง) กับ <b>output</b> (ว่างอยู่ รอรับค่า) → เขียนค่าที่เก็บ ณ address นั้นลง output ·
+  ใช้กับ QPU ได้ถ้าโหลด<b>ค่าเดียว</b> (<code class="code">write()</code>/<code class="code">read()</code>) · โหลด superposition ของค่าที่เก็บไว้ไม่ได้ (p10–16)</p>
+
+  <h3>QRAM (Quantum Random Access Memory)</h3>
+  <p>เหมือน RAM แต่ <b>address และ output เป็น qubit register ทั้งคู่</b> → address แบบ superposition ให้ output เป็น superposition ของค่าที่เก็บไว้ ·
+  ในโค้ด: <code class="code">qram_initialize(a, reg_qubits)</code> · <code class="code">qram_load(addr, qreg)</code> · สัญลักษณ์ Figure 9-4 (กล่องเทา + ตาราง) และ 9-5 (กล่อง D/A) (p16–19)</p>
+
+  <h3>persistent quantum memory · fundamental resource</h3>
+  <p>QRAM <b>อ่านอย่างเดียว</b> · หน่วยความจำที่เก็บ superposition ไว้นานๆ = <b>persistent quantum memory (หน่วยความจำควอนตัมถาวร)</b> เป็นฮาร์ดแวร์อีกชนิด ·
+  ให้มอง QRAM เป็น <b>fundamental resource (ทรัพยากรพื้นฐาน)</b> แล้วสร้าง vector/matrix บนมัน (p20–21)</p>
+
+  <h2>บท 0035 — เก็บ vector (Lec 09 หน้า 22–39)</h2>
+
+  <h3>state encoding (การเข้ารหัสแบบสถานะ)</h3>
+  <p>component ละ 1 register เขียนค่าเป็นเลขฐานสองให้อยู่ใน basis state เดียว · [0,1,2,3] ใช้ 4 × 2 = 8 qubit (Figure 9-6) ·
+  ไม่ต้องมี QRAM แต่เปลือง qubit และใช้ relative phase/superposition ไม่ได้ (p22–24)</p>
+
+  <h3>amplitude encoding (การเข้ารหัสลงแอมพลิจูด)</h3>
+  <p>component ตัวที่ i → amplitude ของวง |i⟩ ใน <b>register เดียว</b> · ใช้ <b>⌈log₂ n⌉ qubit</b> (สไลด์เขียน ceil(log(n)) ไม่บอกฐาน) ·
+  Table 9-1: 2 qubit เทียบกับ state encoding 8 / 12 / 28 qubit · เก็บ vector เชิงซ้อนได้ (จึงชื่อ amplitude ไม่ใช่ magnitude) (p25–27, p39)</p>
+
+  <h3><code class="code">amplitude_encode(vector, reg)</code></h3>
+  <p>ฟังก์ชัน QCEngine (Example 9-3) · vector ยาวเป็นกำลังของ 2 → <code class="code">Math.log2(vector.length)</code> qubit · ค่าติดลบ → phase 180° ·
+  ทำได้โดยไม่มี QRAM แต่<b>ไม่ efficient</b> = การจำลองที่ช้า (p28–29)</p>
+
+  <h3>quantum output · global properties</h3>
+  <p><b>Caveat 1</b>: output ที่เป็น amplitude-encoded vector อ่านค่าทีละ component ไม่ได้ (READ ได้ผลเดียวแล้วยุบ) · รู้ได้แค่
+  <b>global properties (คุณสมบัติภาพรวม)</b> · "no free lunch" · เห็น QML อ้าง speedup ให้เช็คว่า output เป็น quantum ไหม (p31–33)</p>
+
+  <h3>normalization (ในบริบท vector) · normalization factor</h3>
+  <p><b>Caveat 2</b>: Σ|aᵢ|² = 1 · หารทุก component ด้วย <b>√(ผลรวมกำลังสอง)</b> = ความยาว vector (สไลด์เขียน "summed squares" ผิด) ·
+  [0,1,2,3] ÷ √14 (3.74) = [0, 0.27, 0.53, 0.80] · ทิศไม่เปลี่ยน · เก็บ factor ไว้ register อื่นได้ · circle notation: <b>พื้นที่ = amplitude²</b> (Figure 9-8) (p34–38)</p>
+
+  <h2>บท 0036 — เก็บ matrix: quantum simulation (Lec 09 หน้า 40–61)</h2>
+
+  <h3>matrix encoding · good matrix representation · prescription · efficient</h3>
+  <p>เก็บ matrix เป็นแถวละ register ทำ transpose/คูณ vector ไม่ได้ → เข้ารหัส matrix เป็น <b>QPU operation</b> (p40–41) ·
+  "แทนได้" = M·v ↔ U|v⟩ ทุก v · <b>good matrix representation</b> = ① eigen decomposition เดียวกัน ② มี <b>prescription (วิธีทำ)</b> จาก gate พื้นฐาน ③ <b>efficient</b> (p42–45)</p>
+
+  <h3>eigen decomposition · eigenvector (เวกเตอร์เฉพาะ) · eigenvalue (ค่าเฉพาะ)</h3>
+  <p>M·v = λv (ทิศไม่เปลี่ยน แค่ยืด λ เท่า) · eigen decomposition = เซตของ eigenvalue + eigenvector (ฝั่ง operation = eigenstate + eigenphase) ·
+  eigenstate ของ U = amplitude encoding ของ eigenvector · eigenphase "related to" eigenvalue (เสริม: θ = −λt) · ตัวอย่าง [[2,1],[1,2]]: |+⟩ (λ=3), |−⟩ (λ=1)</p>
+
+  <h3>quantum simulation (การจำลองเชิงควอนตัม) · Hermitian matrix · adjoint (†) · complex conjugate</h3>
+  <p>quantum simulation = คำเรียกรวมของวิธีหา QPU operation ที่ efficient มาแทน <b>Hermitian matrix</b> (p46) · Hermitian: <b>H = H†</b> · † = transpose แล้ว complex conjugate (กลับเครื่องหมายส่วน i) ·
+  เส้นทแยงเป็นจำนวนจริง · ไม่ Hermitian → <b>block matrix</b> [[0, X], [X†, 0]] (สไลด์: 2m × 2n · จริง: (m+n) × (m+n)) (p47–48)</p>
+
+  <h3>unitary · U = exp(−iHt) · Hamiltonian (แฮมิลโทเนียน)</h3>
+  <p>QPU ทำได้แค่ <b>unitary</b> (รักษาความน่าจะเป็นรวม 100%) · H Hermitian → <b>exp(−iHt)</b> เป็น unitary · t = เวลา (เรื่องของ hardware) ·
+  Hamiltonian = Hermitian matrix ที่อธิบายระบบฟิสิกส์ (ที่มาของชื่อ simulation) · H ที่ "ง่าย" = มีแต่ diagonal หรือกระทำกับ qubit น้อยตัว (p49–51)</p>
+
+  <h3>Deconstruct → Simulate components → Reconstruction · Lie product formula · product formula methods</h3>
+  <p>แตก H = H₁ + … + Hₙ → หาวงจรของแต่ละ Hᵢ → ประกอบกลับ (p52) · <b>Lie product formula</b>: ทำ e<sup>−iH₁δt</sup> … e<sup>−iHₙδt</sup> ต่อกัน δt สั้นๆ <b>วนซ้ำ m รอบ</b> (Figure 9-9) ·
+  m มาก = แม่นขึ้นแต่วงจรยาวขึ้น · "<i>ถ้า</i>แตก H ได้" (p54–55)</p>
+
+  <h3>sparse · adjacency matrix · graph / vertex / edge · graph coloring · backtracking</h3>
+  <p>H <b>sparse</b> (ส่วนใหญ่เป็นศูนย์) → มองเป็น <b>adjacency matrix</b> ของ graph → แก้ <b>coloring problem</b> (vertex ที่มี edge ต่อกันห้ามสีซ้ำ) → แต่ละสี = Hᵢ (p56–57) ·
+  <b>backtracking</b> = ลองสีทีละ vertex เจอชนแล้วตัดกิ่ง ย้อนกลับ · ตัวอย่าง p58: 4 vertex 3 สี ได้ 6 คำตอบ · ⚠️ หัวสไลด์ "Destructing H" = Deconstructing</p>
+
+  <h3>Table 9-2 · sparsity (d) · precision (ϵ) · quantum walks · quantum signal processing (QSP)</h3>
+  <p>runtime = <b>ขนาดวงจร</b> · d = จำนวนตัวไม่เป็นศูนย์สูงสุดต่อแถว · ϵ = ความแม่นยำ · Product formula <b>O(d⁴)</b> · Quantum walks <b>O(d/√ϵ)</b> ·
+  QSP <b>O(d + log(1/ϵ) / log log(1/ϵ))</b> (ถูกสุด) · ⚠️ ตารางไม่มี t และ product formula ไม่มี ϵ (p59–60)</p>
+
+  <h2>บท 0037 — phase logic: เก็บคำตอบไว้ใน phase (Lec 10 หน้า 1–13)</h2>
+
+  <h3>Quantum Search (QS, การค้นหาเชิงควอนตัม)</h3>
+  <p>เทคนิคสร้าง flip จาก boolean logic ให้ AA ใช้ → QS = <b>AA + phase logic</b> (p2–4)</p>
+
+  <h3>Grover's search algorithm · unstructured database (ฐานข้อมูลไม่มีโครงสร้าง)</h3>
+  <p>การใช้งานต้นแบบของ QS: ค้นหาค่าในฐานข้อมูลด้วย query <b>O(√N)</b> ครั้ง เทียบกับคลาสสิก O(N) · ⚠️ สไลด์ p3 พิมพ์ "O N" (√ ตก) ·
+  ข้อจำกัดคือสมมติว่าฐานข้อมูลไม่มีโครงสร้าง (p3–4)</p>
+
+  <h3>phase logic (ขยายต่อ) · satisfy (ทำให้เป็นจริง) · magnitude logic</h3>
+  <p>phase logic = <b>พลิก phase ของทุกค่าในรีจิสเตอร์ที่ satisfy</b> operation (ให้ผล 1) · input อยู่ใน<b>ค่า</b> ส่วน output อยู่ใน <b>relative phase</b> ·
+  ถ้ามีค่าเดียวจะเป็นแค่ global phase · PHASE(180) คือ phase logic ตัวแรก · <b>magnitude logic</b> = logic แบบ Lec 05 ที่ output เป็นค่าใน qubit ·
+  ตาราง 3 แบบ: conventional / magnitude / phase (p5–7) · Figure 10-1/10-2 วงจร 6 แบบ → ชีตวงจร · scratch ของ phase XOR อยู่ใน |−⟩ ใช้ kickback <b>จึงไม่ entangle และไม่ต้อง uncompute</b> (p11–13)</p>
+
+  <h2>บท 0038 — ต่อ logic ยาวๆ: magnitude ก่อน phase ทีหลัง (Lec 10 หน้า 14–21)</h2>
+
+  <h3>ทริก "magnitude ก่อน phase ทีหลัง" (sneaky trick)</h3>
+  <p>phase logic ต่อกันตรงๆ ไม่ได้ เพราะ output อยู่ใน phase แต่ input ต้องเป็นค่าในรีจิสเตอร์ → ทำ<b>ทุก operation ยกเว้นตัวสุดท้าย</b>ด้วย magnitude logic (ลง scratch)
+  แล้วทำ<b>ตัวสุดท้าย</b>ด้วย phase logic (p14–15)</p>
+
+  <h3>pAND (phase-logic AND) · <code class="code">bit_or</code> / <code class="code">inv_bit_or</code> / <code class="code">phase_and</code></h3>
+  <p><b>pAND</b> = phase AND = CZ บนทุก qubit ใน mask (<code class="code">phase_and(4|8)</code>) · <b>bit_or</b> = OR แบบ magnitude ลง ancilla ด้วย De Morgan
+  (X ขา input → Toffoli → X ขา input + out) · <b>inv_bit_or</b> = bit_or กลับลำดับ ใช้ uncompute · รูปแบบ <b>compute → pAND → uncompute</b> ใช้ซ้ำทั้ง Lec 10 (p17–20)</p>
+
+  <h2>บท 0039 — ปริศนาลูกแมว/เสือ (Lec 10 หน้า 22–36)</h2>
+
+  <h3>boolean satisfiability (SAT · ปัญหาความสอดคล้องบูลีน) · satisfiable</h3>
+  <p><b>SAT</b> = คำถามว่า "มีค่า input ไหนที่ทำให้ประโยค boolean เป็นจริงบ้างไหม" · ถ้ามีอย่างน้อย 1 ค่า เรียกว่า <b>satisfiable</b> ·
+  ใช้จริงใน <b>model checking</b> (ตรวจโมเดลของระบบ) · <b>planning</b> ใน AI · <b>software verification</b> (พิสูจน์ว่าโปรแกรมถูก) ·
+  phase logic + AA ตอบ SAT ได้ตรงตัว (p22)</p>
+
+  <h3>XNOR (นิเสธของ XOR) · phase XNOR ด้วย kickback</h3>
+  <p><b>XNOR</b> ได้ 1 เมื่อ input <b>เหมือนกัน</b> · phase XNOR = phase XOR (scratch |−⟩ + CNOT 2 ตัว) แล้ว X บน scratch ซึ่งคูณ −1 ทั้งรีจิสเตอร์ ·
+  XOR กับ XNOR แบบ phase จึง<b>ต่างกันแค่ global phase</b> mirror ให้ผลเหมือนกัน เพราะ mirror ขยายค่าที่ phase <b>ต่างจากตัวอื่น</b> (flip สัมพัทธ์) (p33, p36)</p>
+
+  <h2>บท 0040 — สูตร 9 ขั้น → 3-SAT (Lec 10 หน้า 37–57)</h2>
+
+  <h3>clause (ประโยคย่อย) · สูตร 9 ขั้นแก้ SAT</h3>
+  <p><b>clause</b> = ประโยคย่อยที่ต่อกันด้วย AND (ต้องจริงพร้อมกันทุกตัว) · สูตร: AND ของ clause → <b>scratch 1 ตัวต่อ clause</b> → HAD input →
+  compute clause (magnitude) → <b>pAND</b> scratch → uncompute → mirror บน input → วน N<sub>AA</sub> = ⌊(π/4)√(2ⁿ/m)⌋ รอบ → READ (p37–38)</p>
+
+  <h3>3-SAT</h3>
+  <p>ตามสไลด์: SAT ของ 3 ตัวแปร a, b, c · ⚠️ นิยามเคร่งในตำราคือทุก clause มี 3 literal (โจทย์ในสไลด์ clause ละ 2 = 2-SAT) — <b>ตอบตามสไลด์</b> ·
+  ตัวอย่าง (a OR b) AND (NOT a OR c) AND (NOT b OR NOT c) AND (a OR c) → คำตอบเดียว |5⟩ (a=1, b=0, c=1) (p40–46)</p>
+
+  <h3>unsatisfiable (ไม่มีทางเป็นจริง)</h3>
+  <p>ไม่มีค่า input ไหนทำให้ประโยคเป็นจริง → phase logic ไม่ flip ใคร → mirror ไม่ขยายอะไร ("Nothing has happened!") →
+  READ ได้ค่าสุ่ม → แทนสูตรได้ 0 ⇒ <b>น่าจะ</b> unsatisfiable (p47–54)</p>
+
+  <h3>NP (หาคำตอบยาก ตรวจคำตอบง่าย)</h3>
+  <p>กลุ่มปัญหาอย่าง SAT ที่หาคำตอบแพง แต่พอได้คำตอบมา แทนค่าตรวจได้ทันที (p47)</p>
+
+  <h3>one-sided error (ความผิดพลาดด้านเดียว)</h3>
+  <p>อัลกอริทึม yes/no ที่ ถ้าคำตอบจริงคือ no → ตอบ no <b>เสมอ</b> · ถ้าคำตอบจริงคือ yes → ตอบ yes ด้วยความน่าจะเป็น p &gt; 0 ·
+  อัลกอริทึมแบบนี้ AA เร่งได้ <b>quadratic speedup</b> แม้เทียบกับอัลกอริทึมคลาสสิกที่ดีที่สุด (p55)</p>
+
+  <h3>element distinctness (ความแตกต่างของสมาชิก) · finding global minima (หาค่าต่ำสุดรวม)</h3>
+  <p>ตัวอย่างอื่นที่ AA เร่งได้ · element distinctness = มี i ≠ j ที่ f(i) = f(j) ไหม (หาสามเหลี่ยมในกราฟ, ผลคูณเมทริกซ์) ·
+  global minima = หา i ที่ f(i) ต่ำสุด (p56)</p>
+
+  <h2>บท 0041 — QSS + ผ้าใบเปล่า (Lec 11 หน้า 1–14)</h2>
+
+  <h3>Quantum Image Processing · QIP (การประมวลผลภาพเชิงควอนตัม)</h3>
+  <p>การใช้ QPU เพิ่มความสามารถด้าน image processing · ยังอยู่ช่วงเริ่มต้นมาก (p2)</p>
+
+  <h3>supersampling · Monte Carlo sampling (การสุ่มตัวอย่างแบบมอนติคาร์โล)</h3>
+  <p>ลดภาพความละเอียดสูงเป็นความละเอียดต่ำด้วยการ sample · ใน ray tracing = ยิง<b>หลาย ray ต่อ pixel</b> (หลักร้อยถึงพัน)
+  แล้ว<b>เก็บเฉพาะค่าเฉลี่ย</b> ที่เหลือทิ้ง · ยิ่ง sample มาก noise ยิ่งลด · งานขนานที่ต้องการแค่ผลรวม (p3, p9)</p>
+
+  <h3>ray tracing (การตามรอยรังสี) · subpixel (จุดย่อยใน pixel)</h3>
+  <p>ยิง ray จากกล้อง ผ่าน pixel ไปชนวัตถุใน scene สีของวัตถุ = สีของ pixel · 1 ray ต่อ pixel → ขอบ/รายละเอียดไกลหาย + noise pattern ตอนขยับ ·
+  <b>subpixel</b> = sample ย่อยหลายจุดใน 1 pixel ที่ถูกคำนวณแต่ไม่ถูกเก็บ (p6–8, Figure 11-2)</p>
+
+  <h3>Quantum Supersampling · QSS</h3>
+  <p>ใช้ QPU ทำ supersampling · ตั้งใจให้เร็วขึ้นแต่<b>ล้มเหลวเรื่อง speedup</b> · สิ่งที่ได้คือ character of noise ต่างไป ·
+  ประกอบจาก quantum arithmetic + amplitude amplification + QFT (p3–5)</p>
+
+  <h3>character of noise (ลักษณะของ noise) · mean pixel error · error-free pixel</h3>
+  <p>Monte Carlo: <b>ทุก pixel</b> เพี้ยนนิดหน่อย (2% / 34%) · QSS: <b>บาง pixel</b> เพี้ยนหนักเป็นจุดดำ/ขาว ที่เหลือเป๊ะ (1% / 41%) ·
+  mean pixel error = ความเพี้ยนเฉลี่ยต่อ pixel · error-free pixel = pixel ที่ตรงกับภาพอุดมคติ · noise แบบ QSS ลบด้วยมือง่ายกว่า (Figure 11-1, p4–5)</p>
+
+  <h3>phase encoding (การเข้ารหัสด้วย phase) ของภาพ</h3>
+  <p>ค่า pixel อยู่ใน <b>phase</b> ของ superposition: 0° (ชมพู ชี้ขึ้น) = ไม่ระบาย · 180° (เขียว ชี้ลง) = ระบาย ·
+  เลือกวิธีนี้เพราะเข้ากับ <code>flip</code> ของ amplitude amplification · ข้อแม้: READ ตรงๆ ได้แค่ qx, qy สุ่ม (p10, p14)</p>
+
+  <h3>pixel shader · quantum pixel shader · blank canvas (ผ้าใบเปล่า)</h3>
+  <p><b>pixel shader</b> = โปรแกรมรับ x, y ให้สีออกมา (คาบนี้มีแค่ดำ/ขาว) · <b>blank canvas</b> = <code>qx</code>, <code>qy</code> ตัวละ 4 qubit + HAD ทุกตัว
+  → 256 ตำแหน่ง ขนาดเท่ากัน phase 0° · เลขวง = qx + 16·qy · ระบายครึ่งขวา = <code>qc.phase(180, qx.bits(0x8))</code> (p11–13)</p>
+
+  <h2>บท 0042 — วาดรูปลงใน phase (Lec 11 หน้า 15–21)</h2>
+
+  <h3>dither pattern (ลายจุดสลับ) · 50% gray</h3>
+  <p>เรียงจุดระบาย/ไม่ระบายสลับกันถี่ๆ ให้เฉลี่ยแล้วเป็นสีเทา · Figure 11-6: flip เมื่อ qx ≥ 8 และ qy ≥ 8 และบิต 0x1 ของ qx ≠ qy
+  → มุมขวาล่างเป็นลายหมากรุก (เขียว 32 จาก 64) เพราะ flip ซ้ำบนที่เขียวอยู่แล้ว · วงจร = CNOT – CZ 3 จุด – CNOT (p15–16)</p>
+
+  <h3><code>subtractShifted</code> / <code>addShifted</code> กับลายทางเฉียง</h3>
+  <p><code>qx.subtractShifted(qy, 1)</code> = qx ← qx − 2·qy (เลื่อน 1 บิต = คูณ 2 · mod 16) ·
+  ประกบ <code>qc.phase(180, qx.bits(0x8))</code> แล้ว <code>addShifted</code> คืนค่า → flip เมื่อ <b>(qx − 2·qy) mod 16 ≥ 8</b>
+  = แถบกว้าง 8 เลื่อนขวาแถวละ 2 วนซ้ำทุก 8 แถว (Figure 11-7, p17)</p>
+
+  <h3><code>qacc</code> (accumulator · ตัวสะสมผลบวก) กับเสี้ยววงกลม</h3>
+  <p>register แยกไว้ทดเลข (หน้าที่เดียวกับ scratch) · Example 11-2: qx 4 + qy 4 + qacc 10 = 18 qubit ·
+  <code>addSquared(qx)</code>, <code>addSquared(qy)</code>, <code>subtract(r*r)</code> → <code>qacc.phase(180, 1 &lt;&lt; (acc_bits - 1))</code>
+  (flip ที่<b>บิตเครื่องหมาย</b> = ผลติดลบ = x² + y² &lt; r²) → ย้อนกลับ 3 บรรทัด · รัศมี 13 → r² = 169 (Figure 11-8, p18–20)</p>
+
+  <h3>overflow → curved bands (แถบโค้ง)</h3>
+  <p><code>qacc</code> เล็กเกิน → ค่าวนกลับ (overflow) บิตบนสุดสลับ 0/1 เป็นช่วง → ได้แถบโค้งหลายวงแทนเสี้ยววงกลมเดียว ·
+  ใช้โดยตั้งใจใน Figure 11-11 (p21) · เสริม: ต้อง 10 บิตไม่ใช่ 9 เพราะต้องเผื่อบิตเครื่องหมาย (450 − 169 = 281 &gt; 255)</p>
+
+  <h3>tile (ช่องย่อยของภาพ) · <code>tx</code> / <code>ty</code> (เลขช่องแบบ digital)</h3>
+  <p>แบ่งผ้าใบ 16×16 เป็น 16 tile ขนาด 4×4 · 1 tile ย่อเหลือ 1 pixel ของภาพผลลัพธ์ · วาดทีละ tile:
+  <code>qx</code>, <code>qy</code> เหลือ 2 qubit (ตำแหน่งในช่อง) · <code>tx</code>, <code>ty</code> เป็นเลขธรรมดา ·
+  <b>x จริง = qx + 4·tx</b> · <code>qacc</code> 4 qubit เก็บพิกัดจริง (p22–23, Figure 11-9) · ภาพจริง 256×256 = 4,096 tile × 16 subpixel (p29)</p>
+
+  <h3>วาดเส้นด้วย accumulator · ทริก <code>not(~N)</code></h3>
+  <p><code>qacc.cnot(q)</code> → <code>add(t*4)</code> → <code>not(~N)</code> → <code>cphase(180)</code> → ย้อน 3 ขั้น ·
+  <code>not(~N)</code> = NOT บิตที่ N เป็น 0 → "qacc == N" กลายเป็น "ทุกบิตเป็น 1" ให้ CZ เช็คได้ (~3 → 0x4, 0x8 · ~10 → 0x1, 0x4) (Figure 11-10, p25–27)</p>
+
+  <h2>บท 0044 — นับว่า tile โดน flip กี่วง: AA + QFT (Lec 11 หน้า 30–40)</h2>
+
+  <h3>Quantum Sum Estimation ใน QSS</h3>
+  <p>โปรแกรมวาดรูป = <code>flip</code> ของ AA + ต่อด้วย QFT → ประมาณ<b>จำนวน subpixel ที่ถูก flip</b> ใน tile → ความสว่างของ pixel (p30) ·
+  ชื่อเดียวกับที่เจอตอน Lec 06 (บท 0025) · โครงเหมือน phase estimation โดย U = AA 1 รอบ</p>
+
+  <h3>counter register (register ตัวนับ)</h3>
+  <p>ค่าของมัน = <b>จำนวนรอบ AA</b> ที่จะทำ · HAD counter = superposition ของจำนวนรอบ → เกิด oscillation (การแกว่ง)
+  ที่ความถี่ขึ้นกับจำนวนที่ถูก flip → QFT อ่านความถี่ (p37–38) · counter n qubit รัน shader 2ⁿ − 1 ครั้ง (อนุมานจากโค้ด)</p>
+
+  <h3>zero-error pixel · converge vs probability of exact answer</h3>
+  <p>Figure 11-12: Monte Carlo 9% / 23% · QSS 6% / 46% (mean pixel error / error-free) (p31–35) ·
+  เพิ่ม sample: conventional <b>converge</b> เข้าหาคำตอบ · QSS <b>ความน่าจะเป็น</b>ที่ได้คำตอบเป๊ะเพิ่ม (p36)</p>
+
+  <h2>บท 0045 — QSS lookup table: แปลค่า READ เป็นความสว่าง (Lec 11 หน้า 41–55)</h2>
+
+  <h3>QSS lookup table (ตารางเทียบค่า)</h3>
+  <p>แปลค่า READ → จำนวน subpixel ขาว · <b>แถว = ค่า READ</b> (2<sup>counter</sup> แถว) · <b>คอลัมน์ = จำนวนขาว</b> (subpixel + 1 คอลัมน์) ·
+  สว่าง = น่าจะเป็น · READ 10 → 5 (รอง 4/6) (p41–43) · <b>ไม่ขึ้นกับภาพ</b> สร้างครั้งเดียว reuse (Example 11-5 · <code>flip_n_terms</code> + <code>peekProbability</code>) (p44)</p>
+
+  <h3>fingerprint (ลายนิ้วมือ) ของ QSS</h3>
+  <p>หน้าตาตารางบอกว่า QSS เก่งแค่ไหน · เพิ่ม subpixel = เพิ่มคอลัมน์ (Figure 11-15) · เพิ่ม counter = เพิ่มแถว (Figure 11-16) ·
+  ⚠️ สไลด์เขียน 16 columns ขัดกับ 17 → ที่ถูกคือ 17 (p45–47)</p>
+
+  <h3>confidence map (แผนที่ความมั่นใจ)</h3>
+  <p>เปิดแถวของค่า READ ดูว่าคำตอบกระจายแค่ไหน ทำทุก pixel · READ 0/1 มั่นใจมาก · 2/3/4 มั่นใจน้อย · Figure 11-17 สว่าง = น่าจะถูก (p48–49)</p>
+
+  <h3>bitplanes (ระนาบบิต) · one-bit monochrome (ขาวดำ 1 บิต)</h3>
+  <p>ยัดหลายระดับลง phase แล้ว Sum Estimation พัง → render ภาพขาวดำแยกทีละบิต/ channel แล้วรวม · R/G/B 3 plane = 8 สี →
+  supersample แล้วเทียบเท่า 12-bit-per-pixel (Figure 11-18) (p50–52)</p>
+
+  <h3>QIP representation อื่น (ชื่ออย่างเดียว)</h3>
+  <p>Qubit Lattice · FRQI · NEQR · GQIR → ใช้กับ template matching · edge detection · image classification · image translation (p54)</p>
+
   <h2>คำที่จะเจอในบทถัดไป (Lec 05–09, ยังไม่ต้องจำ)</h2>
   <p class="src">Quantum Fourier Transform (Lec 07) · phase estimation (Lec 08) · quantum data types (Lec 09)
   — จะเพิ่มนิยามเต็มเมื่อถึงบทนั้นๆ</p>

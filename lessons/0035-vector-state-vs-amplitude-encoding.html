@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0035 — เก็บ vector: state encoding vs amplitude encoding</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 09 · บทที่ 0035</div>
+  <h1>เก็บ vector: state encoding vs amplitude encoding</h1>
+  <p class="lead">บทที่แล้วเราโหลด<b>ตัวเลขทีละตัว</b>เข้า register (fixed point, RAM, QRAM) ·
+    บทนี้ขยับขึ้นอีกขั้นเป็น <b>vector (เวกเตอร์)</b> ซึ่งก็คือรายการตัวเลขหลายตัวเรียงกัน และเป็นข้อมูลที่เจอบ่อยมากใน quantum machine learning (p22) ·
+    มีวิธีเก็บอยู่ 2 แบบ: แบบตรงไปตรงมาที่<b>เปลือง qubit</b> กับแบบควอนตัมที่<b>ประหยัดมาก แต่มีเงื่อนไขซ่อนอยู่ 2 ข้อ</b></p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 3 อย่าง
+    ① <b>state encoding</b> = 1 component ใช้ 1 register (เปลือง qubit แต่ไม่ต้องมี QRAM)
+    ② <b>amplitude encoding</b> = ทุก component อยู่ใน amplitude ของ register เดียว ใช้แค่ ⌈log₂ n⌉ qubit
+    ③ ราคาที่ต้องจ่ายมี 2 ข้อ: <b>output อ่านทีละค่าไม่ได้</b> และ <b>vector ต้อง normalize</b> (พื้นที่วง = amplitude² ไม่ใช่ amplitude) ·
+    บทนี้<b>ไม่มีสัญลักษณ์วงจรใหม่</b> แต่ที่น่าจะออกสอบคือการ<b>นับ qubit</b> และการ<b>อ่านค่าจาก circle notation</b>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · เก็บ vector ได้ 2 แบบ (p22–29)</h2></div>
+
+  <h3>1.1 ตัวละครหลักของบท: v⃗ = [0, 1, 2, 3]</h3>
+  <p>สไลด์ใช้ vector ตัวเดียวกันตลอดคาบ (Equation 9-1, p22):</p>
+  <div class="eq">v⃗ = [0, 1, 2, 3]</div>
+  <p>vector นี้มี <b>4 component (ส่วนประกอบ)</b> คือ 0, 1, 2, 3 · คำถามคือจะทำให้ QPU register "แทน" vector นี้ได้ยังไง</p>
+
+  <h3>1.2 วิธีแรก: state encoding (การเข้ารหัสแบบสถานะ)</h3>
+  <p>วิธีที่ตรงไปตรงมาที่สุด: ให้<b>แต่ละ component มี register ของตัวเอง</b> แล้วเขียนค่าลงไปเป็นเลขฐานสองแบบที่เราทำมาตลอด (p22) ·
+    ค่าแต่ละตัวอยู่ในช่วง 0–3 → ใช้ register ละ 2 qubit · มี 4 component → <b>4 register × 2 qubit = 8 qubit</b> (Figure 9-6, p23)</p>
+
+  <div class="crow" data-n="4" data-r="16" data-lab="register 1 ← 0" data-mag="1,0,0,0"></div>
+  <div class="crow" data-n="4" data-r="16" data-lab="register 2 ← 1" data-mag="0,1,0,0"></div>
+  <div class="crow" data-n="4" data-r="16" data-lab="register 3 ← 2" data-mag="0,0,1,0"></div>
+  <div class="crow" data-n="4" data-r="16" data-lab="register 4 ← 3" data-mag="0,0,0,1"></div>
+  <p class="meta">Figure 9-6 · แต่ละ register อยู่ใน <b>basis state ตัวเดียว</b> (วงเต็มวงเดียว) ไม่มี superposition เลย</p>
+
+  <div class="analogy">
+    <div class="cell"><b>state encoding</b><small>เหมือนจดคะแนนนักเรียน 4 คนลงกระดาษ 4 แผ่น แผ่นละคะแนน · อ่านง่าย แต่เปลืองกระดาษ</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>คอมพิวเตอร์ธรรมดา</b><small>คือการเก็บ array ใน RAM ปกติ · QPU ก็แค่ทำหน้าที่เป็น "กล่องเก็บเลขฐานสอง" หลายกล่อง</small></div>
+  </div>
+
+  <p>ข้อดีข้อเสีย (p24):</p>
+  <div class="twocol">
+    <div class="c"><b>✔ ข้อดี</b><br>ไม่ต้องใช้ QRAM เลย · เก็บ component ไว้ใน RAM ธรรมดา แล้วใช้ค่าแต่ละตัวกำหนดว่าจะเตรียม register ไหนให้เป็นค่าอะไร
+      (ก็คือ <code class="code">write()</code> ทีละ register เหมือนบท <a href="0034-loading-real-data-fixed-point-ram-qram.html">0034</a>)</div>
+    <div class="c"><b>✘ ข้อเสีย</b><br>① <b>เปลือง qubit</b> ซึ่งเป็นทรัพยากรที่หายากที่สุดของ QPU ·
+      ② ข้อเสียที่ใหญ่ที่สุด: เก็บแบบนี้ก็เหมือนใช้ QPU เป็นแค่ binary register ธรรมดา → <b>ใช้ relative phase / superposition ไม่ได้</b> → ใช้ความสามารถพิเศษของ QPU ไม่ได้</div>
+  </div>
+
+  <h3>1.3 วิธีที่สอง: amplitude encoding (การเข้ารหัสลงแอมพลิจูด)</h3>
+  <p>ลองนึกย้อนไปว่า register ขนาด n qubit มีวงอยู่ <b>2ⁿ วง</b> และ<b>ทุกวงมี amplitude ของตัวเอง</b> (บท <a href="midterm/0003-amplitude-and-phase.html">0003</a>) ·
+    state encoding ใช้แค่วงเดียวต่อ register แล้วทิ้งวงที่เหลือว่างไว้ · ไอเดียของ amplitude encoding คือ<b>ใช้ทุกวงให้คุ้ม</b>:
+    เอา component ตัวที่ i ไปเป็น amplitude ของวง |i⟩ ใน <b>register เดียว</b> (p25)</p>
+
+  <div class="crow" data-n="4" data-r="20" data-lab="v⃗ = [0,1,2,3] →" data-mag="0,0.0714,0.2857,0.6429" data-sub="amp ∝ 0,amp ∝ 1,amp ∝ 2,amp ∝ 3"></div>
+  <p class="meta">Figure 9-7 · register <b>2 qubit</b> เดียว · วง |3⟩ ใหญ่สุดเพราะ component ตัวที่ 3 มีค่ามากสุด · (ขนาดวงที่วาดตรงนี้ normalize แล้ว ซึ่งจะอธิบายในส่วนที่ 2)</p>
+
+  <div class="box aha">
+    <b>ประโยคทอง</b>: state encoding เก็บค่าไว้ใน<b>ว่าวงไหนเต็ม</b> · amplitude encoding เก็บค่าไว้ใน<b>ว่าแต่ละวงใหญ่แค่ไหน</b> ·
+    vector ที่มี n component ใช้แค่ <b>⌈log₂ n⌉ qubit</b> (เพราะต้องมีวงอย่างน้อย n วง)
+  </div>
+
+  <div class="box mathref">
+    <b>ทบทวนคณิต: ⌈log₂ n⌉</b> แปลว่า "ต้องยก 2 กำลังเท่าไรถึงจะได้อย่างน้อย n" แล้วปัดขึ้น ·
+    n = 4 → 2² = 4 → <b>2 qubit</b> · n = 8 → 2³ = 8 → <b>3 qubit</b> · n = 5 → 2² = 4 ไม่พอ ต้องใช้ 2³ = 8 → <b>3 qubit</b> (วงที่เกินมาปล่อย amplitude เป็น 0) ·
+    ข้อสังเกต: n = 1,000,000 → แค่ <b>20 qubit</b> (2²⁰ ≈ 1.05 ล้าน) · state encoding จะต้องใช้ล้าน register!
+  </div>
+
+  <div class="box warn">
+    <b>สไลด์เขียนไม่ชัด (p25)</b>: สไลด์เขียน <code class="code">ceil(log(n))</code> โดย<b>ไม่บอกฐาน</b> · ที่ถูกคือ <b>log ฐาน 2</b> ·
+    และสไลด์ใช้ตัว n ซ้ำกันทั้ง "n qubit มี 2ⁿ amplitude" กับ "vector n component" ซึ่งเป็นคนละ n · ตอนสอบเขียน <code class="code">⌈log₂ n⌉</code> โดย n = จำนวน component
+  </div>
+
+  <h3>1.4 Table 9-1: เทียบ 3 vector (p27)</h3>
+  <table class="cmp">
+    <thead><tr><th>vector</th><th>amplitude encoding</th><th>state encoding</th></tr></thead>
+    <tbody>
+      <tr><td data-label="vector">[0, 1, 2, 3]</td><td data-label="amplitude encoding">register 2 qubit × 1 = <b>2 qubit</b></td><td data-label="state encoding">ค่าสูงสุด 3 → 2 qubit × 4 = <b>8 qubit</b></td></tr>
+      <tr><td data-label="vector">[6, 1, 1, 4]</td><td data-label="amplitude encoding">register 2 qubit × 1 = <b>2 qubit</b></td><td data-label="state encoding">ค่าสูงสุด 6 → 3 qubit × 4 = <b>12 qubit</b></td></tr>
+      <tr><td data-label="vector">[0.52, 0.77, 0.26, 0.26]</td><td data-label="amplitude encoding">register 2 qubit × 1 = <b>2 qubit</b></td><td data-label="state encoding">fixed point 7 qubit × 4 = <b>28 qubit</b></td></tr>
+    </tbody>
+  </table>
+  <p>สังเกตว่า<b>ฝั่ง amplitude encoding ใช้ 2 qubit เท่าเดิมทุกแถว</b> เพราะจำนวน qubit ขึ้นกับ<i>จำนวน</i> component อย่างเดียว ไม่ขึ้นกับ<i>ขนาด</i>ของค่า ·
+    ส่วน state encoding ต้องขยาย register ตามค่าที่ใหญ่ที่สุดและตามความละเอียดของทศนิยม</p>
+  <p>แถว [6, 1, 1, 4] ในฝั่ง state encoding ต้องใช้ register 3 qubit (มี 8 วง) ต่อ component:</p>
+  <div class="crow" data-n="8" data-r="13" data-lab="← 6" data-mag="0,0,0,0,0,0,1,0"></div>
+  <div class="crow" data-n="8" data-r="13" data-lab="← 1" data-mag="0,1,0,0,0,0,0,0"></div>
+  <div class="crow" data-n="8" data-r="13" data-lab="← 1" data-mag="0,1,0,0,0,0,0,0"></div>
+  <div class="crow" data-n="8" data-r="13" data-lab="← 4" data-mag="0,0,0,0,1,0,0,0"></div>
+  <p>ส่วนฝั่ง amplitude encoding ของแถวเดียวกันคือ register 2 qubit เดียว (วง |0⟩ ใหญ่สุด, |3⟩ รองลงมา, |1⟩ กับ |2⟩ เล็กนิดเดียว):</p>
+  <div class="crow" data-n="4" data-r="20" data-lab="[6,1,1,4] →" data-mag="0.6667,0.0185,0.0185,0.2963"></div>
+
+  <div class="box warn">
+    <b>สไลด์ผิด 2 จุดในแถวที่ 3 (p26–27)</b> · ตอบตามสไลด์ตอนสอบ แต่รู้ของจริงไว้:
+    ① ฝั่ง state encoding สไลด์เขียน 0.52 → |52⟩, 0.77 → |77⟩, 0.26 → |26⟩ ซึ่งคือการ<b>คูณ 100</b> ไม่ใช่ fixed point ฐานสอง
+    (ถ้าใช้ 7 บิตเป็นเศษจริงตามบท 0034 จะได้ 0.52 × 128 ≈ 67 → |67⟩) ·
+    ② สไลด์เรียกว่า <b>"Q7.7"</b> แต่ register มี 7 qubit · ตาม convention ของบท 0034 (Qn.m = n บิต เศษ m บิต) register 7 qubit ที่เป็นเศษทั้งหมดน่าจะหมายถึงแบบนั้น แต่ Q7.7 ในตำราอื่นแปลว่า 14 บิต · <b>ตัวเลข 28 qubit ถูกแล้ว</b>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q"><b>ลองนับเอง</b>: vector <code class="code">[5, 0, 7, 2, 1, 3, 6, 4]</code> (8 component ค่าอยู่ในช่วง 0–7) ·
+      ถ้าเก็บแบบ amplitude encoding กับ state encoding จะใช้กี่ qubit ตามลำดับ?</div>
+    <button class="opt">8 qubit กับ 24 qubit</button>
+    <button class="opt">3 qubit กับ 8 qubit</button>
+    <button class="opt">3 qubit กับ 24 qubit</button>
+    <button class="opt">8 qubit กับ 3 qubit</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · amplitude: ต้องมี 8 วง → 2³ → <b>3 qubit</b> · state: ค่าสูงสุด 7 ต้องใช้ 3 qubit ต่อ register × 8 register = <b>24 qubit</b> · ต่างกัน 8 เท่า และยิ่ง vector ยาวยิ่งต่างมาก</div>
+    <div class="fb no" data-for="no">ลองแยกคิดทีละฝั่งนะคะ · amplitude encoding: ต้องมีวงอย่างน้อย 8 วง → กี่ qubit? · state encoding: ค่า 7 ต้องใช้กี่บิต แล้วมีกี่ component?</div>
+  </div>
+
+  <h3>1.5 ในโค้ด: <code class="code">amplitude_encode()</code> (Example 9-3, p28)</h3>
+  <p>QCEngine มีฟังก์ชันสำเร็จรูป รับ array ของ vector กับ register ที่ใหญ่พอ แล้วเตรียม register ให้อยู่ใน amplitude encoding ของ vector นั้น:</p>
+<pre class="code-blk">// We have ensured that our input vector has a length
+// that is a power of two
+var vector = [-1.0, 1.0, 1.0, 5.0, 5.0, 6.0, 6.0, 6.0];
+// Create register of right size to amplitude-encode vector
+var num_qubits = Math.log2(vector.length);   // 8 component → 3 qubit
+qc.reset(num_qubits);
+var amp_enc_reg = qint.new(num_qubits, 'amp_enc_reg');
+// Generate amplitude encoding in amp_enc_reg
+amplitude_encode(vector, amp_enc_reg);</pre>
+  <ul>
+    <li>คอมเมนต์บรรทัดแรกบอกว่า vector <b>ยาวเป็นกำลังของ 2</b> → <code class="code">Math.log2</code> ได้จำนวนเต็มพอดี (ถ้าไม่ใช่ก็ต้องปัดขึ้นและเติม 0 เอง)</li>
+    <li>component แรกเป็น <b>−1.0</b> → amplitude ติดลบ = <b>phase 180°</b> (เข็มชี้ลง) · นี่คือสิ่งที่ state encoding ทำไม่ได้: เครื่องหมายไปอยู่ใน phase ได้ตรงๆ</li>
+  </ul>
+  <p>สไลด์ไม่ได้แสดงผลลัพธ์ · คาโฮะคำนวณเองว่าหลัง normalize (หารด้วย √161 ≈ 12.69 ซึ่งจะอธิบายในส่วนที่ 2) จะได้ register หน้าตาประมาณนี้:</p>
+  <div class="crow" data-n="8" data-r="18" data-lab="amp_enc_reg" data-phase="180,0,0,0,0,0,0,0"
+       data-mag="0.0062,0.0062,0.0062,0.1553,0.1553,0.2236,0.2236,0.2236" data-hl="0"
+       data-sub="−0.08,0.08,0.08,0.39,0.39,0.47,0.47,0.47"></div>
+  <p class="meta">ตัวเลขใต้วง = amplitude · วง |0⟩ (ส้ม) เล็กเท่า |1⟩ |2⟩ แต่<b>เข็มชี้ลง</b> เพราะ amplitude ติดลบ</p>
+
+  <div class="box warn">
+    <b>typo ในสไลด์ (p28–29)</b>: <code class="code">'amp_enc_reg’</code> ปิดด้วย smart quote (’) ซึ่ง JavaScript จะ error · โค้ดข้างบนแก้เป็น <code class="code">'</code> แล้ว
+  </div>
+
+  <h3>1.6 เดี๋ยวนะ QCEngine ไม่มี QRAM แล้วทำได้ยังไง? (p29)</h3>
+  <p>vector ถูกส่งเข้าไปเป็น <b>JavaScript array ที่อยู่ใน RAM ธรรมดา</b> แต่การโหลดข้อมูลเป็น superposition ควรต้องใช้ QRAM (บท <a href="0034-loading-real-data-fixed-point-ram-qram.html">0034</a>) ·
+    คำตอบของสไลด์คือ: สร้างวงจร amplitude encoding <b>โดยไม่มี QRAM ก็ทำได้ แต่ทำแบบ efficient ไม่ได้</b> ·
+    <code class="code">amplitude_encode()</code> ใน QCEngine จึงเป็น<b>การจำลองที่ช้าแต่ใช้งานได้</b> ของสิ่งที่จะทำได้เร็วถ้ามี QRAM จริง</p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">ข้อไหนอธิบาย <code class="code">amplitude_encode()</code> ใน QCEngine ได้ตรงกับสไลด์ที่สุด?</div>
+    <button class="opt">ใช้ QRAM ที่ซ่อนอยู่ในตัว simulator จริงๆ</button>
+    <button class="opt">สร้างวงจรเองโดยไม่มี QRAM แต่ไม่ efficient</button>
+    <button class="opt">ใช้ state encoding แล้วค่อยแปลงเป็น amplitude</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · ไม่มี QRAM ก็สร้างได้ แต่ต้นทุนสูง · QCEngine จึงเป็น "การจำลองที่ช้า" ของ QRAM ไม่ใช่ QRAM จริง</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · สไลด์ p29 บอกว่าทำได้โดย<b>ไม่มี QRAM</b> แต่มีจุดอ่อนอยู่ข้อนึง ลองนึกว่าข้อไหนพูดถึงจุดอ่อนนั้น</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · ราคาที่ต้องจ่าย: caveat 2 ข้อ (p30–39)</h2></div>
+
+  <p>amplitude encoding ดูดีมาก: ประหยัด qubit และจัดการ vector แบบควอนตัมจริงๆ · แต่ทุก application ที่ใช้มันต้องเจอ <b>caveat (ข้อควรระวัง) 2 ข้อ</b> (p30):</p>
+  <div class="reasons">
+    <div class="r"><b>Caveat 1</b><br>Beware of quantum outputs · ระวัง output ที่เป็นควอนตัม</div>
+    <div class="r"><b>Caveat 2</b><br>The requirement for normalized vectors · vector ต้อง normalize</div>
+  </div>
+
+  <h3>2.1 Caveat 1: output ที่เป็นควอนตัมอ่านไม่ได้ (p31–33)</h3>
+  <p>ย้อนไปพื้นฐานจาก Lec 02: <b>READ แล้วได้ผลลัพธ์เดียวแบบสุ่ม และ superposition ยุบ</b> · ถ้า vector ถูกกระจายไว้ใน amplitude ของ superposition
+    เราจะ<b>อ่านค่าแต่ละ component กลับออกมาไม่ได้</b> (สไลด์ใช้คำว่า un-READable)</p>
+  <div class="twocol">
+    <div class="c"><b>ตอนเป็น input · ไม่ค่อยมีปัญหา</b><br>เราโหลดมาจาก memory เอง → <b>รู้ทุก component อยู่แล้ว</b> ไม่จำเป็นต้องอ่านกลับ</div>
+    <div class="c"><b>ตอนเป็น output · มีปัญหา</b><br>app ที่รับ input เป็น amplitude-encoded vector มักให้ <b>output เป็น amplitude-encoded vector</b> ด้วย → คำตอบติดอยู่ใน amplitude ที่อ่านออกมาตรงๆ ไม่ได้</div>
+  </div>
+
+  <div class="analogy">
+    <div class="cell"><b>amplitude-encoded output</b><small>ข้อมูลล้านตัวอยู่ใน register 20 qubit แต่ READ ได้ทีละ "เลขวง" เดียวแบบสุ่ม แล้วของทั้งหมดหายไป</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>ห้องสมุดที่ยืมได้เล่มเดียว</b><small>หนังสือล้านเล่มอยู่ในห้องเดียว แต่ได้ยืมแค่ 1 เล่มแบบจับฉลาก แล้วห้องสมุดก็ปิดถาวร</small></div>
+  </div>
+
+  <p>แต่ไม่ใช่ว่าไร้ประโยชน์: แม้จะรู้<b>ค่าทีละ component</b> ไม่ได้ แต่ยังรู้ <b>global properties (คุณสมบัติภาพรวม)</b> ของ vector ได้ (สไลด์บอกว่าจะเห็นในบทหลังๆ) ·
+    ซึ่งก็คือแนวคิดเดียวกับที่เราใช้มาตลอดใน QFT และ phase estimation: ไม่ได้อ่านทุก amplitude แต่จัดการให้<b>คำตอบที่ต้องการไปรวมอยู่ในวงที่ READ ได้</b> ·
+    สไลด์สรุปว่า <b>"no free lunch"</b> คือไม่มีของฟรี ต้องใช้ความระมัดระวังและความเจ้าปัญญา (p32)</p>
+
+  <div class="box aha">
+    <b>นิสัยที่สไลด์อยากให้มี (p33)</b>: เห็น quantum machine learning app ไหนอ้างว่า<b>เร็วกว่าแบบดั้งเดิมมหาศาล</b> ·
+    ให้ถามทันทีว่า <b>"output ของมันเป็น quantum output หรือเปล่า?"</b> ถ้าใช่ ต้องถามต่อว่าจะดึงคำตอบที่ใช้ได้จริงออกมายังไง เพราะการอ่านอาจกินความเร็วที่ได้มาจนหมด
+  </div>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">มีคนอ้างว่าวงจรของเขา "คูณ matrix กับ vector ขนาดล้านตัวได้ในเวลาแค่ไม่กี่ขั้น" และ output อยู่ใน amplitude ของ register 20 qubit ·
+      ตาม Caveat 1 ข้อไหนเป็นคำถามที่ควรถามกลับมากที่สุด?</div>
+    <button class="opt">register 20 qubit เก็บล้าน component ได้จริงหรือ</button>
+    <button class="opt">ทำไมไม่ใช้ state encoding กับ vector นี้แทน</button>
+    <button class="opt">vector ล้านตัวนั้น normalize มาแล้วหรือยัง</button>
+    <button class="opt">จะอ่านคำตอบที่ใช้ได้จริงออกมาจาก output ยังไง</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · 20 qubit เก็บได้จริง (2²⁰ ≈ ล้าน) แต่ READ ได้แค่ผลเดียวแล้วยุบ · ถ้าต้องการ component ทุกตัว ความเร็วที่อ้างก็ไม่มีความหมาย · ต้องรู้ว่าดึงคำตอบออกมายังไง (เช่นถามแค่ global property)</div>
+    <div class="fb no" data-for="no">ข้อนั้นก็เป็นคำถามที่ถามได้ค่ะ แต่ไม่ใช่ประเด็นของ Caveat 1 · Caveat 1 พูดถึง<b>ปลายทาง</b>ของวงจร: ตอนจบคำตอบอยู่ใน amplitude แล้วเราทำอะไรกับมันได้บ้าง?</div>
+  </div>
+
+  <h3>2.2 Caveat 2: vector ต้อง normalize (p34–36)</h3>
+  <p>คำถามจากสไลด์ (p34): amplitude ของ register 2 qubit เป็น [0, 1, 2, 3] หรือ [6, 1, 1, 4] <b>ได้จริงไหม?</b> → <b>ไม่ได้</b> ·
+    เพราะมีกฎที่เราเผลอลืมไปตอนใช้ circle notation ที่เน้นภาพ:</p>
+  <div class="eq">|a₀|² + |a₁|² + … + |aₙ₋₁|² = 1</div>
+  <p><b>ทำไม?</b> เพราะ |amplitude|² ของแต่ละวง = <b>ความน่าจะเป็น</b>ที่ READ แล้วได้ค่านั้น และ READ แล้วต้องได้<i>สักค่า</i>แน่นอน → ความน่าจะเป็นรวมต้องเป็น 100% ·
+    กฎนี้เรียกว่า <b>normalization (การทำให้เป็นหน่วย)</b> (p35) · [0, 1, 2, 3] ได้ 0² + 1² + 2² + 3² = <b>14 ≠ 1</b> → กฎฟิสิกส์ไม่ยอมให้มี register แบบนี้</p>
+
+  <p><b>วิธีแก้</b> (p36): หารทุก component ด้วย<b>ความยาวของ vector</b> ซึ่งก็คือ √(ผลรวมกำลังสอง):</p>
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> ผลรวมกำลังสอง: 0² + 1² + 2² + 3² = 0 + 1 + 4 + 9 = <b>14</b></div>
+    <div class="step"><span class="lbl">②</span> ตัวหาร = √14 ≈ <b>3.74</b> (เรียกว่า <b>normalization factor</b>)</div>
+    <div class="step"><span class="lbl">③</span> [0, 1, 2, 3] ÷ 3.74 = <b>[0.00, 0.27, 0.53, 0.80]</b></div>
+    <div class="step"><span class="lbl">④</span> เช็ค: 0² + 0.27² + 0.53² + 0.80² ≈ 0 + 0.07 + 0.28 + 0.64 ≈ <b>1</b> ✓</div>
+  </div>
+
+  <div class="box warn">
+    <b>สไลด์ใช้คำผิด (p36)</b>: สไลด์เขียนว่า "หารด้วย <i>summed squares</i>" แต่ summed squares ของ [0,1,2,3] คือ <b>14</b> ไม่ใช่ 3.74 ·
+    ตัวเลข 3.74 ในสไลด์คือ <b>√14</b> ซึ่งถูกต้อง · <b>ตัวเลขถูก แต่ถ้อยคำผิด</b> → ตอนสอบให้หารด้วย <b>√(ผลรวมกำลังสอง)</b> เสมอ
+  </div>
+
+  <p><b>normalize แล้วข้อมูลเสียไหม?</b> (p36) ส่วนใหญ่ไม่เสีย: ในเชิงเรขาคณิตมันแค่<b>ย่อความยาวของลูกศร แต่ทิศทางเหมือนเดิม</b> · สัดส่วนระหว่าง component ยังอยู่ครบ (0.80 ยังเป็น 3 เท่าของ 0.27) ·
+    ถ้า app ต้องการความยาวเดิมด้วย ก็<b>เก็บ normalization factor (3.74) ไว้ใน register อื่น</b>ได้เสมอ · ส่วนจะ "ดีพอ" ไหมขึ้นกับว่า app ต้องการอะไร</p>
+
+  <div class="analogy">
+    <div class="cell"><b>normalize vector</b><small>หารทุกตัวด้วยความยาว · ลูกศรสั้นลงเหลือยาว 1 แต่ชี้ไปทางเดิม</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>ย่อรูปแผนที่</b><small>ย่อแผนที่ลงกระดาษ A4 · ระยะจริงหายไป แต่สัดส่วนและทิศทางครบ · จดมาตราส่วน (factor) ไว้มุมกระดาษก็กู้ระยะจริงคืนได้</small></div>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q"><b>ลองคำนวณเอง</b>: amplitude-encode vector <code class="code">[6, 1, 1, 4]</code> (แถว 2 ของ Table 9-1) ลง register 2 qubit แล้ว READ ·
+      ความน่าจะเป็นที่จะได้ |0⟩ คือเท่าไร?</div>
+    <button class="opt">ประมาณ 67%</button>
+    <button class="opt">ประมาณ 82%</button>
+    <button class="opt">ประมาณ 50%</button>
+    <button class="opt">ประมาณ 11%</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · ผลรวมกำลังสอง = 36 + 1 + 1 + 16 = 54 · amplitude ของ |0⟩ = 6/√54 ≈ 0.82 · <b>ความน่าจะเป็น = 0.82² = 36/54 ≈ 67%</b> · ทางลัด: ความน่าจะเป็น = (component²) ÷ (ผลรวมกำลังสอง) ไม่ต้องถอดรูทเลย</div>
+    <div class="fb no" data-for="no">ลองทีละขั้นค่ะ: ① หาผลรวมกำลังสองของทั้ง 4 ตัว ② amplitude ของ |0⟩ = 6 ÷ √(ผลรวมนั้น) ③ <b>อย่าลืมยกกำลังสอง</b>เพื่อให้เป็นความน่าจะเป็น (ถ้าได้ 82% แปลว่าหยุดที่ amplitude)</div>
+  </div>
+
+  <h3>2.3 circle notation: พื้นที่ = amplitude² (p37–38)</h3>
+  <p>นี่คือจุดที่สไลด์ย้ำถึง 2 หน้า: <b>พื้นที่ที่ระบายในวง = |amplitude|²</b> ไม่ใช่ตัว amplitude · ในกรณี amplitude encoding ของ vector จำนวนจริง แปลว่า
+    <b>พื้นที่ = (component)²</b> ไม่ใช่ component</p>
+  <div class="crow" data-n="4" data-r="24" data-lab="Figure 9-8" data-mag="0,0.0714,0.2857,0.6429"
+       data-sub="0.00² = 0,0.27² ≈ 0.07,0.53² ≈ 0.28,0.80² = 0.64"></div>
+  <p class="meta">Figure 9-8 · [0, 1, 2, 3] หลัง normalize = [0.00, 0.27, 0.53, 0.80] · ตัวเลขใต้วง = พื้นที่ระบาย · เข็มชี้ขึ้นทุกวงเพราะ amplitude เป็นบวกทั้งหมด (phase 0°)</p>
+
+  <p>ลองดู |1⟩ กับ |3⟩: component ต่างกัน <b>3 เท่า</b> (0.27 กับ 0.80) แต่พื้นที่ต่างกัน <b>9 เท่า</b> (0.07 กับ 0.64) · ถ้าดูด้วยตาแล้วคิดว่า "ใหญ่กว่า 9 เท่า = ค่ามากกว่า 9 เท่า" จะผิดทันที ·
+    สไลด์จึงเตือนว่าเวลาประมาณ amplitude จากรูป<b>ต้องถอดรูทเอง</b> (p38)</p>
+
+  <div class="box mathref">
+    <b>สูตรถอดค่าจากรูป</b>: อ่านพื้นที่ (เป็นสัดส่วนของวงเต็ม) แล้วถอดรูท → |amplitude| = √(พื้นที่) ·
+    เช่น ระบายครึ่งวง → √0.5 ≈ 0.71 · ระบาย ¼ วง → √0.25 = 0.5 · ส่วนเครื่องหมาย/phase อ่านจากเข็ม
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ใน circle notation ของ amplitude-encoded vector (จำนวนจริง) วง |2⟩ ระบายพื้นที่ <b>¼ ของวง</b> และเข็มชี้<b>ลง</b> · component ตัวที่ 2 (หลัง normalize) มีค่าเท่าไร?</div>
+    <button class="opt">+0.25</button>
+    <button class="opt">−0.25</button>
+    <button class="opt">−0.50</button>
+    <button class="opt">+0.50</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · ขนาด = √¼ = 0.5 · เข็มชี้ลง = phase 180° = เครื่องหมายลบ → <b>−0.50</b> (เหมือน −1.0 ใน Example 9-3)</div>
+    <div class="fb no" data-for="no">มีอยู่ 2 ขั้นค่ะ: ① พื้นที่คือ amplitude² → ต้องถอดรูท ¼ ② เข็มชี้ลงแปลว่า phase เท่าไร และ phase นั้นหมายถึงเครื่องหมายอะไรสำหรับจำนวนจริง</div>
+  </div>
+
+  <h3>2.4 ทำไมชื่อ <i>amplitude</i> encoding ไม่ใช่ <i>magnitude</i> encoding (p39)</h3>
+  <p>ตัวอย่างที่ผ่านมามีแต่จำนวนจริง · แต่ amplitude ของแต่ละวงมีทั้ง <b>magnitude (ขนาด)</b> และ <b>relative phase (เฟสสัมพัทธ์)</b> → amplitude เป็น<b>จำนวนเชิงซ้อน</b>ได้ ·
+    แปลว่า amplitude encoding เก็บ <b>vector เชิงซ้อน (ที่ normalize แล้ว)</b> ได้ด้วย · ชื่อจึงเป็น <i>amplitude</i> encoding (ใช้ทั้งขนาดและ phase) ไม่ใช่ <i>magnitude</i> encoding (ใช้แค่ขนาด) ·
+    สไลด์บอกว่าจะไม่ทำตัวอย่างแบบเชิงซ้อนให้ดู · ตัวอย่างข้างล่างคาโฮะทำเพิ่มเอง:</p>
+  <div class="crow" data-n="2" data-r="22" data-lab="[0.6, 0.8i] →" data-mag="0.36,0.64" data-phase="0,90" data-sub="0.6 (0°),0.8i (90°)"></div>
+  <p class="meta">0.6² + 0.8² = 0.36 + 0.64 = 1 ✓ · component ที่สองเป็นจำนวนจินตภาพ → เข็มหมุนไป 90° · state encoding เก็บแบบนี้ไม่ได้เลย</p>
+
+  <p>ปิดท้ายสไลด์ (p38) ปูทางต่อ: หลาย app (โดยเฉพาะ quantum machine learning) ต้องจัดการ <b>matrix (array 2 มิติ)</b> ไม่ใช่แค่ vector → คำถามของบทหน้าคือ<b>จะ encode matrix ยังไง</b></p>
+
+  <!-- ============================================================ -->
+  <details class="recall"><summary>ทดสอบความจำก่อนปิดบท (พยายามตอบเองก่อนเปิด)</summary>
+    <ol>
+      <li>state encoding กับ amplitude encoding เก็บค่าไว้ที่ไหนของ register? → ว่าวงไหนเต็ม (register ละ component) / ขนาดของทุกวง (register เดียว)</li>
+      <li>vector 16 component ใช้ amplitude encoding กี่ qubit? → ⌈log₂ 16⌉ = 4</li>
+      <li>ข้อดีเดียวของ state encoding คืออะไร? → ไม่ต้องใช้ QRAM</li>
+      <li>QCEngine ทำ <code class="code">amplitude_encode()</code> ได้ทั้งที่ไม่มี QRAM เพราะอะไร? → ทำได้โดยไม่มี QRAM แต่ไม่ efficient (เป็นการจำลองที่ช้า)</li>
+      <li>Caveat 1 คืออะไร และตอนไหนไม่เป็นปัญหา? → quantum output อ่านทีละ component ไม่ได้ · ตอนเป็น input ไม่เป็นปัญหาเพราะรู้ค่าอยู่แล้ว</li>
+      <li>normalize [0, 1, 2, 3] ต้องหารด้วยอะไร? → √14 ≈ 3.74 (สไลด์เขียน "summed squares" ซึ่งผิด)</li>
+      <li>วงระบายครึ่งวง amplitude เท่าไร? → √0.5 ≈ 0.71</li>
+      <li>ทำไมชื่อ amplitude ไม่ใช่ magnitude encoding? → เก็บ phase ได้ด้วย → เก็บ vector เชิงซ้อนได้</li>
+    </ol>
+  </details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li><b>state encoding</b>: component ละ 1 register เป็น basis state · v⃗ = [0,1,2,3] ใช้ 8 qubit (Figure 9-6) · ไม่ต้องมี QRAM แต่เปลือง qubit และใช้ phase/superposition ไม่ได้</li>
+    <li><b>amplitude encoding</b>: component i → amplitude ของวง |i⟩ ใน register เดียว · ใช้ <b>⌈log₂ n⌉ qubit</b> (Figure 9-7) · Table 9-1: 2 qubit เทียบ 8 / 12 / 28</li>
+    <li><code class="code">amplitude_encode(vector, reg)</code> · ค่าติดลบ → phase 180° · QCEngine ทำได้โดยไม่มี QRAM แต่<b>ไม่ efficient</b></li>
+    <li><b>Caveat 1</b>: quantum output อ่านทีละ component ไม่ได้ · ได้แค่ <b>global properties</b> · "no free lunch" · เห็น QML อ้าง speedup ให้เช็คว่า output เป็น quantum ไหม</li>
+    <li><b>Caveat 2</b>: Σ|aᵢ|² = 1 → หารด้วย √(ผลรวมกำลังสอง) · [0,1,2,3] ÷ 3.74 = [0, 0.27, 0.53, 0.80] · ทิศไม่เปลี่ยน · เก็บ factor ไว้ register อื่นได้</li>
+    <li>circle notation: <b>พื้นที่ = amplitude²</b> (Figure 9-8) → ถอดรูทเสมอ · amplitude เป็นเชิงซ้อนได้ → ชื่อ <i>amplitude</i> encoding</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 9 <i>Real Data</i> หัวข้อ <i>Vector Encodings</i> และ <i>Limitations of Amplitude Encoding</i> (Figure 9-6 ถึง 9-8, Table 9-1) ·
+      รันโค้ดเองได้ที่ <a href="https://oreilly-qc.github.io?p=9-3">QCEngine: Example 9-3</a> — ลองแก้ vector เป็น [0, 1, 2, 3] แล้วดูว่าวงหน้าตาเหมือน Figure 9-8 ไหม ·
+      สไลด์ <code class="code">QuantumProg_Lec09.pdf</code> หน้า 22–39</p>
+    <p><b>บทก่อนหน้า</b>: <a href="0034-loading-real-data-fixed-point-ram-qram.html">0034 · โหลดข้อมูลจริงเข้า register</a> ·
+      <b>บทถัดไป</b>: <a href="0036-matrix-encoding-quantum-simulation.html">0036 · เก็บ matrix: quantum simulation</a></p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="midterm/0003-amplitude-and-phase.html">0003 · amplitude และ phase</a> ·
+      <a href="midterm/0008-multi-qubit-registers.html">0008 · register หลาย qubit</a> ·
+      <a href="0034-loading-real-data-fixed-point-ram-qram.html">0034 · fixed point และ QRAM</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① ทำไม 20 qubit เก็บได้ล้านค่า แต่ก็ "ใช้" ล้านค่านั้นไม่ได้
+      ② ตอนไหนต้องยกกำลังสอง ตอนไหนต้องถอดรูท
+      ③ "global properties" หน้าตาเป็นยังไงในทางปฏิบัติ
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

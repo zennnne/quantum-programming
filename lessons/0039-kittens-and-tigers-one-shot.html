@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0039 — ปริศนาลูกแมว/เสือ: รันครั้งเดียวต้องถูก</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+<script defer src="../assets/logicgate.js"></script>
+<script defer src="../assets/mirrorplot.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 10 · บทที่ 0039</div>
+  <h1>ปริศนาลูกแมว/เสือ: รันครั้งเดียวต้องถูก</h1>
+  <p class="lead">บท <a href="0038-magnitude-first-phase-last.html">0038</a> เราได้ทริก <b>"magnitude ก่อน phase ทีหลัง"</b> มาแล้ว
+    แต่ยังหยุดอยู่แค่การ <i>mark</i> คำตอบไว้ใน phase ซึ่งยังอ่านออกมาไม่ได้ ·
+    บทนี้จะเอาทริกนั้นไปแก้<b>ปริศนาจริง</b> แล้วต่อด้วย <b>mirror</b> ของ AA จนอ่านคำตอบออกมาได้ <b>100%</b> ·
+    นี่เป็นครั้งแรกที่เราได้เห็น Quantum Search ทำงานครบตั้งแต่ต้นจนจบ</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 4 อย่าง
+    ① <b>SAT</b> คือคำถามว่า "มี input ไหนทำให้ประโยค logic เป็นจริงบ้าง" ซึ่ง phase logic ตอบได้ตรงตัว
+    ② แปลงปริศนาเป็นวงจร: ป้าย 2 แผ่นกับกติกาของพระราชา = <b>OR · NOT · XNOR</b>
+    ③ ถ้าใช้คอมพิวเตอร์ธรรมดาแล้ว<b>รันได้ครั้งเดียว</b> โอกาสถูกมีแค่ <b>25%</b>
+    ④ QPU: OR, NOT ใช้ magnitude logic → XNOR ใช้ phase logic ผ่าน <b>kickback</b> → uncompute → mirror → <b>100%</b>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · ปริศนา และเหตุผลที่คอมพิวเตอร์ธรรมดาแก้ไม่ได้ (p22–30)</h2></div>
+
+  <h3>1.1 SAT: โจทย์ที่ phase logic เกิดมาเพื่อตอบ</h3>
+  <p>ทวนบท 0037: phase logic <b>พลิก phase ของทุกค่าที่ satisfy</b> (ทำให้ประโยคเป็นจริง) ·
+    ทีนี้ถ้าเราตั้งคำถามกลับด้านว่า <i>"มีค่าไหนบ้างไหมที่ทำให้ประโยคนี้เป็นจริง"</i> คำถามนี้มีชื่อเรียกว่า
+    <b>boolean satisfiability</b> (ปัญหาความสอดคล้องบูลีน) หรือเรียกย่อว่า <span class="term">SAT</span> (p22)</p>
+  <div class="analogy">
+    <div class="cell"><b>phase logic</b><small>ใส่ทุก input เข้าไปพร้อมกัน แล้วแอบทำเครื่องหมาย (ด้วยหมึกล่องหน) ไว้ที่ input ที่ทำให้ประโยคเป็นจริง</small></div>
+    <div class="arrow">+</div>
+    <div class="cell"><b>AA (ไฟ UV)</b><small>ขยายตัวที่มีเครื่องหมายให้ magnitude ใหญ่ขึ้น จนตอน READ มีโอกาสสูงที่จะได้ตัวนั้น = <b>ตอบ SAT</b></small></div>
+  </div>
+  <p>SAT ไม่ได้มีไว้แก้ปริศนาเล่นๆ อย่างเดียว ในวิทยาการคอมพิวเตอร์ใช้กันจริงใน <b>model checking</b> (การตรวจโมเดลของระบบ) ·
+    <b>planning</b> ใน AI (การวางแผน) · <b>software verification</b> (การพิสูจน์ว่าโปรแกรมทำงานถูก) (p22) ·
+    แต่สไลด์เลือกเริ่มจากปริศนาก่อนเพราะเห็นภาพง่ายกว่า</p>
+
+  <h3>1.2 ปริศนาวันเกิดของเจ้าหญิง</h3>
+  <p>เจ้าหญิงอยากได้ลูกแมวเป็นของขวัญวันเกิด พระราชาเลยให้<b>ปริศนา</b>แทน (p23–25):</p>
+  <div class="work">
+    <div class="step"><span class="lbl">กติกา</span> มีกล่อง 2 ใบคือ <b>A</b> กับ <b>B</b> · แต่ละใบมี <b>ลูกแมว</b> 🐱 หรือ <b>เสือดุ</b> 🐯 · เปิดได้<b>ใบเดียว</b></div>
+    <div class="step"><span class="lbl">ป้ายกล่อง A</span> "อย่างน้อย 1 กล่องมีลูกแมว" <small>(At least one of these boxes contains a kitten.)</small></div>
+    <div class="step"><span class="lbl">ป้ายกล่อง B</span> "อีกกล่องหนึ่งมีเสือ" <small>(The other box contains a tiger.)</small> → อีกกล่องก็คือกล่อง A</div>
+    <div class="step"><span class="lbl">twist</span> เจ้าหญิงบอกว่า "ง่าย!" พระราชาเลยเติมว่า <b>"ป้ายทั้งสองแผ่น จริงทั้งคู่ หรือ เท็จทั้งคู่"</b></div>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">ลองแก้เองก่อนอ่านต่อ (ทดในกระดาษได้): ต้องเป็นแบบไหน ป้ายทั้งสองแผ่นถึงจะ "จริงทั้งคู่หรือเท็จทั้งคู่"?</div>
+    <button class="opt">A 🐱 · B 🐯</button>
+    <button class="opt">A 🐯 · B 🐱</button>
+    <button class="opt">A 🐱 · B 🐱</button>
+    <button class="opt">A 🐯 · B 🐯</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ A มีเสือ → ป้าย B "อีกกล่องมีเสือ" เป็นจริง · B มีแมว → ป้าย A "อย่างน้อย 1 กล่องมีแมว" ก็จริง · จริงทั้งคู่ตามกติกา ✓ · เดี๋ยว 1.3 จะเช็คครบทั้ง 4 แบบด้วยตาราง</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ ลองไล่ทีละแบบ: ป้าย A จริงเมื่อมีแมวอย่างน้อย 1 ตัว · ป้าย B จริงเมื่อ <b>A มีเสือ</b> · ต้องหาแบบที่ป้ายทั้งสอง "ตรงกัน" (จริงคู่หรือเท็จคู่)</div>
+  </div>
+
+  <h3>1.3 เจ้าหญิงแปลงปริศนาเป็นวงจร digital (Figure 10-7)</h3>
+  <p>เจ้าหญิงวิ่งไปห้องทำงานแล้วต่อวงจร digital ที่มี input 2 ตัว (ของในกล่อง A กับ B) · ตั้งรหัสว่า <b>0 = เสือ, 1 = ลูกแมว</b>
+    แล้วแปลง<b>แต่ละเงื่อนไขเป็น gate 1 ตัว</b> (p26–28):</p>
+  <div class="twocol">
+    <div class="c"><div class="logicgate" data-gate="or" data-in="A,B" data-out="nA"
+         data-cap="ป้ายกล่อง A = <b>A OR B</b> (มีแมวอย่างน้อย 1 กล่อง)"></div></div>
+    <div class="c"><div class="logicgate" data-gate="not" data-in="A" data-out="nB"
+         data-cap="ป้ายกล่อง B = <b>NOT A</b> (กล่อง A ไม่มีแมว)"></div></div>
+  </div>
+  <div class="logicgate" data-gate="xnor" data-in="nA,nB" data-out="out"
+       data-cap="twist ของพระราชา = <b>XNOR</b> (ได้ 1 เมื่อ input 2 ตัว<b>เหมือนกัน</b>) · out = XNOR(A OR B, NOT A)"></div>
+  <div class="box mathref"><b>ทวน XNOR</b> (นิเสธของ XOR, อ่านว่า "เอ็กซ์-นอร์"): XOR ได้ 1 เมื่อ input <b>ต่างกัน</b> ·
+    XNOR กลับกัน คือได้ 1 เมื่อ input <b>เหมือนกัน</b> (0,0 หรือ 1,1) · ตรงกับคำว่า "จริงทั้งคู่หรือเท็จทั้งคู่" พอดี</div>
+  <p>วงจรนี้จะให้ output = <b>1 ก็ต่อเมื่อ</b> input ชุดนั้นทำให้ทุกเงื่อนไขเป็นจริง (p27) · ไล่ครบ 4 แบบได้ตารางนี้
+    <small>(ตารางนี้คาโฮะคำนวณเอง สไลด์ไม่ได้ให้ไว้)</small>:</p>
+  <table class="cmp">
+    <thead><tr><th>A</th><th>B</th><th>ป้าย A = A OR B</th><th>ป้าย B = NOT A</th><th>out = XNOR</th></tr></thead>
+    <tbody>
+      <tr><td data-label="A">0 🐯</td><td data-label="B">0 🐯</td><td data-label="A OR B">0</td><td data-label="NOT A">1</td><td data-label="out">0</td></tr>
+      <tr><td data-label="A"><b>0 🐯</b></td><td data-label="B"><b>1 🐱</b></td><td data-label="A OR B">1</td><td data-label="NOT A">1</td><td data-label="out"><b>1 ✓</b></td></tr>
+      <tr><td data-label="A">1 🐱</td><td data-label="B">0 🐯</td><td data-label="A OR B">1</td><td data-label="NOT A">0</td><td data-label="out">0</td></tr>
+      <tr><td data-label="A">1 🐱</td><td data-label="B">1 🐱</td><td data-label="A OR B">1</td><td data-label="NOT A">0</td><td data-label="out">0</td></tr>
+    </tbody>
+  </table>
+  <p>มีคำตอบเดียวคือ <b>A = เสือ, B = ลูกแมว</b> · ในภาษา SAT จะพูดว่า ประโยคนี้ <b>satisfiable</b> (มีอย่างน้อย 1 input ที่ทำให้เป็นจริง)</p>
+
+  <h3>1.4 กติกาข้อสุดท้าย: รันได้ครั้งเดียว</h3>
+  <p>เจ้าหญิงตั้งใจจะใส่ input ทั้ง 4 แบบเข้าวงจรทีละแบบ แต่พระราชากระแอม "Ahem" แล้วเติมกติกาว่า <b>รันเครื่องได้แค่ครั้งเดียว</b> (p29)</p>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">รันวงจร digital ได้ครั้งเดียว เจ้าหญิงต้องเลือกเองว่าจะใส่ input แบบไหน · โอกาสที่จะได้คำตอบที่ชี้ขาดได้ (output = 1) คือเท่าไร?</div>
+    <button class="opt">25% เพราะต้องเดาถูก 1 ใน 4 แบบ</button>
+    <button class="opt">50% เพราะตอบได้แค่ว่าใช่/ไม่ใช่</button>
+    <button class="opt">75% เพราะผิดก็ยังตัดออกได้ 1 แบบ</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ (p30) วงจรคลาสสิกทดสอบได้ทีละ input · ถ้าเดาผิดได้ 0 กลับมา รู้แค่ว่า "ไม่ใช่แบบนี้" แต่ยังเหลืออีก 3 แบบ → ต้องสุ่มเปิดกล่อง → มีสิทธิ์โดนเสือกิน 🐯</div>
+    <div class="fb no" data-for="no">ลองใหม่ค่ะ คิดว่ารันครั้งเดียว = ใส่ input ได้ 1 แบบ · output เป็น 1 ได้ก็ต่อเมื่อเดาตรงแบบที่ถูกพอดี ซึ่งมีแค่ 1 จาก 4 แบบ</div>
+  </div>
+
+  <div class="box aha">
+    <b>ตรงนี้คือจุดที่ QPU ได้เปรียบ</b>: คอมพิวเตอร์ธรรมดาต้อง<b>เลือก</b>ว่าจะลอง input ไหน ·
+    แต่ QPU ใส่ input <b>ทั้ง 4 แบบพร้อมกัน</b>ด้วย superposition · ใช้ phase logic ทำเครื่องหมายแบบที่ถูก · แล้วใช้ mirror ขยายให้อ่านออกมาได้ ·
+    เจ้าหญิงเพิ่งอ่านหนังสือ quantum computation ของ O'Reilly (มุกของสไลด์ คือหนังสือเล่มที่เราเรียนอยู่นี่เอง) เลยสร้าง QPU ขึ้นมา (p30)
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · ให้ QPU แก้ในการรันครั้งเดียว (p31–36)</h2></div>
+
+  <h3>2.1 วางแผนด้วยทริกจากบท 0038</h3>
+  <p>ประโยคคือ <code class="code">(A OR B) XNOR (NOT A)</code> · ตัว<b>นอกสุด</b> (ทำเป็นลำดับสุดท้าย) คือ <b>XNOR</b> → ใช้ phase logic ·
+    ส่วน OR กับ NOT ต้องใช้ <b>magnitude logic</b> เพื่อเก็บผลเป็นค่า 0/1 ไว้ก่อน ให้ XNOR อ่านได้</p>
+  <table class="cmp">
+    <thead><tr><th>เงื่อนไข</th><th>gate</th><th>logic แบบไหน</th><th>ผลเก็บไว้ที่ไหน</th></tr></thead>
+    <tbody>
+      <tr><td data-label="เงื่อนไข">ป้ายกล่อง A</td><td data-label="gate">A OR B</td><td data-label="logic">magnitude</td><td data-label="เก็บที่">qubit ใหม่ชื่อ <code class="code">noteA</code> (0x4)</td></tr>
+      <tr><td data-label="เงื่อนไข">ป้ายกล่อง B</td><td data-label="gate">NOT A</td><td data-label="logic">magnitude</td><td data-label="เก็บที่">เขียนทับลงสาย A (0x1) เลย</td></tr>
+      <tr><td data-label="เงื่อนไข">twist ของพระราชา</td><td data-label="gate">XNOR</td><td data-label="logic"><b>phase</b></td><td data-label="เก็บที่">ไม่ได้เก็บเป็นค่า แต่ไปอยู่ใน <b>phase</b> ของกล่อง</td></tr>
+    </tbody>
+  </table>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ทำไม NOT A ถึง<b>เขียนทับลงสาย A ได้เลย</b> ไม่ต้องใช้ qubit ใหม่เหมือน OR?</div>
+    <button class="opt">เพราะ NOT ใช้ phase logic จึงไม่ต้องเก็บค่าไว้เลย</button>
+    <button class="opt">เพราะค่าของ A ไม่ได้ถูกใช้อีกในวงจรนี้หลังจากนี้</button>
+    <button class="opt">เพราะ NOT ย้อนกลับได้เอง กดซ้ำก็ได้ค่า A เดิมคืนมา</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ X คือ NOT ที่กลับด้านได้ในตัว (X สองครั้ง = ไม่ทำอะไร) · ตอน uncompute แค่ X สาย A ซ้ำก็ได้ A คืน · ส่วน OR รับ input 2 ตัวแต่ให้ output ตัวเดียว ถ้าเขียนทับจะเสียข้อมูล จึงต้องใช้ Toffoli ลง qubit ใหม่ (เรื่องเดียวกับบท <a href="midterm/0022-toffoli-is-quantum-nand.html">0022</a>)</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ NOT ในวงจรนี้เป็น magnitude logic (X ธรรมดา) และค่า A ยังถูกใช้ต่อแน่นอน (ต้องเอากลับมาให้ mirror) · ลองคิดว่า X ทำสองครั้งแล้วได้อะไร</div>
+  </div>
+
+  <h3>2.2 วงจรเต็ม Figure 10-8 <small>(🔴 ออกสอบได้)</small></h3>
+  <p>4 สาย: <code class="code">boxes</code> 2 สาย (A = 0x1, B = 0x2) · <code class="code">noteA</code> (0x4) · <code class="code">scratch</code> (0x8 ในโค้ดชื่อ <code class="code">anc</code>) ·
+    ป้ายในรูปเขียน 0x1 ทุกตัวที่ noteA กับ scratch เพราะ QCEngine นับบิตแยกในแต่ละ register (p31)</p>
+  <div class="wide">
+    <div class="circuit" data-wires="4" data-names="boxes,boxes,noteA,scratch" data-wire-labels="0x1,0x2,0x1,0x1"
+         data-groups="2-4:noteA = A OR B; 5-5:NOT A; 8-10:XNOR; 13-17:uncompute; 18-22:mirror"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1; X:0 + X:1; CCNOT:0,1,2; X:0 + X:1 + X:2; X:0; X:3; H:3; CNOT:2,3; CNOT:0,3; X:3; H:3; X:3; X:0; _; X:0 + X:1 + X:2; CCNOT:0,1,2; X:0 + X:1; H:0 + H:1; X:0 + X:1; CZ:0,1; X:0 + X:1; H:0 + H:1; READ:0:0 + READ:1:1"
+         data-cap="Figure 10-8 · ปริศนาลูกแมว/เสือบน QPU (p31) · ผล READ: A = 0 (เสือ) · B = 1 (ลูกแมว) → เปิดกล่อง B"></div>
+  </div>
+  <table class="cmp">
+    <thead><tr><th>ช่วง</th><th>ทำอะไร</th><th>เป็น logic แบบไหน</th></tr></thead>
+    <tbody>
+      <tr><td data-label="ช่วง">H บน boxes</td><td data-label="ทำอะไร">ใส่ทั้ง 4 แบบ (🐯🐯, 🐱🐯, 🐯🐱, 🐱🐱) พร้อมกัน</td><td data-label="logic">—</td></tr>
+      <tr><td data-label="ช่วง">noteA = A OR B</td><td data-label="ทำอะไร">X → Toffoli → X = OR แบบ De Morgan (เหมือน <code class="code">bit_or</code> บท 0038)</td><td data-label="logic">magnitude</td></tr>
+      <tr><td data-label="ช่วง">NOT A</td><td data-label="ทำอะไร">X บนสาย A · ตอนนี้สาย A เก็บ NOT A แทน</td><td data-label="logic">magnitude</td></tr>
+      <tr><td data-label="ช่วง">X, H บน scratch</td><td data-label="ทำอะไร">เตรียม scratch เป็น |−⟩</td><td data-label="logic">(เตรียม)</td></tr>
+      <tr><td data-label="ช่วง"><b>XNOR</b></td><td data-label="ทำอะไร">CNOT จาก noteA · CNOT จากสาย A · X บน scratch → kickback ลง phase</td><td data-label="logic"><b>phase</b></td></tr>
+      <tr><td data-label="ช่วง">H, X บน scratch</td><td data-label="ทำอะไร">คืน scratch เป็น |0⟩</td><td data-label="logic">(คืน)</td></tr>
+      <tr><td data-label="ช่วง">uncompute</td><td data-label="ทำอะไร">X(A) · ช่องว่าง (nop) · X → Toffoli → X ย้อนลำดับ → noteA กลับเป็น 0, A กลับเป็นค่าเดิม</td><td data-label="logic">magnitude</td></tr>
+      <tr><td data-label="ช่วง">mirror</td><td data-label="ทำอะไร">H · X · CZ · X · H บน boxes 2 สาย (<code class="code">boxes.Grover()</code>)</td><td data-label="logic">AA</td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.3 หัวใจของบท: XNOR ด้วย phase kickback</h3>
+  <p>ทวนจากบท <a href="0037-phase-logic-answers-in-phase.html">0037</a>: <b>phase XOR</b> ใช้ scratch ที่เป็น |−⟩ แล้วยิง CNOT จาก input 2 ตัวเข้าไป ·
+    CNOT ที่ target เป็น |−⟩ จะ<b>ไม่เปลี่ยน scratch</b> แต่ดีด −1 กลับไปที่ state ที่ control = 1 (phase kickback) ·
+    พอยิง 2 ครั้งจาก p กับ q จะได้ phase = <b>(−1)<sup>p ⊕ q</sup></b></p>
+  <p>ในวงจรนี้ p = <code class="code">noteA</code> (= A OR B) และ q = <b>สาย A</b> (ซึ่งตอนนี้เก็บ NOT A อยู่) · ลองคำนวณเอง:</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">หลัง CNOT 2 ตัว (ยัง<b>ไม่</b>ทำ X บน scratch) ค่าไหนของ boxes ที่มี phase <b>ต่างจากอีก 3 ค่า</b>? <small>(ค่า = A + 2B · ใบ้: ใช้คอลัมน์ป้าย A กับป้าย B จากตาราง 1.3)</small></div>
+    <button class="opt">|0⟩ (A 🐯 · B 🐯)</button>
+    <button class="opt">|1⟩ (A 🐱 · B 🐯)</button>
+    <button class="opt">|2⟩ (A 🐯 · B 🐱)</button>
+    <button class="opt">|3⟩ (A 🐱 · B 🐱)</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ |2⟩ มีป้าย A = 1 และป้าย B = 1 → 1 ⊕ 1 = 0 → phase <b>ไม่ถูกพลิก</b> · อีก 3 ค่าป้ายไม่ตรงกัน (⊕ = 1) → ถูกพลิกเป็น 180° · คำตอบที่ถูกคือตัวเดียวที่<b>ไม่ถูกพลิก</b></div>
+    <div class="fb no" data-for="no">ลองใหม่ค่ะ คำนวณ (ป้าย A) ⊕ (ป้าย B) ทีละแถว · ⊕ = 1 แปลว่าถูกพลิก · หาแถวที่ ⊕ = 0 ซึ่งมีแถวเดียว</div>
+  </div>
+
+  <div class="crow" data-n="4" data-r="22" data-phase="180,180,0,180" data-hl="2" data-lab="หลัง CNOT 2 ตัว (XOR)"></div>
+  <div class="crow" data-n="4" data-r="22" data-phase="0,0,180,0" data-hl="2" data-lab="หลัง X บน scratch (XNOR)"></div>
+  <p class="meta">แถวบน = phase <strong>XOR</strong> (พลิกตัวที่ป้ายไม่ตรงกัน) · แถวล่าง = phase <strong>XNOR</strong> (พลิกตัวที่ satisfy)</p>
+  <p>X ตัวที่ 3 บน scratch ทำอะไร? X บน |−⟩ ได้ <b>−|−⟩</b> (X สลับ |0⟩ กับ |1⟩ ใน (|0⟩ − |1⟩)/√2 ได้ (|1⟩ − |0⟩)/√2) ·
+    คือ<b>คูณ −1 ให้ทั้งรีจิสเตอร์</b> ทุกวงหมุน 180° พร้อมกัน → จาก "XOR" กลายเป็น "XNOR" ·
+    แต่เดี๋ยวก่อน การคูณ −1 ทั้งรีจิสเตอร์คือ <b>global phase</b> ซึ่งวัดไม่ได้ · สองรูปข้างบนจึงเป็น<b>สถานะเดียวกันทางฟิสิกส์</b>
+    <small>(คาโฮะเช็คกับ numpy แล้ว: วงจรเต็มได้ |2⟩ = −0.5 และตัวอื่น = +0.5 ตรงกับรูปขวา)</small></p>
+
+  <div class="box aha">
+    <b>ข้อสังเกตของสไลด์ p36</b>: mirror ขยายค่าที่ phase <b>ต่างจากตัวอื่น</b> ไม่จำเป็นต้องเป็นค่าที่ phase ลบ ·
+    สไลด์บอกว่า "ในกรณีนี้คำตอบที่ถูกมี phase <b>บวก</b> ส่วนตัวที่ผิดมี phase <b>ลบ</b>" ซึ่งก็คือรูปซ้าย ·
+    ไม่ว่าจะเป็นรูปซ้ายหรือรูปขวา mirror ก็ได้ผลเหมือนกัน เพราะ flip ที่มีผลคือ <b>flip สัมพัทธ์</b> (relative) ไม่ใช่ global
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">โค้ด p33 เตรียม scratch ด้วย <code class="code">anc.not(); anc.hadamard();</code> · scratch จะอยู่ในสถานะอะไร?</div>
+    <button class="opt">|+⟩ ตรงตามที่คอมเมนต์เขียน</button>
+    <button class="opt">|−⟩ ซึ่งต่างจากที่คอมเมนต์</button>
+    <button class="opt">|1⟩ เพราะ H ไม่เปลี่ยนค่า</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ X|0⟩ = |1⟩ แล้ว H|1⟩ = (|0⟩ − |1⟩)/√2 = |−⟩ · และต้องเป็น |−⟩ ด้วย ถึงจะเกิด kickback · ถ้าเป็น |+⟩ CNOT จะไม่ทำอะไรกับ phase เลย</div>
+    <div class="fb no" data-for="no">ลองไล่ทีละ gate ค่ะ X|0⟩ ได้อะไร แล้วเอา H ไปทำต่อ · จำว่า H|0⟩ = |+⟩ แต่ H|1⟩ = |−⟩</div>
+  </div>
+
+  <div class="box warn">
+    <b>สไลด์ p33 เขียนคอมเมนต์ผิด</b>: <code class="code">// Put the phase-logic scratch qubit into the |+&gt; state</code> ·
+    แต่โค้ดจริง (X แล้ว H) ได้ <b>|−⟩</b> · ตอนสอบถ้าถามคอมเมนต์ให้ตอบตามสไลด์ แต่ให้รู้ว่าของจริงคือ |−⟩ และต้องเป็น |−⟩ ถึงจะ kickback ได้
+  </div>
+
+  <h3>2.4 โค้ด QCEngine (p32–34)</h3>
+  <pre class="code-blk">qc.reset(4);
+var boxes = qint.new(2, 'boxes');
+var noteA = qint.new(1, 'noteA');
+var anc   = qint.new(1, 'anc');
+qc.write(0);
+boxes.hadamard();              // ทั้ง 4 แบบพร้อมกัน
+// noteA = A OR B   (magnitude)
+qc.not(0x1|0x2);
+qc.cnot(0x4, 0x1|0x2)          // Toffoli: target 0x4, control A,B
+qc.not(0x1|0x2|0x4);
+// NOT A            (magnitude, เขียนทับสาย A)
+qc.not(0x1);
+anc.not(); anc.hadamard();     // scratch → |−⟩  (คอมเมนต์ในสไลด์เขียน |+&gt;)
+// (A OR B) XNOR (NOT A)   (phase)
+qc.cnot(0x8, 0x4);             // kickback จาก noteA
+qc.cnot(0x8, 0x1);             // kickback จากสาย A (= NOT A)
+qc.not(0x8);                   // XOR → XNOR (−1 ทั้งรีจิสเตอร์)
+anc.hadamard(); anc.not();     // คืน scratch เป็น |0⟩
+// uncompute (ย้อนลำดับ)
+qc.not(0x1);
+qc.nop();                      // = คอลัมน์ว่างในรูป
+qc.not(0x1|0x2|0x4);
+qc.cnot(0x4, 0x1|0x2)
+qc.not(0x1|0x2);
+boxes.Grover();                // mirror
+var result = boxes.read();
+var catA = result &amp; 1 ? 'kitten' : 'tiger';
+var catB = result &amp; 2 ? 'kitten' : 'tiger';</pre>
+  <p>จำรูปแบบ <code class="code">qc.cnot(target, control)</code> ของ QCEngine: <b>target มาก่อน</b> · ส่วน <code class="code">result &amp; 1</code> ดูบิตของกล่อง A และ <code class="code">result &amp; 2</code> ดูบิตของกล่อง B (1 = kitten)</p>
+
+  <h3>2.5 ทำไมต้อง uncompute ก่อนเข้า mirror</h3>
+  <p>ระหว่างที่คำนวณ <code class="code">noteA</code> ผูกกับ boxes (entangle) และสาย A ก็ถูกเปลี่ยนเป็น NOT A อยู่ ·
+    mirror ทำงานบน boxes 2 สายเท่านั้น ถ้า noteA ยังเก็บค่าที่ต่างกันในแต่ละแถว วงทั้ง 4 ของ boxes จะ<b>ไม่ interfere กันครบ</b> (บท <a href="midterm/0021b-uncomputing.html">0021b</a>) ·
+    uncompute จึงคืน noteA เป็น 0 และสาย A เป็นค่าเดิม เหลือไว้แค่ <b>−1 ที่ติดอยู่กับ |2⟩</b> ซึ่งเป็นสิ่งเดียวที่เราต้องการ</p>
+
+  <h3>2.6 mirror 1 รอบ → 100%</h3>
+  <p>ก่อน mirror: 4 วงขนาดเท่ากัน (amplitude 0.5) และ |2⟩ ถูกพลิก · mirror = <b>สะท้อนรอบค่าเฉลี่ย</b> (บท <a href="0026-inside-the-mirror.html">0026</a>):</p>
+  <div class="mplot" data-amp="0.5; 0.5; 0.5@180; 0.5" data-mode="mirror" data-coords="after" data-hl="2"
+       data-cap="ค่าเฉลี่ย = (0.5 + 0.5 − 0.5 + 0.5)/4 = 0.25 · หลังสะท้อน = 2 × 0.25 − เดิม"></div>
+  <div class="work">
+    <div class="step"><span class="lbl">|0⟩ |1⟩ |3⟩</span> 2 × 0.25 − 0.5 = <b>0</b></div>
+    <div class="step"><span class="lbl">|2⟩</span> 2 × 0.25 − (−0.5) = <b>1</b> → ความน่าจะเป็น 1² = <b>100%</b></div>
+  </div>
+  <p>จำนวนรอบเช็คได้ด้วยสูตรจากบท <a href="0024-how-many-aa-iterations.html">0024</a>: N<sub>AA</sub> = ⌊(π/4)·√(2ⁿ/m)⌋ = ⌊(π/4)·√(4/1)⌋ = ⌊1.57⌋ = <b>1 รอบ</b> (p36) ·
+    และ 4 ค่ากับคำตอบ 1 ตัว เป็นกรณีพิเศษที่ 1 รอบได้ <b>100% พอดี</b></p>
+
+  <div class="box aha">
+    <b>สรุปผล (p35)</b>: รันโปรแกรม QPU <b>ครั้งเดียว</b> อ่านได้ A = 0 (เสือ) · B = 1 (ลูกแมว) ด้วยความน่าจะเป็น <b>100%</b> → เปิดกล่อง B 🐱 ·
+    phase logic ทำหน้าที่เป็น <b>flip</b> ใน AA iteration จึงต้องตามด้วย <b>mirror</b> เดิม · ทั้งหมดนี้คือ Quantum Search ที่ครบวงจร:
+    <b>H → compute → phase logic → uncompute → mirror → READ</b>
+  </div>
+
+  <details class="recall">
+    <summary>ทดสอบความจำ (ปิดหน้าแล้วตอบในหัวก่อนค่อยกางดู)</summary>
+    <ol>
+      <li>SAT ถามอะไร และใช้ทำอะไรบ้าง? → มี input ไหนทำให้ประโยค boolean เป็นจริงไหม · model checking, AI planning, software verification</li>
+      <li>ป้าย 2 แผ่นกับ twist แปลงเป็น gate อะไร? → A OR B · NOT A · XNOR ของทั้งสอง</li>
+      <li>ทำไมคลาสสิกได้แค่ 25%? → รันได้ครั้งเดียว = ลองได้ 1 จาก 4 input</li>
+      <li>วาด Figure 10-8 จากความจำ: 4 สายชื่ออะไร และมีกี่กล่อง? → boxes ×2, noteA, scratch · noteA = A OR B · NOT A · XNOR · uncompute · mirror</li>
+      <li>XNOR ทำยังไง? → scratch |−⟩ · CNOT จาก noteA · CNOT จากสาย A (= NOT A) · X บน scratch · แล้ว H, X คืน scratch</li>
+      <li>X บน scratch ตัวกลางทำอะไร? → คูณ −1 ทั้งรีจิสเตอร์ (global) เปลี่ยน XOR เป็น XNOR · mirror ไม่สนเพราะดูแค่ flip สัมพัทธ์</li>
+      <li>ทำไม 1 รอบได้ 100%? → avg = 0.25 · |2⟩ = 2(0.25) + 0.5 = 1 · N<sub>AA</sub> = ⌊1.57⌋ = 1</li>
+      <li>สไลด์ p33 ผิดตรงไหน? → คอมเมนต์เขียน |+&gt; แต่ X แล้ว H ได้ |−⟩</li>
+    </ol>
+  </details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li><b>SAT</b> = หา input ที่ทำให้ประโยค boolean เป็นจริง · phase logic + AA ตอบได้ตรงตัว (p22)</li>
+    <li>ปริศนา: ป้าย A = <b>A OR B</b> · ป้าย B = <b>NOT A</b> · twist = <b>XNOR</b> · 0 = เสือ, 1 = ลูกแมว (p23–28)</li>
+    <li>คำตอบเดียว: A = เสือ · B = ลูกแมว (|2⟩) · คลาสสิกรันครั้งเดียวได้แค่ <b>25%</b> (p29–30)</li>
+    <li><b>Figure 10-8</b>: OR, NOT ใช้ magnitude → XNOR ใช้ phase (scratch |−⟩ + 2 CNOT kickback + X) → uncompute → mirror (p31–34)</li>
+    <li>⚠️ p33 คอมเมนต์เขียน |+⟩ แต่ของจริงคือ |−⟩</li>
+    <li>รันครั้งเดียวได้กล่อง B <b>100%</b> · ใช้ AA <b>1 รอบ</b> (p35–36)</li>
+    <li>mirror ขยายค่าที่ phase <b>ต่างจากตัวอื่น</b> จะบวกหรือลบก็ได้ (p36)</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 10 <i>Quantum Search</i> หัวข้อ <i>Solving Logic Puzzles</i> / <i>Of Kittens and Tigers</i> (Figure 10-6 ถึง 10-8) ·
+      ลองรันโค้ดได้ที่ <a href="https://oreilly-qc.github.io/">oreilly-qc.github.io</a> (ตัวอย่างของบทที่ 10) ·
+      สไลด์ <code class="code">QuantumProg_Lec10.pdf</code> หน้า 22–36</p>
+    <p><b>บทก่อนหน้า</b>: <a href="0038-magnitude-first-phase-last.html">0038 · ต่อ logic ยาวๆ: magnitude ก่อน phase ทีหลัง</a> ·
+      <b>บทถัดไป</b>: <a href="0040-sat-recipe-and-3sat.html">0040 · สูตร 9 ขั้น → 3-SAT ทั้งแบบมีและไม่มีคำตอบ</a></p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="0037-phase-logic-answers-in-phase.html">0037 · phase logic (phase XOR)</a> ·
+      <a href="midterm/0010-cphase-cz-phase-kickback.html">0010 · phase kickback</a> ·
+      <a href="midterm/0021b-uncomputing.html">0021b · uncompute</a> ·
+      <a href="0024-how-many-aa-iterations.html">0024 · AA กี่รอบ</a> ·
+      <a href="0026-inside-the-mirror.html">0026 · ข้างใน mirror</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① kickback ดีด −1 จาก scratch กลับไปที่ boxes ได้ยังไง
+      ② ถ้าตัด X บน scratch ตัวกลางทิ้ง ผลยังเหมือนเดิมไหม
+      ③ ถ้าปริศนามีคำตอบ 2 แบบ 1 รอบยังได้ 100% ไหม
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0038 — ต่อ logic ยาวๆ: magnitude ก่อน phase ทีหลัง</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 10 · บทที่ 0038</div>
+  <h1>ต่อ logic ยาวๆ: magnitude ก่อน phase ทีหลัง</h1>
+  <p class="lead">บท <a href="0037-phase-logic-answers-in-phase.html">0037</a> เราได้ phase logic มา 6 ตัว (NOT, OR, NOR, AND, NAND, XOR) ·
+    แต่โจทย์จริงที่จะเอาไปค้นหาไม่ได้มีแค่ gate ตัวเดียว มักเป็นประโยคยาวๆ เช่น <b>(a OR NOT b) AND c</b> ·
+    บทนี้ตอบคำถามว่า <b>"จะต่อ phase logic หลายตัวเข้าด้วยกันยังไง"</b> ซึ่งคำตอบคือ <i>ต่อตรงๆ ไม่ได้</i>
+    แต่มีทริกที่ใช้แก้ได้ และทริกนี้จะถูกใช้ซ้ำไปจนจบคาบ</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 4 อย่าง
+    ① phase logic <b>ต่อกันตรงๆ ไม่ได้</b> เพราะ output อยู่ใน phase แต่ input ต้องเป็นค่าในรีจิสเตอร์
+    ② ทริก: <b>ทำทุกขั้นด้วย magnitude logic ยกเว้นขั้นสุดท้าย</b> ซึ่งใช้ phase logic
+    ③ วงจรรูปแบบ <b>compute → pAND → uncompute</b> (Figure 10-4)
+    ④ ฟังก์ชัน <code class="code">bit_or</code> / <code class="code">inv_bit_or</code> / <code class="code">phase_and</code> ·
+    ข้อ ③ กับ ④ <b>ถูกใช้ซ้ำทุกวงจรที่เหลือของ Lec 10</b> (ปริศนาลูกแมว/เสือ และ 3-SAT) ถ้าเข้าใจบทนี้ วงจร 7 สายท้ายคาบจะเป็นแค่บล็อกเดิมที่เรียงต่อกัน
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · ทำไมต่อตรงๆ ไม่ได้ และทริกที่ใช้แก้ (p14–16)</h2></div>
+
+  <h3>1.1 ปัญหา: ปลั๊กหัวไม่เข้ากับเต้ารับ</h3>
+  <p>ทวนประโยคที่สไลด์ p13 ให้จำไว้: phase logic รับ <b>input จากค่าของรีจิสเตอร์</b> (magnitude เช่น |5⟩) แต่ส่ง <b>output ออกเป็น phase</b> ·
+    ทีนี้ถ้าอยากทำ <code class="code">(a OR NOT b) AND c</code> ก็ต้องเอา<b>ผลของ OR</b> ไปเป็น <b>input ของ AND</b> ·
+    แต่ผลของ phase OR ไปอยู่ใน phase แล้ว ส่วน phase AND อ่าน phase ไม่ได้ อ่านได้แต่ค่าในรีจิสเตอร์ (p14)</p>
+
+  <div class="analogy">
+    <div class="cell"><b>phase logic = เขียนด้วยหมึกล่องหน</b><small>(จากบท 0037) คำตอบถูกเขียนไว้แต่มองไม่เห็น
+      ต้องรอไฟ UV (AA) ตอนจบถึงจะเห็น</small></div>
+    <div class="arrow">✗</div>
+    <div class="cell"><b>gate ตัวถัดไปต้องอ่านหมึกธรรมดา</b><small>Toffoli, CZ ใช้ค่า 0/1 ของ qubit เป็นเงื่อนไข ·
+      gate ไม่มีไฟ UV จึงอ่านผลที่เขียนด้วยหมึกล่องหนไม่ได้</small></div>
+  </div>
+
+  <h3>1.2 ทริก "sneaky trick": หมึกธรรมดาก่อน หมึกล่องหนเป็นขั้นสุดท้าย</h3>
+  <p>ทางแก้ของหนังสือคือ (p15):</p>
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> ทำ<b>ทุก operation ยกเว้นตัวสุดท้าย</b>ด้วย <b>magnitude logic</b> แบบ Lec 05 (เขียนผลเป็น 0/1 ลง scratch qubit = หมึกธรรมดา)</div>
+    <div class="step"><span class="lbl">②</span> ตอนนี้ผลของ operation <b>รองสุดท้าย</b> (penultimate) อยู่ใน <b>magnitude</b> แล้ว จึงเอาไปเป็น input ของ phase logic ได้</div>
+    <div class="step"><span class="lbl">③</span> ทำ <b>operation สุดท้าย</b>ด้วย <b>phase logic</b> (เลือกตัวหนึ่งจาก Figure 10-2) → ผลของทั้งประโยคไปอยู่ใน phase</div>
+  </div>
+  <div class="eq">ทุกขั้นยกเว้นตัวสุดท้าย = magnitude logic &nbsp;→&nbsp; ขั้นสุดท้าย = phase logic</div>
+  <p>มองแบบนี้ก็ได้: ประโยคยาวแค่ไหนก็ตาม <b>phase logic มีแค่ตัวเดียว คือตัวที่อยู่นอกสุด</b> · ทุกอย่างข้างในเป็นแค่ "เตรียมค่าให้ตัวนอกสุดอ่าน"</p>
+
+  <h3>1.3 ตัวอย่างประจำคาบ: (a OR NOT b) AND c (Figure 10-3)</h3>
+  <p>Figure 10-3 เป็นแผนภาพ logic gate แบบ<b>คลาสสิก</b> (ยังไม่ใช่วงจรควอนตัม): สาย b ผ่าน NOT → เข้า OR คู่กับ a → ผลของ OR เข้า AND คู่กับ c (p16)</p>
+  <div class="eq">b → <b>NOT</b> → <b>OR</b>(a, ·) → <b>AND</b>(·, c) → (a OR NOT b) AND c</div>
+  <p>เป้าหมายแบบ phase logic: รีจิสเตอร์ a, b, c อยู่ใน uniform superposition ทั้ง 8 ค่า แล้ว<b>พลิก phase ของทุกค่าที่ทำให้ประโยคเป็นจริง</b> (p16)</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ลองใช้ทริกเอง: ในประโยค (a OR NOT b) AND c ขั้นไหนต้องทำด้วย <b>phase logic</b>?</div>
+    <button class="opt">NOT ที่ทำกับ b ก่อนเป็นขั้นแรก</button>
+    <button class="opt">OR ระหว่าง a กับ NOT b ตรงกลาง</button>
+    <button class="opt">AND ที่เอาผลของ OR ไปรวมกับ c</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ AND เป็น operation <b>นอกสุด</b> (ทำเป็นลำดับสุดท้าย) จึงเป็นตัวเดียวที่ใช้ phase logic · NOT กับ OR ทำด้วย magnitude logic แล้วเก็บผลไว้ใน scratch</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ ดูว่า gate ไหนอยู่<b>ท้ายสุด</b>ของแผนภาพ ตัวนั้นเท่านั้นที่ใช้ phase logic ได้ ตัวที่อยู่ก่อนหน้าต้องส่งผลต่อเป็นค่า 0/1</div>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">ก่อนดูวงจร ลองคิดเอง: จาก 8 ค่าของ (a, b, c) มีกี่ค่าที่ทำให้ (a OR NOT b) AND c เป็นจริง? <small>(ใบ้: c ต้องเป็น 1 ก่อนเลย)</small></div>
+    <button class="opt">2 ค่า</button>
+    <button class="opt">3 ค่า</button>
+    <button class="opt">4 ค่า</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ c = 1 เหลือ 4 แถว แล้วตัดแถวที่ a = 0, b = 1 ออก (เพราะ a OR NOT b = 0) จึงเหลือ (a,b,c) = (0,0,1), (1,0,1), (1,1,1) · เดี๋ยวส่วนที่ 2 จะแปลงเป็นเลข |n⟩</div>
+    <div class="fb no" data-for="no">ลองใหม่ค่ะ ล็อก c = 1 ไว้ก่อน (เหลือ 4 แถว) แล้วดูว่าแถวไหนทำให้ a OR NOT b = 0 · มีแค่แถวเดียวคือ a = 0, b = 1</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · ลงมือจริง: Figure 10-4 → โค้ด → Figure 10-5 (p17–21)</h2></div>
+
+  <h3>2.1 ภาพรวมวงจร: 3 ช่วง</h3>
+  <p>ใช้ 4 qubit: a = <b>0x1</b>, b = <b>0x2</b>, c = <b>0x4</b> (ปีกกา <code class="code">reg</code>) และ <b>scratch = 0x8</b> (ปีกกาแยก) ·
+    ทุกสายเริ่มที่ 0 แล้วใส่ H <b>แค่ 3 สายแรก</b> สาย scratch ไม่โดน H (p17–18)</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="4" data-names="a,b,c,scratch" data-wire-labels="0x1,0x2,0x4,0x8"
+         data-groups="2-5:(a OR NOT b); 6-6:pAND; 7-10:uncompute"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2; X:1; X:0 + X:1; CCNOT:0,1,3; X:0 + X:1 + X:3; CZ:2,3; X:0 + X:1 + X:3; CCNOT:0,1,3; X:0 + X:1; X:1"
+         data-cap="Figure 10-4 · (a OR NOT b) AND c แบบ phase logic (p17–19)"></div>
+  </div>
+
+  <table class="cmp">
+    <thead><tr><th>ช่วง</th><th>ทำอะไร</th><th>เป็น logic แบบไหน</th></tr></thead>
+    <tbody>
+      <tr><td data-label="ช่วง"><b>(a OR NOT b)</b></td><td data-label="ทำอะไร">คำนวณ a OR NOT b แล้ว<b>เขียนผลเป็น 0/1 ลง scratch 0x8</b></td><td data-label="แบบ">magnitude logic (หมึกธรรมดา)</td></tr>
+      <tr><td data-label="ช่วง"><b>pAND</b></td><td data-label="ทำอะไร">CZ ระหว่าง c (0x4) กับ scratch (0x8) → พลิก phase เมื่อ c = 1 <b>และ</b> scratch = 1</td><td data-label="แบบ">phase logic (หมึกล่องหน) = phase AND จากบท 0037</td></tr>
+      <tr><td data-label="ช่วง"><b>uncompute</b></td><td data-label="ทำอะไร">ทำช่วงแรก<b>ย้อนกลับ</b> เพื่อคืน scratch เป็น |0⟩</td><td data-label="แบบ">ล้างกระดาษทด</td></tr>
+    </tbody>
+  </table>
+  <p><b>pAND</b> คือชื่อย่อของ <i>phase-logic AND</i> ที่สไลด์ใช้ (p18) · มันก็คือ CZ ตัวเดียวกับ phase AND ในบท 0037 แค่ตอนนี้ขาหนึ่งของ AND คือ scratch ที่เก็บผลของ OR ไว้</p>
+
+  <div class="box warn">
+    <b>อย่าสับสน scratch 2 แบบ</b>:
+    scratch ของ <b>phase XOR</b> (บท 0037) ถูกเตรียมเป็น <b>|−⟩</b> และใช้ kickback จึง<b>ไม่ entangle</b> และไม่ต้อง uncompute ·
+    แต่ scratch 0x8 ในบทนี้เริ่มที่ <b>|0⟩</b> และถูกเขียน<b>ผลของ OR</b> ลงไปจริงๆ จึง <b>entangle</b> กับ a, b → <b>ต้อง uncompute</b> ·
+    ดูง่ายๆ: ถ้าสาย scratch มี <b>H อยู่ก่อนใช้</b> แปลว่าเป็นแบบ |−⟩ ถ้าไม่มี แปลว่าเป็นกระดาษทดแบบ Lec 05
+  </div>
+
+  <h3>2.2 ข้างในกล่อง (a OR NOT b): OR สร้างจาก Toffoli ด้วย De Morgan</h3>
+  <p>ควอนตัมไม่มี gate OR สำเร็จรูป แต่มี Toffoli ซึ่งก็คือ <b>AND</b> ที่เขียนผลลง target (บท <a href="midterm/0022-toffoli-is-quantum-nand.html">0022</a>) ·
+    เราจึงสร้าง OR จาก AND ด้วย<b>กฎของ De Morgan</b>:</p>
+  <div class="eq">q1 OR q2 = NOT( NOT q1 AND NOT q2 )</div>
+  <p>แปลงเป็นวงจรได้ทีละขั้น (นี่คือฟังก์ชัน <code class="code">bit_or(q1, q2, out)</code> ที่ p20):</p>
+  <div class="circuit" data-wires="3" data-names="q1,q2,out"
+       data-ops="X:0 + X:1; CCNOT:0,1,2; X:0 + X:1 + X:2"
+       data-cap="bit_or(q1, q2, out) · out เริ่มที่ 0"></div>
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> X ที่ q1, q2 → ตอนนี้สายเก็บ <b>NOT q1</b> และ <b>NOT q2</b></div>
+    <div class="step"><span class="lbl">②</span> Toffoli → out = <b>NOT q1 AND NOT q2</b></div>
+    <div class="step"><span class="lbl">③</span> X ที่ out → out = <b>NOT(NOT q1 AND NOT q2) = q1 OR q2</b> ✓ · และ X ที่ q1, q2 <b>คืนค่า input เดิม</b></div>
+  </div>
+  <p>ข้อสังเกต: ขั้น ③ มี X 3 ตัวในคอลัมน์เดียว แต่<b>ทำ 2 หน้าที่</b>: X ที่ out ทำ NOT ตัวนอกของ De Morgan ส่วน X ที่ q1, q2 แค่<b>คืนค่า</b>ให้ input</p>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">ไล่ <code class="code">bit_or</code> ด้วยมือ: ถ้า q1 = 0, q2 = 0, out = 0 จบวงจรแล้ว out เป็นเท่าไหร่ และทำไม?</div>
+    <button class="opt">0 · Toffoli เขียน 1 แต่ X ล้างกลับเป็น 0</button>
+    <button class="opt">1 · Toffoli ไม่ทำงาน แล้ว X พลิกให้เป็น 1</button>
+    <button class="opt">0 · Toffoli ไม่ทำงาน และ X ก็ไม่ได้แตะ out</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ หลัง X ขั้น ① สาย q1, q2 เป็น 1 ทั้งคู่ Toffoli จึง<b>ทำงาน</b> เขียน out = 1 แล้ว X ขั้น ③ พลิก out กลับเป็น 0 · ตรงกับ 0 OR 0 = 0 ✓ · กรณีอื่นอีก 3 แบบ Toffoli ไม่ทำงาน out จึงค้างที่ 0 แล้ว X พลิกเป็น 1</div>
+    <div class="fb no" data-for="no">อย่าลืม X ขั้น ① ค่ะ มันพลิก 0,0 เป็น 1,1 ก่อนถึง Toffoli · Toffoli จึงทำงาน แล้ว X ที่ out ตอนท้ายค่อยพลิกกลับ</div>
+  </div>
+
+  <h3>2.3 ⊕ สองตัวติดกันบนสาย 0x2 คืออะไร</h3>
+  <p>ใน Figure 10-4 สาย b (0x2) มี ⊕ <b>สองตัวติดกัน</b>ตอนต้นกล่อง: ตัวแรกคือ <code class="code">qc.not(2)</code> (ทำ NOT b) และตัวที่สองคือ X ตัวแรกข้างใน <code class="code">bit_or</code> ·
+    เราจึงเรียก <code class="code">bit_or</code> กับ (a, NOT b) แทน (a, b) ได้ผลเป็น <b>a OR NOT b</b> ตามที่ต้องการ</p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">X สองตัวติดกันหักล้างกันเอง (X·X = ไม่ทำอะไร) แล้วทำไมสไลด์ยังวาดทั้งสองตัว?</div>
+    <button class="opt">เพราะถ้าลบออกผลจะผิดไปจากเดิม</button>
+    <button class="opt">เพราะโค้ดแยก NOT b ออกจาก bit_or</button>
+    <button class="opt">เพราะ X ตัวที่สองทำหน้าที่ uncompute</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ วงจรวาดตามโค้ดตรงๆ: <code class="code">qc.not(2)</code> แล้วตามด้วย <code class="code">bit_or(...)</code> ซึ่งเป็นฟังก์ชันสำเร็จรูป ·
+      ถ้าตัดทิ้งทั้งคู่ผลก็ยังเหมือนเดิม (ตอนสอบวาดตามสไลด์นะคะ) · การเขียนแบบนี้ทำให้ <code class="code">bit_or</code> ใช้ซ้ำได้ทุกที่ ซึ่งบท 3-SAT ก็ใช้แบบนี้</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ ถ้าลบ X สองตัวนี้ออก ผลก็<b>ยังเหมือนเดิม</b> (มันหักล้างกันอยู่แล้ว) · เหตุผลจริงคือวงจรวาดตามโค้ด ซึ่งเรียก <code class="code">qc.not(2)</code> แยกไว้ก่อนเรียกฟังก์ชัน <code class="code">bit_or</code></div>
+  </div>
+
+  <h3>2.4 uncompute: ทำไมต้องล้าง scratch</h3>
+  <p>หลังช่วงแรก scratch เก็บค่า a OR NOT b ไว้เป็น 0/1 · แปลว่าค่าของ scratch <b>ผูกกับ</b> a, b (entangle) ·
+    ถ้าทิ้งไว้แบบนี้ รีจิสเตอร์ abc จะไม่ใช่ 8 วงที่มีแต่ phase ต่างกันอีกต่อไป ค่าที่ scratch ต่างกันจะ<b>แยกกันอยู่คนละโลก</b>และ interfere กันไม่ได้ ·
+    พอเอาไปเข้า mirror ของ AA ก็จะไม่ได้ผลอย่างที่ต้องการ (p18 · ทวนเรื่องนี้ที่บท <a href="midterm/0021b-uncomputing.html">0021b</a>)</p>
+  <p>วิธีล้างคือทำทุก gate ของช่วงแรก<b>ย้อนหลัง</b> · ทุก gate ในช่วงนั้น (X, Toffoli) เป็น inverse ของตัวเอง จึงแค่<b>กลับลำดับ</b> ·
+    ส่วน pAND ไม่ได้เปลี่ยนค่าในรีจิสเตอร์ (แค่แปะ −1) จึงไม่ไปรบกวนการล้าง และเครื่องหมาย −1 จะ<b>ติดอยู่ที่ค่า abc ต่อไป</b></p>
+
+  <div class="twocol">
+    <div class="c"><strong>compute</strong> (ซ้าย → ขวา)<br>
+      X(b) → X(a,b) → Toffoli → X(a,b,out)</div>
+    <div class="c"><strong>uncompute</strong> (กลับลำดับ)<br>
+      X(a,b,out) → Toffoli → X(a,b) → X(b)</div>
+  </div>
+
+  <h3>2.5 โค้ด QCEngine (p19–20)</h3>
+  <pre class="code-blk"><code>// Encoding example in phase logic     ← สไลด์เขียน # ซึ่ง JS ไม่รู้จัก
+qc.reset(4);
+var reg = qint.new(4, 'reg');           ← สไลด์พิมพ์ 'reg’ (quote ไม่ตรงกัน)
+qc.write(0);
+reg.hadamard();                         ← ⚠️ ดูกล่องเตือนด้านล่าง
+
+// (a OR NOT b)
+qc.not(2);                              // NOT b  (0x2)
+bit_or(1,2,8);                          // 0x8 = 0x1 OR 0x2
+
+// pAND
+phase_and(4|8);                         // CZ ระหว่าง c (0x4) กับ scratch (0x8)
+
+// uncompute
+inv_bit_or(1,2,8);
+qc.not(2);
+
+// binary logic OR using ancilla as output
+function bit_or(q1, q2, out) {
+    qc.not(q1|q2);
+    qc.cnot(out, q1|q2);                // Toffoli: target = out, control = q1, q2
+    qc.not(q1|q2|out);
+}
+// reversed binary logic OR (to uncompute)
+function inv_bit_or(q1, q2, out) {
+    qc.not(q1|q2|out);
+    qc.cnot(out, q1|q2);
+    qc.not(q1|q2);
+}
+// Phase-logic AND (pAND)
+function phase_and(qubits) {
+    qc.cz(qubits);
+}</code></pre>
+  <p>จุดที่ต้องอ่านให้ออก: <code class="code">qc.cnot(out, q1|q2)</code> ใส่ <b>target ก่อน control</b> และเมื่อ control มี 2 qubit ก็คือ Toffoli ·
+    <code class="code">inv_bit_or</code> เป็น <code class="code">bit_or</code> ที่<b>กลับลำดับบรรทัด</b>เท่านั้น ·
+    <code class="code">phase_and(4|8)</code> = CZ บนทุก qubit ใน mask → พลิกเมื่อ<b>ทุกตัวเป็น 1</b> (p20)</p>
+
+  <div class="box warn">
+    <b>⚠️ สไลด์ p19 เขียน <code class="code">reg.hadamard();</code> แบบไม่มี mask</b> ·
+    ตามโค้ด <code class="code">reg</code> มี 4 qubit จึงหมายถึง H <b>ทั้ง 4 สายรวม scratch 0x8</b> แต่ Figure 10-4 วาด H แค่ 3 สาย ·
+    หนูลอง simulate ด้วย numpy แล้ว: ถ้าทำตามรูป (H 3 สาย) จะได้ Figure 10-5 พอดี ·
+    แต่ถ้า H ลง scratch ด้วยตามโค้ดตรงตัว จะได้ <b>16 ค่าปนกัน</b>: scratch ค้างเป็น 0 ครึ่งหนึ่ง และ 1 อีกครึ่งหนึ่ง · ครึ่งที่ scratch = 0 พลิก |4⟩ |5⟩ |7⟩ ถูกต้อง แต่ครึ่งที่ scratch = 1 กลับพลิกแค่ |6⟩ ·
+    → ของที่ถูกน่าจะเป็น <code class="code">reg.hadamard(0x1|0x2|0x4)</code> หรือให้ reg มีแค่ 3 qubit ·
+    <b>ตอนสอบ: วาดวงจรตาม Figure 10-4 (H 3 สาย)</b> และรู้ไว้ว่าบรรทัดนี้ในสไลด์ไม่ตรงกับรูป ·
+    (typo เล็กน้อยอื่นๆ: <code class="code">#</code> ใช้เป็น comment และ <code class="code">'reg’</code> ใช้ quote คนละแบบ · p18 พิมพ์ "a ORNOT b" ติดกัน)
+  </div>
+
+  <h3>2.6 ผลลัพธ์: Figure 10-5</h3>
+  <p>ค่าของรีจิสเตอร์ = a + 2b + 4c (a อยู่บิต 0x1) · ก่อนดูรูป ลองแปลงคำตอบ 3 ค่าจาก quiz ส่วนที่ 1 เป็นเลข |n⟩ เองก่อนนะคะ</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">(a,b,c) = (0,0,1), (1,0,1), (1,1,1) ตรงกับวงไหนบ้าง?</div>
+    <button class="opt">|1⟩ |5⟩ |7⟩</button>
+    <button class="opt">|4⟩ |6⟩ |7⟩</button>
+    <button class="opt">|4⟩ |5⟩ |7⟩</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ (0,0,1) = 4 · (1,0,1) = 1 + 4 = 5 · (1,1,1) = 7 ตรงกับ Figure 10-5 (p21)</div>
+    <div class="fb no" data-for="no">ระวังลำดับบิตค่ะ c อยู่ที่ 0x4 จึงมีค่า 4 ส่วน a อยู่ที่ 0x1 มีค่า 1 · คำนวณ a + 2b + 4c ทีละชุดใหม่อีกรอบนะคะ</div>
+  </div>
+
+  <div class="crow" data-n="8" data-lab="ก่อน" data-phase="0,0,0,0,0,0,0,0"></div>
+  <div class="crow" data-n="8" data-lab="หลัง phase (a OR NOT b) AND c" data-phase="0,0,0,0,180,180,0,180" data-hl="4,5,7"></div>
+  <p class="src">Figure 10-5 (p21) · magnitude ทุกวงเท่าเดิม (1/√8) · เปลี่ยนแค่ phase ของ |4⟩ |5⟩ |7⟩ เป็น 180° · scratch กลับเป็น |0⟩ แล้ว จึงไม่ต้องวาด</p>
+
+  <table class="cmp">
+    <thead><tr><th>state</th><th>a</th><th>b</th><th>c</th><th>scratch = a OR NOT b</th><th>ประโยค</th><th>phase หลัง</th></tr></thead>
+    <tbody>
+      <tr><td data-label="state">|0⟩</td><td data-label="a">0</td><td data-label="b">0</td><td data-label="c">0</td><td data-label="scratch">1</td><td data-label="ประโยค">0</td><td data-label="phase">0°</td></tr>
+      <tr><td data-label="state">|1⟩</td><td data-label="a">1</td><td data-label="b">0</td><td data-label="c">0</td><td data-label="scratch">1</td><td data-label="ประโยค">0</td><td data-label="phase">0°</td></tr>
+      <tr><td data-label="state">|2⟩</td><td data-label="a">0</td><td data-label="b">1</td><td data-label="c">0</td><td data-label="scratch">0</td><td data-label="ประโยค">0</td><td data-label="phase">0°</td></tr>
+      <tr><td data-label="state">|3⟩</td><td data-label="a">1</td><td data-label="b">1</td><td data-label="c">0</td><td data-label="scratch">1</td><td data-label="ประโยค">0</td><td data-label="phase">0°</td></tr>
+      <tr><td data-label="state"><b>|4⟩</b></td><td data-label="a">0</td><td data-label="b">0</td><td data-label="c">1</td><td data-label="scratch">1</td><td data-label="ประโยค"><b>1</b></td><td data-label="phase"><b>180°</b></td></tr>
+      <tr><td data-label="state"><b>|5⟩</b></td><td data-label="a">1</td><td data-label="b">0</td><td data-label="c">1</td><td data-label="scratch">1</td><td data-label="ประโยค"><b>1</b></td><td data-label="phase"><b>180°</b></td></tr>
+      <tr><td data-label="state">|6⟩</td><td data-label="a">0</td><td data-label="b">1</td><td data-label="c">1</td><td data-label="scratch">0</td><td data-label="ประโยค">0</td><td data-label="phase">0°</td></tr>
+      <tr><td data-label="state"><b>|7⟩</b></td><td data-label="a">1</td><td data-label="b">1</td><td data-label="c">1</td><td data-label="scratch">1</td><td data-label="ประโยค"><b>1</b></td><td data-label="phase"><b>180°</b></td></tr>
+    </tbody>
+  </table>
+  <p>สังเกตคอลัมน์ scratch: pAND พลิกแถวที่ <b>c = 1 และ scratch = 1</b> ซึ่งก็คือแถวที่ประโยคเป็นจริงพอดี · |6⟩ มี c = 1 แต่ scratch = 0 จึงรอด</p>
+
+  <div class="box aha">
+    <b>รูปแบบที่จะเจอซ้ำทั้งคาบ</b>: <b>compute</b> (magnitude logic ลง scratch) → <b>phase logic ตัวสุดท้าย</b> (เช่น pAND) → <b>uncompute</b> ·
+    บท 0039 (ลูกแมว/เสือ) และบท 0040 (3-SAT 7 qubit) ก็คือบล็อกนี้ที่ต่อยาวขึ้น แล้วปิดท้ายด้วย mirror ของ AA
+  </div>
+
+  <details class="recall">
+    <summary>ทดสอบความจำ (ปิดหน้าแล้วตอบในหัวก่อนค่อยกางดู)</summary>
+    <ol>
+      <li>ทำไมต่อ phase logic กันตรงๆ ไม่ได้? → output อยู่ใน phase แต่ input ของตัวถัดไปต้องเป็นค่า (magnitude) ในรีจิสเตอร์</li>
+      <li>ทริกคืออะไร? → ทุก operation ยกเว้นตัวสุดท้ายทำด้วย magnitude logic (ลง scratch) · ตัวสุดท้ายทำด้วย phase logic</li>
+      <li>วาด Figure 10-4 จากความจำ (4 สาย, H กี่สาย, 3 กล่องชื่ออะไร)? → H แค่ 0x1 0x2 0x4 · (a OR NOT b) · pAND = CZ(0x4, 0x8) · uncompute</li>
+      <li><code class="code">bit_or</code> มี 3 บรรทัดอะไร และใช้กฎอะไร? → X(q1,q2) · Toffoli → out · X(q1,q2,out) · De Morgan: q1 OR q2 = NOT(NOT q1 AND NOT q2)</li>
+      <li>scratch ของบทนี้ต่างจาก scratch ของ phase XOR ยังไง? → บทนี้เริ่ม |0⟩ เก็บผลจริง entangle → ต้อง uncompute · XOR ใช้ |−⟩ + kickback → ไม่ต้อง</li>
+      <li>ผล Figure 10-5 พลิกวงไหน? → |4⟩ |5⟩ |7⟩ (ค่า = a + 2b + 4c)</li>
+      <li>สไลด์ p19 ผิดตรงไหน? → <code class="code">reg.hadamard()</code> ไม่มี mask ทั้งที่รูปมี H 3 สาย (+ # กับ quote)</li>
+    </ol>
+  </details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li>phase logic <b>ต่อกันตรงๆ ไม่ได้</b>: output อยู่ใน phase แต่ input ต้องเป็นค่าในรีจิสเตอร์ (p14)</li>
+    <li><b>ทริก</b>: ทุก operation ยกเว้นตัวสุดท้ายใช้ magnitude logic · ตัวสุดท้ายใช้ phase logic (p15)</li>
+    <li>ตัวอย่าง (a OR NOT b) AND c (Figure 10-3) → AND คือตัวสุดท้าย จึงเป็น <b>pAND</b> (p16)</li>
+    <li><b>Figure 10-4</b>: X(b) + <code class="code">bit_or</code> ลง scratch 0x8 → pAND = CZ(0x4, 0x8) → <code class="code">inv_bit_or</code> + X(b) (p17–19)</li>
+    <li><code class="code">bit_or</code> = OR แบบ De Morgan ด้วย Toffoli · <code class="code">inv_bit_or</code> = กลับลำดับ · <code class="code">phase_and</code> = CZ (p20)</li>
+    <li>scratch แบบนี้ entangle → ต้อง uncompute (ต่างจาก scratch |−⟩ ของ XOR)</li>
+    <li><b>Figure 10-5</b>: พลิก |4⟩ |5⟩ |7⟩ (p21) · ⚠️ <code class="code">reg.hadamard()</code> ในสไลด์ไม่มี mask</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 10 <i>Quantum Search</i> หัวข้อ <i>Building Complex Phase-Logic Statements</i> (Figure 10-3 ถึง 10-5) ·
+      ลองรันโค้ดได้ที่ <a href="https://oreilly-qc.github.io/">oreilly-qc.github.io</a> (ตัวอย่างของบทที่ 10) ·
+      สไลด์ <code class="code">QuantumProg_Lec10.pdf</code> หน้า 14–21</p>
+    <p><b>บทก่อนหน้า</b>: <a href="0037-phase-logic-answers-in-phase.html">0037 · phase logic: เก็บคำตอบไว้ใน phase</a> ·
+      <b>บทถัดไป</b>: <a href="0039-kittens-and-tigers-one-shot.html">0039 · ปริศนาลูกแมว/เสือ: รันครั้งเดียวต้องถูก</a></p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="midterm/0021-scratch-qubit-and-abs.html">0021 · scratch qubit</a> ·
+      <a href="midterm/0021b-uncomputing.html">0021b · uncompute</a> ·
+      <a href="midterm/0022-toffoli-is-quantum-nand.html">0022 · Toffoli คือ NAND ควอนตัม</a> ·
+      <a href="0023-flip-and-mirror.html">0023 · flip และ mirror</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① ทำไม pAND ไม่ไปรบกวนการ uncompute
+      ② ถ้าไม่ uncompute แล้วเข้า mirror จะเสียหายยังไง
+      ③ ประโยคที่ตัวนอกสุดเป็น OR (ไม่ใช่ AND) จะใช้ phase logic ตัวไหน
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

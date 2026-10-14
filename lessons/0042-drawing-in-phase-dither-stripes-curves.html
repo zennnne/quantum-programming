@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0042 — วาดรูปลงใน phase: ลายจุด ลายทาง เส้นโค้ง</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+<script defer src="../assets/canvas.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 11 · บทที่ 0042</div>
+  <h1>วาดรูปลงใน phase: ลายจุด ลายทาง เส้นโค้ง</h1>
+  <p class="lead">บทที่แล้วเราระบายได้แค่ "ครึ่งผ้าใบ" ด้วย PHASE(180) ตัวเดียว · บทนี้จะวาดรูปที่ซับซ้อนขึ้น 3 รูป
+    คือลายหมากรุกที่มุม ลายทางเฉียง และเสี้ยววงกลม · ข่าวดีคือทั้ง 3 รูปใช้<b>สูตรเดียวกัน</b>
+    และเป็นสูตรที่พี่ Zen เรียนมาแล้วใน Lec 10</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 4 อย่าง
+    ① ทุกรูปวาดด้วยสูตร <b>คำนวณ → flip phase → uncompute</b> ต่างกันแค่ขั้น "คำนวณ"
+    ② <b>dither</b>: คำนวณด้วย CNOT (เช็คว่าบิตไม่เท่ากัน) แล้ว flip ด้วย CZ 3 จุด
+    ③ <b>ลายทางเฉียง</b>: คำนวณด้วยการลบ <code class="code">qx − 2·qy</code> แล้ว flip ที่บิตบนสุด
+    ④ <b>เสี้ยววงกลม</b>: คำนวณ x² + y² − r² ลง register แยกชื่อ <code class="code">qacc</code> แล้ว flip ที่<b>บิตเครื่องหมาย</b> · register เล็กไปจะ overflow เป็นแถบโค้ง
+  </div>
+
+  <div class="box aha">
+    <b>สูตรประจำบท</b> (มาจาก <a href="0038-magnitude-first-phase-last.html">บท 0038 · magnitude ก่อน phase ทีหลัง</a>):
+    <div class="eq">คำนวณเงื่อนไขให้ไปโผล่ที่ qubit ตัวหนึ่ง → PHASE(180) / CZ ที่ qubit นั้น → ทำขั้นคำนวณย้อนกลับ</div>
+    ขั้นแรกเป็น magnitude logic (ย้ายค่าไปมา) · ขั้นกลางเป็น phase logic (ฝังคำตอบลง phase) ·
+    ขั้นท้ายคือ <a href="midterm/0021b-uncomputing.html">uncompute</a> เพื่อคืน register ให้เหมือนเดิม เหลือไว้แต่ phase
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · วาดด้วยเงื่อนไขซ้อน: dither กับลายทางเฉียง (p15–17)</h2></div>
+
+  <h3>1.1 ก้าวแรก: เงื่อนไขแบบ AND ต้องใช้ CZ</h3>
+  <p>ทวนจากบทที่แล้ว: PHASE(180) บน qubit เดี่ยวๆ ระบายได้ทีละครึ่งผ้าใบเสมอ · ถ้าอยากระบายเฉพาะ
+    "qx ≥ 8 <b>และ</b> qy ≥ 8" (มุมขวาล่างมุมเดียว) ต้องใช้ gate ที่ flip เฉพาะตอน<b>ทุก qubit ที่เลือกเป็น 1 พร้อมกัน</b>
+    ซึ่งก็คือ CZ (= CPHASE 180°) จาก <a href="midterm/0010-cphase-cz-phase-kickback.html">บท 0010</a> ·
+    ใน <a href="0037-phase-logic-answers-in-phase.html">บท 0037</a> เราเรียกมันว่า phase-logic AND</p>
+
+  <div class="qcrow">
+    <div class="qcanvas" data-cell="13" data-flip="x >= 8 && y >= 8"
+         data-lab="CZ(qx 0x8, qy 0x8) บนผ้าใบเปล่า" data-cap="flip เฉพาะมุมขวาล่าง 64 วง"></div>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">① ถ้าเริ่มจากผ้าใบที่<b>ระบายครึ่งขวาไว้แล้ว</b> (PHASE(180) ที่ qx 0x8) แล้วสั่ง CZ(qx 0x8, qy 0x8) ต่ออีกตัว ผ้าใบจะเป็นยังไง</div>
+    <button class="opt">เขียวเฉพาะมุมขวาบน รวม 64 วง</button>
+    <button class="opt">เขียวเฉพาะมุมขวาล่าง รวม 64 วง</button>
+    <button class="opt">เขียวทั้งครึ่งขวา รวมเป็น 128 วง</button>
+    <button class="opt">เขียวสามมุมรวมกัน เป็น 192 วง</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ มุมขวาล่างเขียวอยู่แล้ว โดน flip อีกรอบ (180° + 180° = 360°) เลย<b>กลับเป็นชมพู</b> · การ flip ซ้ำ = "ลบสีออก" จำไว้ เพราะ dither ใช้ทริกนี้ตรงๆ</div>
+    <div class="fb no" data-for="no">มุมขวาล่างเขียวอยู่ก่อนแล้วจาก PHASE ตัวแรก · CZ มา flip มุมนั้นซ้ำอีกรอบ = หมุนครบ 360° กลับเป็นชมพู → เหลือเขียวแค่มุมขวาบน 64 วง</div>
+  </div>
+
+  <h3>1.2 dither pattern: ระบายแค่ครึ่งเดียวของมุม</h3>
+  <p><span class="term">dither pattern</span> (ลายจุดสลับ) คือการเรียงจุดดำกับจุดขาวสลับกันถี่ๆ ให้มองไกลๆ แล้วเห็นเป็น<b>สีเทา</b> ·
+    ถ้าสลับกันแบบครึ่งต่อครึ่งเหมือนตารางหมากรุก จะได้ <b>50% gray</b> (เทา 50%) ·
+    ตรงกับเรื่อง supersampling พอดี: ถ้ามุมนี้ถูกเฉลี่ยรวมเป็น pixel เดียว ค่าที่ได้คือ "ถูกระบายครึ่งหนึ่ง"</p>
+  <p>เงื่อนไขในสไลด์ (p15) มี 3 ข้อที่ต้องจริงพร้อมกัน</p>
+  <ul>
+    <li>qx ≥ 8 → บิต 0x8 ของ qx เป็น 1</li>
+    <li>qy ≥ 8 → บิต 0x8 ของ qy เป็น 1</li>
+    <li><b>บิตต่ำสุด (0x1) ของ qx ไม่เท่ากับของ qy</b> → ข้อนี้เองที่ทำให้เกิดลายสลับ</li>
+  </ul>
+  <p>สองข้อแรกเสียบ CZ ได้เลย เพราะเป็น "บิตนี้เป็น 1" · แต่ข้อสามเป็น "สองบิต<b>ไม่เท่ากัน</b>" ไม่มี qubit ตัวไหนเก็บคำตอบนี้ไว้ →
+    ต้อง<b>คำนวณ</b>ให้มันไปโผล่ที่ qubit สักตัวก่อน</p>
+
+  <div class="box mathref">
+    <b>ทวน: "ไม่เท่ากัน" = XOR</b> · a XOR b ได้ 1 ก็ต่อเมื่อ a ≠ b ·
+    และ CNOT ทำ XOR ให้ฟรี: CNOT (control = b, target = a) เปลี่ยน a ให้เป็น <b>a XOR b</b>
+    (<a href="midterm/0009-cnot-and-entanglement.html">บท 0009</a>)
+  </div>
+
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> <b>คำนวณ</b>: <code class="code">qx.cnot(qy, 0x1)</code> → บิต 0x1 ของ qx กลายเป็น (qx₀ XOR qy₀) ชั่วคราว = "1 เมื่อสองบิตไม่เท่ากัน"</div>
+    <div class="step"><span class="lbl">②</span> <b>flip phase</b>: CZ 3 จุดที่ qx 0x1 · qx 0x8 · qy 0x8 → flip เมื่อเงื่อนไขครบทั้ง 3 ข้อ</div>
+    <div class="step"><span class="lbl">③</span> <b>uncompute</b>: <code class="code">qx.cnot(qy, 0x1)</code> ซ้ำอีกรอบ → บิต 0x1 ของ qx กลับเป็นค่าเดิม (XOR สองรอบหักล้างกัน)</div>
+  </div>
+
+  <div class="wide">
+    <div class="circuit" data-wires="8" data-names="qx,qx,qx,qx,qy,qy,qy,qy"
+         data-wire-labels="0x1,0x2,0x4,0x8,0x1,0x2,0x4,0x8" data-groups="0-2:; 3-3::180°; 4-6:"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1 + H:2 + H:3; H:4 + H:5 + H:6 + H:7; P:3; CNOT:4,0; CZ:0,3,7; CNOT:4,0"></div>
+    <div class="cap">Figure 11-6 (ซีกวงจร) · Adding a dither pattern · กล่องกลาง = "invert color if qx&gt;=8" · กล่องขวา = "50% gray in corner"</div>
+  </div>
+
+  <p>วิธีจำกล่องขวา: <b>⊕ – จุดดำ 3 จุด – ⊕</b> · ⊕ ทั้งสองตัวอยู่บนสาย qx 0x1 โดยมี ● อยู่ที่ qy 0x1 ·
+    จุดดำ 3 จุดตรงกลางอยู่ที่ qx 0x1, qx 0x8, qy 0x8 (สไลด์วาดเป็นจุดดำล้วน ไม่มี φ ไม่มีป้ายองศา)</p>
+
+  <pre class="code-blk">// Invert if qx &gt;= 8
+qc.phase(180, qx.bits(0x8));
+
+// 50% gray in the corner
+qx.cnot(qy, 0x1);
+qc.cphase(180, qy.bits(0x8), qx.bits(0x8|0x1));
+qx.cnot(qy, 0x1);</pre>
+
+  <div class="box warn">
+    <b>สไลด์พิมพ์โค้ดผิด</b> (p16 · ตอบตามสไลด์ตอนสอบ แต่รู้ของจริงไว้):
+    บรรทัด cphase ในสไลด์เขียนว่า <code class="code">qc.cphase(180, qy.bits(0x8,qx.bits(0x8|0x1)));</code> วงเล็บปิดผิดที่ ·
+    ที่ตรงกับวงจร (จุดดำ 3 จุด) คือแบบในกล่องโค้ดข้างบน ·
+    บรรทัดแรกของสไลด์ <code class="code"># Drawing basics</code> ใช้ <code class="code">#</code> ซึ่งไม่ใช่ comment ของ JavaScript (ชื่อ Example หลุดเข้ามา) ·
+    และ <code class="code">'qx’</code> ใช้ quote โค้งปิดท้าย
+  </div>
+
+  <div class="qcanvas" data-flip="x >= 8 && !(y >= 8 && ((x ^ y) & 1))"
+       data-cap="Figure 11-6 (ซีก circle notation) · มุมขวาล่างเป็นลายหมากรุก · วง (qx 8, qy 8) เขียว · (qx 9, qy 8) ชมพู"></div>
+
+  <p><b>ทำไมออกมาเป็นหมากรุก</b>: มุมขวาล่าง<b>เขียวอยู่ก่อนแล้ว</b>จาก PHASE ตัวแรก (กล่อง 180°) ·
+    กล่องขวามา flip ซ้ำเฉพาะวงที่บิต 0x1 ไม่เท่ากัน วงพวกนั้นเลยกลับเป็นชมพู (ทริกเดียวกับข้อ ①) ·
+    บิต 0x1 ไม่เท่ากันคือ qx กับ qy เป็นคู่-คี่คนละแบบ → ชมพูกับเขียวสลับกันทั้งแนวนอนและแนวตั้ง</p>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">② ในรูป Figure 11-6 วง qx = 11, qy = 14 เป็นสีอะไร เพราะอะไร (เขียนเลขฐานสองของ 11 กับ 14 ดูบิตท้ายก่อน)</div>
+    <button class="opt">เขียว เพราะโดน flip แค่รอบเดียว</button>
+    <button class="opt">เขียว เพราะโดน flip ครบสองรอบ</button>
+    <button class="opt">ชมพู เพราะไม่เคยโดน flip เลย</button>
+    <button class="opt">ชมพู เพราะโดน flip ครบสองรอบ</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ 11 = 1011 (บิตท้าย 1) · 14 = 1110 (บิตท้าย 0) → ไม่เท่ากัน · รอบแรกจาก PHASE ที่ qx 0x8 รอบสองจาก CZ 3 จุด → กลับเป็นชมพู</div>
+    <div class="fb no" data-for="no">11 = 1011, 14 = 1110 → qx ≥ 8 โดน flip รอบแรก · qy ≥ 8 และบิตท้ายไม่เท่ากัน (1 กับ 0) โดน CZ 3 จุด flip รอบสอง → 360° = <b>ชมพู</b></div>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">③ นับดู: ผ้าใบ Figure 11-6 มีวงเขียวทั้งหมดกี่วง (มุมขวาบนกี่วง + มุมขวาล่างกี่วง)</div>
+    <button class="opt">64 วง จากทั้งหมด 256 วง</button>
+    <button class="opt">96 วง จากทั้งหมด 256 วง</button>
+    <button class="opt">128 วง จากทั้งหมด 256 วง</button>
+    <button class="opt">160 วง จากทั้งหมด 256 วง</button>
+    <div class="fb ok" data-for="ok">ใช่ค่ะ มุมขวาบน 64 + ครึ่งหนึ่งของมุมขวาล่าง 32 = 96 · ตัวเลข "ถูกระบายไปกี่วง" แบบนี้แหละคือสิ่งที่ QSS จะมานับในบท 0044</div>
+    <div class="fb no" data-for="no">มุมขวาบนเขียวทั้งมุม = 8 × 8 = 64 · มุมขวาล่างเป็นหมากรุก เขียวครึ่งเดียว = 32 → รวม <b>96</b></div>
+  </div>
+
+  <div class="box aha">
+    <b>ทำไมต้องมี CNOT ตัวหลัง</b>: ถ้าไม่ uncompute บิต 0x1 ของ qx จะค้างเป็น (qx₀ XOR qy₀) แปลว่า<b>ตำแหน่ง x ของ pixel ถูกเปลี่ยน</b>
+    (ในแถว qy เลขคี่ คอลัมน์ติดกันจะสลับที่กัน) · เราอยากเปลี่ยนแค่ "สี" ไม่อยากย้าย pixel
+    จึงต้องคืนค่า qx ให้เหมือนเดิมทุกครั้ง เหลือไว้แต่ phase
+  </div>
+
+  <h3>1.3 ลายทางเฉียง: เปลี่ยนขั้น "คำนวณ" เป็นการลบเลข</h3>
+  <p>สไลด์ p17: "With a little arithmetic from lecture 5, we can create more interesting patterns" ·
+    โค้ดมีแค่ 3 บรรทัด หน้าตาเป็นสูตรประจำบทเป๊ะ</p>
+
+  <pre class="code-blk">// fun stripes
+qx.subtractShifted(qy, 1);      // คำนวณ:   qx ← qx − 2·qy
+qc.phase(180, qx.bits(0x8));    // flip:     ถ้าบิตบนสุดของ qx เป็น 1
+qx.addShifted(qy, 1);           // uncompute: qx ← qx + 2·qy (คืนค่าเดิม)</pre>
+  <p class="meta">คอมเมนต์หลัง // ทางขวาเป็นของคาโฮะ · ในสไลด์มีแต่ <code class="code">// fun stripes</code> บรรทัดเดียว</p>
+
+  <div class="box mathref">
+    <b>ทวน 2 เรื่องจาก Lec 05</b>:
+    ① <b>shifted</b> = เลื่อนบิตไปทางซ้ายก่อนบวก/ลบ · เลื่อน 1 ตำแหน่ง = คูณ 2 → <code class="code">subtractShifted(qy, 1)</code> คือลบด้วย 2·qy
+    ② register 4 บิตเก็บได้แค่ 0–15 · ลบแล้วติดลบจะ<b>วนกลับ</b> (mod 16) เช่น 1 − 2 = −1 → เก็บเป็น 15
+    (<a href="midterm/0019-adding-two-quantum-integers-and-negative-numbers.html">บท 0019</a>)
+  </div>
+
+  <p>กลางสูตรคือบรรทัดเดิมจากบทที่แล้ว (PHASE ที่ qx 0x8 = "flip ถ้า qx ≥ 8") แต่ตอนที่มันทำงาน qx ถูกเปลี่ยนเป็น qx − 2·qy ไปแล้ว ·
+    ผลรวมจึงเป็น <b>"flip ถ้า (qx − 2·qy) mod 16 ≥ 8"</b> · ลองไล่ทีละแถว</p>
+
+  <div class="work">
+    <div class="step"><span class="lbl">qy = 0</span> ลบ 0 → เงื่อนไขคือ qx ≥ 8 เหมือนบทที่แล้ว → เขียวที่ qx = 8–15</div>
+    <div class="step"><span class="lbl">qy = 1</span> ลบ 2 → qx = 10–15 ได้ 8–13 (เขียว) · qx = 0, 1 ได้ −2, −1 วนเป็น 14, 15 (เขียว) → <b>แถบเขียวเลื่อนขวา 2 ช่อง</b> แล้วส่วนที่ล้นวนมาโผล่ทางซ้าย</div>
+    <div class="step"><span class="lbl">qy = 4</span> ลบ 8 → เขียวสลับฝั่งมาอยู่ที่ qx = 0–7</div>
+    <div class="step"><span class="lbl">qy = 8</span> ลบ 16 = ลบ 0 (mod 16) → กลับมาเหมือนแถว qy = 0 · ลายจึง<b>วนซ้ำทุก 8 แถว</b></div>
+  </div>
+
+  <div class="qcanvas" data-flip="((x - 2*y) & 15) >= 8"
+       data-cap="Figure 11-7 (ซีก circle notation) · Playing with stripes · แถบเขียวกว้าง 8 ช่อง เลื่อนขวาแถวละ 2 ช่อง"></div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">④ แถว qy = 3 วงเขียวอยู่ที่ qx ค่าไหนบ้าง (คำนวณ (qx − 6) mod 16 แล้วดูว่า ≥ 8 ไหม อย่าเพิ่งเลื่อนขึ้นไปดูรูป)</div>
+    <button class="opt">qx 0–5 กับ 14–15</button>
+    <button class="opt">qx 0–3 กับ 12–15</button>
+    <button class="opt">qx 0–1 กับ 10–15</button>
+    <button class="opt">qx 0–2 กับ 11–15</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ qx = 14, 15 ได้ 8, 9 · qx = 0–5 ได้ −6 ถึง −1 วนเป็น 10–15 · รวม 8 วงเหมือนทุกแถว แค่เลื่อนไป 6 ช่อง</div>
+    <div class="fb no" data-for="no">ลบ 6: qx = 14, 15 → 8, 9 (≥ 8) · qx = 0–5 → −6…−1 วนเป็น 10…15 (≥ 8) · qx = 6–13 → 0–7 (ไม่ถึง) → เขียวที่ <b>0–5 กับ 14–15</b></div>
+  </div>
+
+  <p>คราวนี้ดูวงจรจริง · ยาว 16 คอลัมน์ แต่อ่านเป็น <b>3 ก้อน</b>ตามสูตร: ลบ (6 คอลัมน์) → φ (1 คอลัมน์) → บวกคืน (6 คอลัมน์ เป็นภาพสะท้อนกระจกของก้อนแรก)</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="8" data-names="qx,qx,qx,qx,qy,qy,qy,qy"
+         data-wire-labels="0x1,0x2,0x4,0x8,0x1,0x2,0x4,0x8" data-groups="3-15::180°"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1 + H:2 + H:3; H:4 + H:5 + H:6 + H:7; CNOT:6,3; CNOT:5,2; CCNOT:5,2,3; CNOT:4,1; CCNOT:4,1,2; CTRL:1,2,4 + X:3; P:3; CTRL:1,2,4 + X:3; CCNOT:4,1,2; CNOT:4,1; CCNOT:5,2,3; CNOT:5,2; CNOT:6,3"></div>
+    <div class="cap">Figure 11-7 (ซีกวงจร) · กล่องเทาใบเดียวคร่อมตั้งแต่หลัง H ของ qy ไปจนสุด · ป้าย 180° อยู่เหนือ φ พอดี</div>
+  </div>
+
+  <table class="cmp">
+    <thead><tr><th>บิตของ qy</th><th>มีค่าเท่าไรหลังคูณ 2</th><th>gate ในก้อน "ลบ"</th><th>จำนวนคอลัมน์</th></tr></thead>
+    <tbody>
+      <tr><td data-label="บิตของ qy">qy 0x4</td><td data-label="ค่าหลังคูณ 2">8</td><td data-label="gate">กลับบิต qx 0x8 (ไม่มีบิตสูงกว่าให้ยืม)</td><td data-label="คอลัมน์">1</td></tr>
+      <tr><td data-label="บิตของ qy">qy 0x2</td><td data-label="ค่าหลังคูณ 2">4</td><td data-label="gate">กลับบิต qx 0x4 → ยืมต่อไปที่ qx 0x8</td><td data-label="คอลัมน์">2</td></tr>
+      <tr><td data-label="บิตของ qy">qy 0x1</td><td data-label="ค่าหลังคูณ 2">2</td><td data-label="gate">กลับบิต qx 0x2 → ยืมต่อไปที่ 0x4 → ยืมต่อไปที่ 0x8</td><td data-label="คอลัมน์">3</td></tr>
+    </tbody>
+  </table>
+  <p>จำเป็นจังหวะ <b>1 – 2 – 3 · φ · 3 – 2 – 1</b> · ทุก gate มี ● อยู่ที่บิตของ qy ที่เป็นเจ้าของก้อน และ ⊕ ไต่ขึ้นจากบิตล่างไปบิตบนของ qx ·
+    ● ที่เพิ่มขึ้นบนสาย qx คือเงื่อนไขการ<b>ยืม</b> (borrow) แบบเดียวกับวงจร decrement ใน
+    <a href="midterm/0018-increment-decrement.html">บท 0018</a></p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">⑤ ในวงจร Figure 11-7 สาย qx 0x1 กับสาย qy 0x8 ไม่มี gate เลยหลัง H · เหตุผลของสาย <b>qy 0x8</b> คืออะไร</div>
+    <button class="opt">เพราะบิตนี้ถูกเก็บไว้ใช้ในขั้น uncompute</button>
+    <button class="opt">เพราะสไลด์วาดตกไป ของจริงต้องมี CNOT อยู่</button>
+    <button class="opt">เพราะ 8 × 2 = 16 ซึ่งเท่ากับ 0 ใน mod 16</button>
+    <button class="opt">เพราะ 8 × 2 = 16 ซึ่งล้นไป qubit ตัวที่ 9</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ ลบ 16 จาก register 4 บิตเท่ากับไม่ได้ลบอะไร · ส่วนสาย qx 0x1 ว่างเพราะ 2·qy เป็นเลขคู่เสมอ บิตหลักหน่วยของ qx เลยไม่เคยถูกแตะ</div>
+    <div class="fb no" data-for="no">บิต 0x8 ของ qy มีค่า 8 พอคูณ 2 เป็น 16 · register qx มี 4 บิต (mod 16) ลบ 16 = ลบ 0 จึง<b>ไม่ต้องมี gate</b> · นี่คือเหตุผลที่ลายวนซ้ำทุก 8 แถวด้วย</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · วาดเส้นโค้งด้วยการยกกำลังสอง (p18–21)</h2></div>
+
+  <h3>2.1 เสี้ยววงกลม = เงื่อนไข x² + y² &lt; r²</h3>
+  <p>สไลด์ p18: จะวาดรูปทรงซับซ้อนขึ้น ต้องใช้คณิตศาสตร์ซับซ้อนขึ้น · Example 11-2 วาด<b>เสี้ยววงกลม (quarter-circle) รัศมี 13 pixel</b>
+    โดยมีจุดศูนย์กลางอยู่ที่มุมซ้ายบน (qx = 0, qy = 0)</p>
+  <div class="box mathref">
+    <b>ทวน: จุดอยู่ในวงกลมเมื่อไร</b> · ระยะจากจุดศูนย์กลางถึงจุด (x, y) คือ √(x² + y²) (พีทาโกรัส) ·
+    จุดอยู่<b>ข้างใน</b>วงกลมรัศมี r เมื่อระยะนั้นน้อยกว่า r → ยกกำลังสองสองข้างได้ <b>x² + y² &lt; r²</b> (ไม่ต้องถอดราก) ·
+    ในที่นี้ r = 13 → r² = 169
+  </div>
+  <p>ต้องใช้ของ 2 อย่างที่ตัวอย่างก่อนหน้าไม่มี</p>
+  <ul>
+    <li><b>ยกกำลังสอง</b> → ใช้ <code class="code">addSquared()</code> จาก Lec 05
+      (<a href="../reference/glossary.html">อภิธานศัพท์</a>: <code class="code">a.addSquared(b)</code> = a += b·b)</li>
+    <li><b>ที่ทดเลข</b> → ลายทางเฉียงคำนวณทับลงใน qx ได้เลย แต่ x² + y² ใหญ่เกินกว่าจะใส่ใน 4 บิต
+      จึงต้องมี register ใหม่ชื่อ <code class="code">qacc</code> (accumulator = ตัวสะสมผลบวก) ขนาด <b>10 qubit</b> ·
+      ทำหน้าที่เดียวกับ scratch ใน <a href="midterm/0021-scratch-qubit-and-abs.html">บท 0021</a></li>
+  </ul>
+  <p>รวมทั้งโปรแกรมใช้ <b>18 qubit</b> = qx 4 + qy 4 + qacc 10 · HAD ทำเฉพาะ qx กับ qy ส่วน qacc เริ่มที่ 0
+    <br>ทำไมต้อง 10 · สไลด์ให้เหตุผลว่ากัน overflow ตอนยกกำลังสองแล้วบวกกัน: ค่ามากสุดคือ 15² + 15² = <b>450</b></p>
+
+  <h3>2.2 ทริกเปรียบเทียบ: ลบแล้วดูบิตเครื่องหมาย</h3>
+  <p>QPU ไม่มีคำสั่ง "ถ้าน้อยกว่า" ตรงๆ · ทริกคือเปลี่ยน <b>A &lt; B</b> ให้เป็น <b>A − B ติดลบ</b>
+    แล้วอาศัยว่าเลขติดลบแบบ two's complement มี<b>บิตบนสุดเป็น 1</b> เสมอ
+    (<a href="midterm/0019-adding-two-quantum-integers-and-negative-numbers.html">บท 0019</a>) ·
+    พอคำตอบไปอยู่ที่ qubit ตัวเดียวแล้ว ก็ PHASE(180) ที่ตัวนั้นได้เลย เหมือนสูตรเดิมทุกอย่าง</p>
+
+  <pre class="code-blk">var radius = 13;
+var acc_bits = 10;
+// (ตั้งค่า qx, qy, qacc และ hadamard qx, qy แล้ว)
+
+// fill if x^2 + y^2 &lt; r^2
+qacc.addSquared(qx);                      // ┐
+qacc.addSquared(qy);                      // ├ คำนวณ: qacc = x² + y² − 169
+qacc.subtract(radius * radius);           // ┘
+qacc.phase(180, 1 &lt;&lt; (acc_bits - 1));     // flip: ถ้าบิตบนสุดเป็น 1 (ติดลบ)
+qacc.add(radius * radius);                // ┐
+qacc.subtractSquared(qy);                 // ├ uncompute: ย้อนลำดับ 3 บรรทัดบน
+qacc.subtractSquared(qx);                 // ┘</pre>
+  <p class="meta">คอมเมนต์ทางขวาเป็นของคาโฮะ · <code class="code">1 &lt;&lt; (acc_bits - 1)</code> = 1 เลื่อนซ้าย 9 ตำแหน่ง = 0x200 = บิตบนสุดของ register 10 บิต ·
+    Figure 11-8 ในสไลด์<b>ไม่มีรูปวงจร</b> มีแต่โค้ดกับ circle notation</p>
+
+  <div class="work">
+    <div class="step"><span class="lbl">(12, 4)</span> 144 + 16 = 160 → 160 − 169 = <b>−9</b> ติดลบ → บิตบนสุดเป็น 1 → flip → <b>เขียว</b> (อยู่ในวงกลม)</div>
+    <div class="step"><span class="lbl">(12, 6)</span> 144 + 36 = 180 → 180 − 169 = <b>+11</b> → บิตบนสุดเป็น 0 → ไม่ flip → <b>ชมพู</b> (อยู่นอกวงกลม)</div>
+  </div>
+
+  <div class="qcanvas" data-flip="x*x + y*y < 169"
+       data-cap="Figure 11-8 · Drawing curves in Hilbert space · เขียว = ข้างในวงกลม · ขอบโค้งลากจาก (qx 13, qy 0) ไปถึง (qx 0, qy 13)"></div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">⑥ วง qx = 12, qy = 5 เป็นสีอะไร (คำนวณ x² + y² − 169 เองก่อน)</div>
+    <button class="opt">เขียว เพราะผลลบได้ 0 พอดี</button>
+    <button class="opt">ชมพู เพราะผลลบได้ 0 พอดี</button>
+    <button class="opt">เขียว เพราะผลลบได้ −5 ติดลบ</button>
+    <button class="opt">ชมพู เพราะผลลบได้ +5 เป็นบวก</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ 144 + 25 = 169 → ลบแล้วได้ 0 · เลข 0 บิตบนสุดเป็น 0 ไม่นับว่าติดลบ → ไม่ flip · ตรงกับเครื่องหมาย &lt; (ไม่ใช่ ≤) ในเงื่อนไข</div>
+    <div class="fb no" data-for="no">12² + 5² = 144 + 25 = 169 → 169 − 169 = <b>0</b> · บิตบนสุดของ 0 คือ 0 → ไม่ถูก flip → ชมพู (จุดบนเส้นขอบพอดีถือว่าอยู่นอก)</div>
+  </div>
+
+  <div class="box aha">
+    <b>ทำไมต้อง uncompute qacc</b>: หลังบรรทัด flip ค่าใน qacc ยังผูก (entangle) กับ qx, qy อยู่ ทุก pixel มีค่า qacc ของตัวเอง ·
+    3 บรรทัดท้ายย้อนการคำนวณจน qacc <b>กลับเป็น 0 ในทุก pixel</b> → qacc หลุดออกจากเรื่อง เหลือ phase ฝังอยู่ที่ qx, qy ล้วนๆ ·
+    หลักเดิมจาก <a href="midterm/0021b-uncomputing.html">บท 0021b</a>: phase ติดไปกับ "กิ่ง" ของ superposition การย้อนค่าไม่ได้ลบ phase ออก
+  </div>
+
+  <h3>2.3 ถ้า qacc เล็กเกินไป: overflow กลายเป็นแถบโค้ง</h3>
+  <p>สไลด์ p21: "If the qacc register is too small, the math performed in it will <b>overflow</b>, resulting in <b>curved bands</b>.
+    This overflow effect will be used deliberately in Figure 11-11" ·
+    เหตุผล: ถ้า register เล็ก ค่า x² + y² − 169 จะ<b>วนกลับหลายรอบ</b> บิตบนสุดเลยสลับ 0 / 1 เป็นช่วงๆ ตามระยะจากจุดศูนย์กลาง
+    แต่ละช่วงกลายเป็นวงแหวน 1 แถบ</p>
+
+  <div class="qcrow">
+    <div class="qcanvas" data-cell="13" data-axes="0" data-flip="((x*x + y*y - 169) & 1023) >= 512"
+         data-lab="qacc 10 บิต" data-cap="ไม่ overflow · เสี้ยววงกลมเดียว"></div>
+    <div class="qcanvas" data-cell="13" data-axes="0" data-flip="((x*x + y*y - 169) & 255) >= 128"
+         data-lab="qacc 8 บิต" data-cap="วนกลับ 1 รอบ · มีแถบโค้งเพิ่ม"></div>
+    <div class="qcanvas" data-cell="13" data-axes="0" data-flip="((x*x + y*y - 169) & 63) >= 32"
+         data-lab="qacc 6 บิต" data-cap="วนกลับหลายรอบ · แถบโค้งถี่"></div>
+  </div>
+  <p class="meta">3 ภาพนี้คาโฮะคำนวณเองจากสูตร "flip ถ้าบิตบนสุดของ (x² + y² − 169) mod 2ⁿ เป็น 1" · สไลด์ p21 มีแต่ข้อความ ไม่มีรูปแถบโค้ง
+    (รูปของจริงจะมาใน Figure 11-11 บท 0043)</p>
+
+  <div class="box mathref">
+    <b>ทวน: ช่วงของเลข two's complement n บิต</b> คือ −2ⁿ⁻¹ ถึง 2ⁿ⁻¹ − 1 ·
+    10 บิต = −512 ถึง 511 · 9 บิต = −256 ถึง 255 · ค่าที่เกินช่วงจะวนไปอีกฝั่ง (บวกมากเกิน → กลายเป็นลบ)
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">⑦ (เสริม · สไลด์ไม่ได้ถาม) ค่า 450 ใส่ใน 9 บิตได้ (สูงสุด 511) ถ้าลดเป็น <code class="code">acc_bits = 9</code> ภาพจะเป็นยังไง · ใบ้: หลังลบ 169 ค่ามากสุดคือเท่าไร อยู่ในช่วงของ 9 บิตแบบมีเครื่องหมายไหม</div>
+    <button class="opt">มีเขียวเกินมา 1 วง ตรงมุมขวาล่างสุด</button>
+    <button class="opt">ภาพเหมือนเดิมทุกวง เพราะ 9 บิตก็พอ</button>
+    <button class="opt">เสี้ยววงกลมหายหมด ชมพูทั้งผ้าใบเลย</button>
+    <button class="opt">ได้แถบโค้งถี่ๆ ทั่วภาพ แบบรูป 6 บิต</button>
+    <div class="fb ok" data-for="ok">เก่งมากค่ะ วง (15, 15): 450 − 169 = 281 เกิน 255 → วนเป็น 281 − 512 = −231 ติดลบ → โดน flip ทั้งที่อยู่นอกวงกลม · วงรองลงมา (15, 14) ได้ 252 ยังไม่เกิน · นี่คือเหตุผลที่ต้องเผื่อบิตเครื่องหมายเป็น 10 บิต</div>
+    <div class="fb no" data-for="no">9 บิตแบบมีเครื่องหมายเก็บได้ถึงแค่ 255 · วง (15, 15) ได้ 450 − 169 = 281 → เกิน → วนเป็น −231 → ถูก flip ผิด <b>1 วงที่มุมขวาล่าง</b> · วงอื่นไม่เกิน 255 จึงยังถูก</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>ทดสอบความจำ (ปิดหน้าจอส่วนบนก่อนตอบ)</h2>
+  <details class="recall"><summary>สูตร 3 ขั้นที่ใช้วาดทุกรูปในบทนี้คืออะไร และแต่ละรูปใช้อะไรเป็นขั้นแรก</summary>
+    คำนวณ → flip phase → uncompute · dither: CNOT (qy 0x1 → qx 0x1) · ลายทาง: <code class="code">subtractShifted(qy, 1)</code> ·
+    เสี้ยววงกลม: <code class="code">addSquared</code> สองครั้ง + <code class="code">subtract(r²)</code> ลงใน qacc</details>
+  <details class="recall"><summary>วาดกล่อง "50% gray in corner" ของ Figure 11-6 (3 คอลัมน์)</summary>
+    ① CNOT: ● ที่ qy 0x1 · ⊕ ที่ qx 0x1 ② จุดดำ 3 จุดต่อกันที่ qx 0x1, qx 0x8, qy 0x8 ③ CNOT ตัวเดิมซ้ำ ·
+    อยู่ต่อจากกล่อง 180° ที่มี φ บนสาย qx 0x8</details>
+  <details class="recall"><summary>ลายทางเฉียง: pixel ไหนถูก flip และวงจรมีจังหวะยังไง</summary>
+    flip เมื่อ (qx − 2·qy) mod 16 ≥ 8 · แถบกว้าง 8 เลื่อนขวาแถวละ 2 วนซ้ำทุก 8 แถว ·
+    วงจร: 1 – 2 – 3 คอลัมน์ (qy 0x4, 0x2, 0x1) · φ ที่ qx 0x8 · 3 – 2 – 1 สะท้อนกลับ · สาย qx 0x1 กับ qy 0x8 ว่าง</details>
+  <details class="recall"><summary>เสี้ยววงกลม: ใช้กี่ qubit · เช็ค "น้อยกว่า" ยังไง · qacc เล็กไปเกิดอะไร</summary>
+    18 qubit (qx 4 + qy 4 + qacc 10) · คำนวณ x² + y² − 169 แล้ว PHASE(180) ที่บิตบนสุดของ qacc (ติดลบ = อยู่ในวงกลม) แล้ว uncompute ·
+    qacc เล็กไป → overflow → แถบโค้ง (curved bands) ซึ่งจะถูกใช้โดยตั้งใจใน Figure 11-11</details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li>ทุกรูปใช้สูตร <b>คำนวณ → flip phase → uncompute</b> · uncompute จำเป็นเพราะเราต้องการเปลี่ยนแค่ phase ไม่ใช่ย้ายตำแหน่ง pixel</li>
+    <li><b>dither 50% gray</b> (Figure 11-6): flip เมื่อ qx ≥ 8 และ qy ≥ 8 และบิต 0x1 ไม่เท่ากัน = CNOT – CZ 3 จุด – CNOT ·
+      flip ซ้ำบนที่เขียวอยู่แล้วจึงได้ลายหมากรุก (p15–16)</li>
+    <li><b>ลายทางเฉียง</b> (Figure 11-7): <code class="code">subtractShifted</code> → <code class="code">phase(180, qx.bits(0x8))</code> → <code class="code">addShifted</code> ·
+      flip เมื่อ (qx − 2·qy) mod 16 ≥ 8 (p17)</li>
+    <li><b>เสี้ยววงกลม</b> (Figure 11-8): <code class="code">addSquared</code> ลง <code class="code">qacc</code> 10 qubit → ลบ r² → PHASE(180) ที่บิตเครื่องหมาย → ย้อนกลับ (p18–20)</li>
+    <li><code class="code">qacc</code> เล็กเกิน → <b>overflow → curved bands</b> (p21)</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 11 <i>Quantum Supersampling</i> หัวข้อ
+      <i>Using PHASE to Draw</i> และ <i>Drawing Curves</i> (Figure 11-6 ถึง 11-8 · Example 11-1, 11-2) ·
+      ลองรันแล้วแก้ตัวเลขเล่นได้ที่ <a href="https://oreilly-qc.github.io/">oreilly-qc.github.io</a> (ตัวอย่างของบทที่ 11) ·
+      สไลด์ <code class="code">QuantumProg_Lec11.pdf</code> หน้า 15–21</p>
+    <p><b>บทก่อนหน้า</b>: <a href="0041-qss-noise-character-and-blank-canvas.html">0041 · QSS + ผ้าใบเปล่า</a> ·
+      <b>บทถัดไป</b>: <a href="0043-tiles-drawing-16-subpixels-at-once.html">0043 · แบ่งภาพเป็น tile: วาด 16 subpixel พร้อมกัน</a></p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="0038-magnitude-first-phase-last.html">0038 · magnitude ก่อน phase ทีหลัง</a> ·
+      <a href="0037-phase-logic-answers-in-phase.html">0037 · phase logic</a> ·
+      <a href="midterm/0019-adding-two-quantum-integers-and-negative-numbers.html">0019 · บวกเลข + เลขติดลบ</a> ·
+      <a href="midterm/0021b-uncomputing.html">0021b · uncomputing</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① ทำไม flip ซ้ำแล้วกลายเป็น "ลบสี" ไม่ใช่ "ทับสี"
+      ② ⊕ ที่ไต่ขึ้นในวงจรลายทาง ทำไมถึงเท่ากับการลบเลข
+      ③ uncompute แล้ว ทำไม phase ไม่หายไปด้วย
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

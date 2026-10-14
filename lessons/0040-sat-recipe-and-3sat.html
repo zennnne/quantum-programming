@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0040 — สูตร 9 ขั้น → 3-SAT ทั้งแบบมีและไม่มีคำตอบ</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 10 · บทที่ 0040 (บทสุดท้ายของ Lec 10)</div>
+  <h1>สูตร 9 ขั้น → 3-SAT ทั้งแบบมีและไม่มีคำตอบ</h1>
+  <p class="lead">บท <a href="0039-kittens-and-tigers-one-shot.html">0039</a> เราแก้ปริศนาลูกแมว/เสือได้ 100% ด้วยวงจรที่ออกแบบเฉพาะโจทย์นั้น ·
+    บทนี้จะ<b>ถอดวิธีนั้นออกมาเป็นสูตร 9 ขั้น</b>ที่ใช้กับโจทย์ SAT ข้อไหนก็ได้ แล้วลองใช้สูตรกับ 3-SAT จริงทั้ง 2 แบบ
+    คือแบบที่<b>มีคำตอบ</b> และแบบที่<b>ไม่มีคำตอบเลย</b> · ข่าวดีคือวงจร 7 สายที่ดูน่ากลัว จริงๆ แล้วเป็นแค่บล็อก
+    <code class="code">bit_or</code> จากบท <a href="0038-magnitude-first-phase-last.html">0038</a> ที่เอามาเรียงต่อกัน</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 4 อย่าง
+    ① <b>สูตร 9 ขั้น</b> = แบ่ง clause → magnitude logic ลง scratch → pAND → uncompute → mirror → วน N<sub>AA</sub> รอบ → READ
+    ② อ่าน <b>Figure 10-9</b> (7 สาย 40 คอลัมน์) ให้ออกเป็น "บล็อก clause" ไม่ต้องไล่ทีละ gate
+    ③ ถ้า<b>ไม่มีคำตอบ</b> จะไม่มีอะไรถูก flip → mirror ไม่ทำอะไร → อ่านได้ค่าสุ่ม → เอาไปแทนสูตรเพื่อยืนยัน
+    ④ AA เร่งได้แม้แต่<b>อัลกอริทึมคลาสสิกที่ดีที่สุด</b> ถ้ามันเป็นแบบ <b>one-sided error</b>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · สูตร 9 ขั้น และ 3-SAT ที่มีคำตอบ (p37–47)</h2></div>
+
+  <h3>1.1 จากปริศนาข้อเดียว สู่สูตรที่ใช้ได้ทุกข้อ</h3>
+  <p>ลองนึกถึงสูตรทำอาหาร: บท 0039 เราทำ "ต้มยำกุ้ง" ได้ 1 หม้อ · บทนี้เขียนสูตรออกมาเป็นขั้นตอน
+    ให้เปลี่ยนเป็นกุ้ง ไก่ หรือปลาก็ทำได้เหมือนเดิม · สไลด์ p37–38 เรียกสิ่งนี้ว่าวิธีแก้
+    <span class="term">boolean satisfiability</span> (SAT) บน QPU แบบทั่วไป แบ่งได้เป็น 3 ช่วง:</p>
+
+  <table class="cmp">
+    <thead><tr><th>ช่วง</th><th>ขั้น</th><th>ทำอะไร</th></tr></thead>
+    <tbody>
+      <tr><td data-label="ช่วง"><b>เตรียม</b></td><td data-label="ขั้น">1</td><td data-label="ทำอะไร">เขียนประโยคให้อยู่ในรูป <b>AND ของ clause</b> (clause = ประโยคย่อยที่ต้องจริง<b>พร้อมกัน</b>ทุกตัว)</td></tr>
+      <tr><td data-label="ช่วง"></td><td data-label="ขั้น">2</td><td data-label="ทำอะไร">แต่ละ clause ใช้ <b>magnitude logic</b> · ให้ <b>scratch qubit 1 ตัวต่อ 1 clause</b> (เพราะ input ตัวเดียวมักอยู่ในหลาย clause)</td></tr>
+      <tr><td data-label="ช่วง"></td><td data-label="ขั้น">3</td><td data-label="ทำอะไร"><b>HAD</b> ทุกสาย input ให้เป็น uniform superposition · scratch ทุกตัวเริ่มที่ |0⟩</td></tr>
+      <tr><td data-label="ช่วง"><b>1 รอบ AA</b></td><td data-label="ขั้น">4</td><td data-label="ทำอะไร">คำนวณทีละ clause เก็บผลไว้ใน scratch ของ clause นั้น</td></tr>
+      <tr><td data-label="ช่วง"></td><td data-label="ขั้น">5</td><td data-label="ทำอะไร"><b>phase-logic AND</b> (pAND) ระหว่าง scratch ทุกตัว → นี่คือ <b>flip</b></td></tr>
+      <tr><td data-label="ช่วง"></td><td data-label="ขั้น">6</td><td data-label="ทำอะไร"><b>uncompute</b> magnitude logic ทั้งหมด คืน scratch เป็น |0⟩</td></tr>
+      <tr><td data-label="ช่วง"></td><td data-label="ขั้น">7</td><td data-label="ทำอะไร"><b>mirror</b> บนรีจิสเตอร์ <b>input เท่านั้น</b></td></tr>
+      <tr><td data-label="ช่วง"><b>วน แล้วอ่าน</b></td><td data-label="ขั้น">8</td><td data-label="ทำอะไร">ทำขั้น 4–7 ซ้ำ N<sub>AA</sub> รอบ (Equation 6-2)</td></tr>
+      <tr><td data-label="ช่วง"></td><td data-label="ขั้น">9</td><td data-label="ทำอะไร"><b>READ</b> รีจิสเตอร์ input</td></tr>
+    </tbody>
+  </table>
+
+  <div class="eq">N<sub>AA</sub> = ⌊ (π/4) · √(2<sup>n</sup> / m) ⌋ &nbsp;&nbsp;<small>n = จำนวน qubit ของ input · m = จำนวนคำตอบ · ⌊ ⌋ = ปัดลง</small></div>
+
+  <p>สังเกตว่าขั้น 4–6 คือทริก <b>"magnitude ก่อน phase ทีหลัง"</b> จากบท 0038 แบบเป๊ะๆ ส่วนขั้น 7–8 คือ AA จาก Lec 06
+    (<a href="0024-how-many-aa-iterations.html">0024</a> · <a href="0026-inside-the-mirror.html">0026</a>) · สูตรนี้จึง<b>ไม่มีอะไรใหม่เลย</b> แค่เอาชิ้นเก่ามาเรียงให้เป็นระบบ</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ทวนจากความจำ (อย่าเลื่อนขึ้นไปดู): ทำ pAND ระหว่าง scratch ทุกตัวเสร็จแล้ว ขั้น<b>ถัดไปทันที</b>คืออะไร?</div>
+    <button class="opt">mirror บนรีจิสเตอร์ input</button>
+    <button class="opt">READ ค่าใน scratch ทุกตัว</button>
+    <button class="opt">uncompute clause ทุกตัว</button>
+    <button class="opt">HAD บนรีจิสเตอร์ input</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ ต้อง uncompute ก่อน เพราะถ้า scratch ยังพัวพัน (entangle) กับ input อยู่ mirror จะไม่ได้ผลตามที่ต้องการ (เหมือนบท 0039 ข้อ 2.4) · พอ scratch กลับเป็น |0⟩ หมดแล้วค่อย mirror</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ ลองนึกถึงบท 0038: compute → <b>phase</b> → ? · scratch ยังเก็บผล clause อยู่ ต้องทำอะไรกับมันก่อนจะ mirror ได้</div>
+  </div>
+
+  <h3>1.2 โจทย์ 3-SAT ที่มีคำตอบ (p40)</h3>
+  <div class="eq">(a OR b) AND (NOT a OR c) AND (NOT b OR NOT c) AND (a OR c)</div>
+  <p>ประโยคนี้เป็น AND ของ 4 clause อยู่แล้ว (สไลด์แซวว่า <i>"how convenient!"</i>) จึงข้ามขั้น 1 ได้เลย ·
+    ใช้ <b>7 qubit</b> = input 3 ตัว (a = 0x1, b = 0x2, c = 0x4) + scratch 4 ตัว (0x8, 0x10, 0x20, 0x40 สำหรับ clause 1–4) ·
+    ค่าในรีจิสเตอร์ = a + 2b + 4c</p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">ลองแก้เองก่อนให้ QPU แก้ (ทดในกระดาษ): ค่าไหนทำให้ทั้ง 4 clause เป็นจริง? <small>(ใบ้: clause 3 ห้าม b, c เป็น 1 พร้อมกัน)</small></div>
+    <button class="opt">|3⟩ · a=1 b=1 c=0</button>
+    <button class="opt">|5⟩ · a=1 b=0 c=1</button>
+    <button class="opt">|6⟩ · a=0 b=1 c=1</button>
+    <button class="opt">|1⟩ · a=1 b=0 c=0</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ (1 OR 0)=1 · (0 OR 1)=1 · (1 OR 0)=1 · (1 OR 1)=1 ✓ · ไล่ครบ 8 ค่าแล้วมีคำตอบนี้คำตอบเดียว → m = 1</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ แทนค่าทีละ clause: |3⟩ ตก clause 2 (NOT a OR c = 0) · |6⟩ ตก clause 3 · |1⟩ ตก clause 2</div>
+  </div>
+
+  <div class="box warn">
+    <b>⚠️ ชื่อ "3-SAT" ในสไลด์</b>: ในตำราทฤษฎีความซับซ้อน 3-SAT หมายถึงทุก clause มี <b>3 literal</b> (เช่น a OR b OR NOT c)
+    แต่โจทย์นี้ clause ละ 2 ตัว (ตามนิยามเคร่งๆ คือ 2-SAT) · หนังสือน่าจะเรียก 3-SAT เพราะมี <b>3 ตัวแปร</b> ·
+    <b>ตอนสอบเรียกตามสไลด์ว่า 3-SAT</b> แต่รู้ไว้ว่าวิธีในบทนี้ใช้กับ clause ยาวแค่ไหนก็ได้ ขอแค่ทำ OR ได้</div>
+
+  <h3>1.3 แต่ละ clause = <code class="code">bit_or</code> 1 ตัว (บวก NOT ครอบถ้าจำเป็น)</h3>
+  <p>ทวนบท 0038: <code class="code">bit_or(q1, q2, out)</code> ทำ OR ด้วย De Morgan
+    (NOT ขา input → Toffoli ลง out → NOT ขา input และ out) · ถ้า clause มี <b>NOT</b> ก็แค่ X สายนั้นก่อน แล้ว X คืนหลัง (p42–43):</p>
+
+  <table class="cmp">
+    <thead><tr><th>clause</th><th>โค้ด</th><th>ผลไปที่</th></tr></thead>
+    <tbody>
+      <tr><td data-label="clause">1 · a OR b</td><td data-label="โค้ด"><code class="code">bit_or(0x1,0x2,0x8);</code></td><td data-label="ผลไปที่">0x8</td></tr>
+      <tr><td data-label="clause">2 · NOT a OR c</td><td data-label="โค้ด"><code class="code">qc.not(0x1); bit_or(0x1,0x4,0x10); qc.not(0x1);</code></td><td data-label="ผลไปที่">0x10</td></tr>
+      <tr><td data-label="clause">3 · NOT b OR NOT c</td><td data-label="โค้ด"><code class="code">qc.not(0x2|0x4); bit_or(0x2,0x4,0x20); qc.not(0x2|0x4);</code></td><td data-label="ผลไปที่">0x20</td></tr>
+      <tr><td data-label="clause">4 · a OR c</td><td data-label="โค้ด"><code class="code">bit_or(0x1,0x4,0x40);</code></td><td data-label="ผลไปที่">0x40</td></tr>
+      <tr><td data-label="clause"><b>flip phase</b></td><td data-label="โค้ด"><code class="code">phase_and(0x8|0x10|0x20|0x40);</code></td><td data-label="ผลไปที่">phase</td></tr>
+      <tr><td data-label="clause">inv 4 → 1</td><td data-label="โค้ด"><code class="code">inv_bit_or(...)</code> ย้อนลำดับ 4, 3, 2, 1</td><td data-label="ผลไปที่">scratch → 0</td></tr>
+      <tr><td data-label="clause">mirror</td><td data-label="โค้ด"><code class="code">reg.Grover();</code></td><td data-label="ผลไปที่">reg 3 สาย</td></tr>
+    </tbody>
+  </table>
+  <p><code class="code">phase_and</code> ก็คือ <code class="code">qc.cz(qubits)</code> นั่นเอง: CZ หลายจุดพลิก phase เฉพาะตอนที่<b>ทุกสายเป็น 1</b> = ทุก clause จริง = ทั้งประโยคจริง ·
+    ส่วน uncompute ต้อง<b>ย้อนลำดับ</b> (4 → 1) เหมือนถอดเสื้อหลายชั้น ต้องถอดตัวนอกสุดก่อน</p>
+
+  <h3>1.4 Figure 10-9: อ่านเป็นบล็อก ไม่ต้องไล่ทีละ gate (p41)</h3>
+  <div class="wide">
+    <div class="circuit" data-wires="7" data-wire-labels="0x1,0x2,0x4,0x8,0x10,0x20,0x40"
+         data-names="a,b,c,cl1,cl2,cl3,cl4"
+         data-groups="2-4:clause 1; 5-9:clause 2; 10-14:clause 3; 15-17:clause 4; 18-18:flip; 19-21:inv 4; 22-26:inv 3; 27-31:inv 2; 32-34:inv 1; 35-39:mirror"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6; H:0 + H:1 + H:2; X:0,1; CCNOT:0,1,3; X:0,1,3; X:0; X:0,2; CCNOT:0,2,4; X:0,2,4; X:0; X:1,2; X:1,2; CCNOT:1,2,5; X:1,2,5; X:1,2; X:0,2; CCNOT:0,2,6; X:0,2,6; CZ:3,4,5,6; X:0,2,6; CCNOT:0,2,6; X:0,2; X:1,2; X:1,2,5; CCNOT:1,2,5; X:1,2; X:1,2; X:0; X:0,2,4; CCNOT:0,2,4; X:0,2; X:0; X:0,1,3; CCNOT:0,1,3; X:0,1; H:0 + H:1 + H:2; X:0,1,2; CZ:0,1,2; X:0,1,2; H:0 + H:1 + H:2"
+         data-cap="Figure 10-9 · 3-SAT ที่มีคำตอบ · ป้าย &quot;mirror&quot; คาโฮะเติมเอง (ในรูปจริงช่วงท้ายไม่มีป้าย)"></div>
+  </div>
+  <p>วิธีอ่านให้ไม่ตาลาย:</p>
+  <ul>
+    <li>ครึ่งซ้ายกับครึ่งขวาของ <b>flip</b> เป็น<b>ภาพสะท้อนกระจก</b>กัน (compute ↔ uncompute) · ดูแค่ครึ่งซ้ายก็พอ</li>
+    <li>ทุกบล็อก clause มี Toffoli ●● 1 ตัวลงสาย scratch ของมัน · ⊕ ที่ติดกัน 2 ตัวบนสายเดียว (เช่น 0x1 ใน clause 2) คือ NOT ของ clause ซ้อนกับ NOT ใน <code class="code">bit_or</code> · หักล้างกันได้ แต่หนังสือวาดไว้ทั้งคู่</li>
+    <li><b>flip</b> = CZ ● 4 จุดบนสาย scratch เท่านั้น · ไม่แตะสาย input เลย</li>
+    <li>5 คอลัมน์สุดท้าย (H · ⊕ · ●●● · ⊕ · H) คือ <code class="code">reg.Grover()</code> หน้าตาเดิมทุกโจทย์</li>
+  </ul>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">สไลด์ p41 เขียนว่า "apply a mirror subroutine to the <i>seven-qubit</i> QPU register" · ดูจากวงจรและโค้ดแล้ว mirror ทำบนกี่สาย และทำไม?</div>
+    <button class="opt">7 สาย เพราะ scratch ก็ต้องสะท้อนด้วย</button>
+    <button class="opt">4 สาย เพราะสะท้อนเฉพาะสาย scratch</button>
+    <button class="opt">7 สาย เพราะ reg รวมทั้งหมดไว้แล้ว</button>
+    <button class="opt">3 สาย เพราะคำตอบอยู่ในสาย input</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ <code class="code">reg</code> = <code class="code">qint.new(3, 'reg')</code> มีแค่ 3 qubit · scratch ถูก uncompute กลับเป็น |0⟩ แล้ว ไม่มีอะไรให้ขยาย · <b>สไลด์ p41 เขียนผิด</b> (ถ้าข้อสอบถามตามประโยคนั้นให้ตอบตามสไลด์ แต่รู้ไว้ว่าของจริงคือ 3 สาย)</div>
+    <div class="fb no" data-for="no">ลองนับสายที่มี H ⊕ ●●● ⊕ H ใน 5 คอลัมน์สุดท้ายของวงจรดูค่ะ · แล้วนึกว่าคำตอบ a, b, c อยู่ในสายไหน</div>
+  </div>
+
+  <h3>1.5 Figure 10-10: หลัง 1 รอบ (p46)</h3>
+  <div class="crow" data-n="8" data-r="20" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-lab="หลัง HAD"></div>
+  <div class="crow" data-n="8" data-r="20" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-phase="0,0,0,0,0,180,0,0" data-hl="5" data-lab="หลัง phase logic"></div>
+  <div class="crow" data-n="8" data-r="20" data-mag="0.031,0.031,0.031,0.031,0.031,0.781,0.031,0.031" data-phase="180,180,180,180,180,180,180,180" data-hl="5" data-sub=",,,,,78%,," data-lab="หลัง mirror 1 รอบ"></div>
+  <p>phase logic พลิก <b>|5⟩ ตัวเดียว</b> (a=1, b=0, c=1 ตรงกับที่ทดเองในข้อ ②) · หลัง mirror |5⟩ มีโอกาสถูกอ่าน <b>≈ 78%</b> ·
+    ทุกวงชี้ลง (180°) พร้อมกันเป็นแค่ <b>global phase</b> จาก <code class="code">Grover()</code> แบบ H-X-CZ-X-H (เรื่องเดียวกับ X บน scratch ในบท 0039) ไม่มีผลต่อการอ่าน ·
+    <small>(คาโฮะจำลองวงจรเต็ม 7 qubit ด้วย numpy แล้ว: |5⟩ = −2.5/√8, ค่าอื่น −0.5/√8 · scratch กลับเป็น 0 ครบ)</small></p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ใช้สูตร N<sub>AA</sub> = ⌊(π/4)·√(2ⁿ/m)⌋ กับโจทย์นี้ (n = 3, m = 1) ควรทำ AA กี่รอบ?</div>
+    <button class="opt">0 รอบ</button>
+    <button class="opt">1 รอบ</button>
+    <button class="opt">2 รอบ</button>
+    <button class="opt">3 รอบ</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ √8 ≈ 2.83 · × 0.785 ≈ 2.22 → ปัดลงได้ <b>2</b> · สไลด์โชว์แค่ 1 รอบ (ชื่อรูปบอกว่า "after one iteration") ได้ 78% · ถ้าทำครบ 2 รอบตามสูตรจะได้ <b>≈ 94.5%</b> (numpy ยืนยัน)</div>
+    <div class="fb no" data-for="no">ลองคำนวณทีละขั้นค่ะ: 2³/1 = 8 → √8 ≈ 2.83 → × π/4 (≈ 0.785) → แล้วปัดลง</div>
+  </div>
+
+  <div class="box aha">
+    <b>ทำไมรอบเดียวไม่ 100% เหมือนปริศนาลูกแมว?</b> บท 0039 มี 4 ค่า คำตอบ 1 ตัว ซึ่งเป็นกรณีพิเศษที่ 1 รอบได้ 100% พอดี ·
+    พอมี 8 ค่า ต้องหมุนเข้าหาคำตอบหลายสเต็ปกว่า · ตรงนี้คือเหตุผลที่สูตรมีขั้น 8 "วนซ้ำ N<sub>AA</sub> รอบ"</div>
+
+  <h3>1.6 หาคำตอบยาก แต่ตรวจง่าย (p47)</h3>
+  <p>READ ได้ a=1, b=0, c=1 แล้ว<b>เอาไปแทนในสูตรได้ทันที</b>ว่าจริงไหม · ปัญหาแบบ SAT อยู่ในกลุ่ม <span class="term">NP</span>:
+    <b>หาคำตอบแพง แต่ตรวจคำตอบถูก</b> · นี่คือเหตุผลที่ผลแบบ "ถูก 78%" ยังใช้ได้ดี: ถ้าอ่านได้ค่าผิด ก็ตรวจเจอทันทีแล้วรันใหม่</p>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · ถ้าโจทย์ไม่มีคำตอบล่ะ + AA เร่งอะไรได้อีก (p47–57)</h2></div>
+
+  <h3>2.1 เติม <code class="code">AND b</code> แล้วโจทย์จะไม่มีคำตอบ (p48)</h3>
+  <div class="eq">(a OR b) AND (NOT a OR c) AND (NOT b OR NOT c) AND (a OR c) <b>AND b</b></div>
+  <p>ไล่ให้เห็นว่าไม่มีทางเป็นจริง: b = 1 (เทอมสุดท้ายบังคับ) → c = 0 (clause 3) → a = 1 (clause 4) → clause 2 = NOT 1 OR 0 = <b>0</b> ✗ ขัดกันเอง</p>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">เทอม <code class="code">AND b</code> ที่เพิ่มมา ควรใส่ลงวงจรยังไง? <small>(ใบ้: มันเป็นตัวแปรตัวเดียว ไม่ใช่ OR)</small></div>
+    <button class="opt">เพิ่ม ● บนสาย 0x2 เข้าไปใน CZ ของ flip</button>
+    <button class="opt">เพิ่ม scratch ตัวที่ 5 แล้วทำ bit_or ใหม่</button>
+    <button class="opt">เพิ่ม X บนสาย 0x2 ก่อนทำ mirror</button>
+    <button class="opt">เพิ่ม Toffoli จากสาย 0x2 ไปที่ 0x40</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ b อยู่ในสาย 0x2 อยู่แล้วในรูป magnitude ไม่ต้องคำนวณอะไรเพิ่ม · <code class="code">phase_and(0x2|0x8|0x10|0x20|0x40)</code> → CZ ● 5 จุด · ประหยัด scratch ไป 1 ตัว (ยังคงใช้ 7 qubit เท่าเดิม)</div>
+    <div class="fb no" data-for="no">ลองนึกว่า scratch มีไว้ทำไมค่ะ: มันเก็บผลของ clause ที่ต้อง<b>คำนวณ</b> · แต่ "b" เฉยๆ ไม่ต้องคำนวณ ค่ามันนั่งอยู่บนสายไหนแล้ว?</div>
+  </div>
+
+  <div class="wide">
+    <div class="circuit" data-wires="7" data-wire-labels="0x1,0x2,0x4,0x8,0x10,0x20,0x40"
+         data-names="a,b,c,cl1,cl2,cl3,cl4"
+         data-groups="2-4:clause 1; 5-9:clause 2; 10-14:clause 3; 15-17:clause 4; 18-18:flip; 19-21:inv 4; 22-26:inv 3; 27-31:inv 2; 32-34:inv 1; 35-39:mirror"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6; H:0 + H:1 + H:2; X:0,1; CCNOT:0,1,3; X:0,1,3; X:0; X:0,2; CCNOT:0,2,4; X:0,2,4; X:0; X:1,2; X:1,2; CCNOT:1,2,5; X:1,2,5; X:1,2; X:0,2; CCNOT:0,2,6; X:0,2,6; CZ:1,3,4,5,6; X:0,2,6; CCNOT:0,2,6; X:0,2; X:1,2; X:1,2,5; CCNOT:1,2,5; X:1,2; X:1,2; X:0; X:0,2,4; CCNOT:0,2,4; X:0,2; X:0; X:0,1,3; CCNOT:0,1,3; X:0,1; H:0 + H:1 + H:2; X:0,1,2; CZ:0,1,2; X:0,1,2; H:0 + H:1 + H:2"
+         data-cap="Figure 10-11 · 3-SAT ที่ไม่มีคำตอบ · <b>ต่างจาก 10-9 แค่คอลัมน์ flip</b> ที่มี ● บน 0x2 เพิ่ม"></div>
+  </div>
+
+  <h3>2.2 Figure 10-12: "Nothing has happened!" (p53–54)</h3>
+  <div class="crow" data-n="8" data-r="20" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-lab="หลัง HAD"></div>
+  <div class="crow" data-n="8" data-r="20" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-lab="หลัง phase logic"></div>
+  <div class="crow" data-n="8" data-r="20" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-phase="180,180,180,180,180,180,180,180" data-lab="หลัง mirror"></div>
+  <p>ไม่มีค่าไหน satisfy → phase logic <b>ไม่พลิกใครเลย</b> → ไม่มีค่าไหน "ต่างจากตัวอื่น" ให้ mirror ขยาย ·
+    ผลคือทุกวงเท่ากัน 1/8 เหมือนเดิม (ชี้ลงหมดเป็นแค่ global phase เหมือนข้อ 1.5) · <b>ทำ AA กี่รอบก็ได้ค่าสุ่ม 1 ใน 8</b></p>
+
+  <div class="box aha">
+    <b>แล้วเราได้อะไร?</b> (p54) อ่านค่ามา 1 ชุด แล้ว<b>แทนลงสูตร</b>:
+    ถ้าได้ <b>0</b> → สรุปได้ (ด้วยความน่าจะเป็นสูง) ว่าสูตรนี้ <span class="term">unsatisfiable</span> (ไม่มีทางเป็นจริง) ·
+    เหตุผล: ถ้ามันมีคำตอบจริง AA ควรดันให้เราอ่านได้คำตอบนั้นไปแล้ว · อ่านแล้วได้ค่าที่ไม่จริง จึงเป็นหลักฐานว่าไม่มีคำตอบ</div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">รันวงจร Figure 10-11 แล้วอ่านได้ a=0, b=1, c=1 · แทนลงสูตรแล้วได้อะไร และสรุปว่าอะไร?</div>
+    <button class="opt">ได้ 1 · สูตรนี้มีคำตอบแน่นอน</button>
+    <button class="opt">ได้ 0 · สูตรน่าจะไม่มีคำตอบ</button>
+    <button class="opt">ได้ 0 · วงจรนี้ทำงานผิดพลาด</button>
+    <button class="opt">ได้ 1 · ต้องทำ AA เพิ่มอีก</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ clause 3 = NOT 1 OR NOT 1 = 0 → ทั้งสูตรได้ 0 · วงจรไม่ได้ผิด มันทำหน้าที่ถูกแล้ว แค่ไม่มีอะไรให้ขยาย</div>
+    <div class="fb no" data-for="no">ลองแทนทีละ clause ค่ะ · clause 3 (NOT b OR NOT c) ตอน b = 1, c = 1 ได้เท่าไร?</div>
+  </div>
+
+  <h3>2.3 AA เร่งอัลกอริทึมคลาสสิกได้ด้วย (p55–56)</h3>
+  <p>จุดเด่นของ AA คือให้ <span class="term">quadratic speedup</span> (เร่งแบบกำลังสอง: N ขั้น → ราว √N ขั้น) ·
+    และในบางกรณีชนะได้<b>แม้แต่อัลกอริทึมคลาสสิกที่ดีที่สุด</b> ไม่ใช่แค่ชนะการลองทุกค่า (brute force)</p>
+  <p>อัลกอริทึมที่ AA เอาไปเร่งได้ต้องมี <span class="term">one-sided error</span> (ผิดพลาดได้ด้านเดียว) ·
+    คือเป็นโจทย์ตอบ yes/no ที่:</p>
+  <ul>
+    <li>ถ้าคำตอบจริงคือ <b>no</b> → ตอบ no <b>เสมอ</b> (ไม่มีทางตอบ yes มั่วๆ)</li>
+    <li>ถ้าคำตอบจริงคือ <b>yes</b> → ตอบ yes ด้วยความน่าจะเป็น <b>p &gt; 0</b> (อาจพลาดตอบ no ได้)</li>
+  </ul>
+  <p>3-SAT เข้าเงื่อนไขพอดี: เราตอบ "yes, satisfiable" <b>ก็ต่อเมื่อเจอค่าที่แทนแล้วจริงเท่านั้น</b> · ซึ่งก็คือข้อ 2.2 นั่นเอง
+    (ตอบผิดได้ทางเดียวคือ มีคำตอบแต่เราดวงไม่ดีอ่านไม่เจอ)</p>
+
+  <table class="cmp">
+    <thead><tr><th>ตัวอย่างอื่นที่ AA เร่งได้</th><th>ถามว่าอะไร</th><th>ใช้ทำอะไร</th></tr></thead>
+    <tbody>
+      <tr><td data-label="ตัวอย่าง"><b>element distinctness</b> (ความแตกต่างของสมาชิก)</td><td data-label="ถามว่าอะไร">มี i ≠ j ที่ f(i) = f(j) ไหม</td><td data-label="ใช้ทำอะไร">หาสามเหลี่ยมในกราฟ · ผลคูณเมทริกซ์</td></tr>
+      <tr><td data-label="ตัวอย่าง"><b>finding global minima</b> (หาค่าต่ำสุดรวม)</td><td data-label="ถามว่าอะไร">index i ไหนที่ f(i) ต่ำสุด</td><td data-label="ใช้ทำอะไร">optimization ทั่วไป</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box warn">
+    <b>⚠️ สไลด์ p55</b>: ประโยค "outputs the answer yes with probability p &gt; 0" ถูกหั่นเป็น 2 bullet (bullet ที่ขึ้นต้นด้วย "With probability p &gt; 0." คือท้ายประโยคของข้อ yes) และมีคำว่า "the the" ซ้ำ · เนื้อหาที่ถูกคือตารางด้านบน</div>
+
+  <details class="recall">
+    <summary>ทดสอบความจำ (ปิดหน้าแล้วตอบในหัวก่อนค่อยกางดู)</summary>
+    <ol>
+      <li>สูตร 9 ขั้นแบ่งเป็น 3 ช่วงอะไร? → เตรียม (AND ของ clause · scratch 1 ต่อ clause · HAD) · 1 รอบ (compute → pAND → uncompute → mirror) · วน N<sub>AA</sub> รอบแล้ว READ</li>
+      <li>โจทย์ 3-SAT ใช้กี่ qubit? → 7 = input 3 (0x1, 0x2, 0x4) + scratch 4 (0x8–0x40)</li>
+      <li>clause ที่มี NOT ทำยังไง? → X สายนั้น · bit_or · X คืน</li>
+      <li>flip phase ใน Figure 10-9 คืออะไร? → CZ ● 4 จุดบน scratch (<code class="code">phase_and</code>)</li>
+      <li>mirror ทำกี่สาย? → 3 (reg) · สไลด์ p41 เขียนผิดว่า 7</li>
+      <li>คำตอบ และโอกาสหลัง 1 รอบ? → |5⟩ (a=1, b=0, c=1) ≈ 78% · สูตรบอก 2 รอบ → ≈ 94.5%</li>
+      <li>เติม AND b แล้ววงจรเปลี่ยนตรงไหน? → CZ ของ flip เพิ่ม ● บน 0x2 (5 จุด)</li>
+      <li>ไม่มีคำตอบแล้วเกิดอะไร? → ไม่มีอะไรถูก flip · อ่านได้ค่าสุ่ม · แทนสูตรได้ 0 → น่าจะ unsatisfiable</li>
+      <li>one-sided error คืออะไร? → no ตอบ no เสมอ · yes ตอบ yes ด้วย p &gt; 0</li>
+    </ol>
+  </details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li><b>สูตร 9 ขั้น</b>: AND ของ clause → scratch 1 ตัวต่อ clause → HAD → compute → <b>pAND</b> → uncompute → mirror บน input → วน N<sub>AA</sub> = ⌊(π/4)√(2ⁿ/m)⌋ รอบ → READ (p37–38)</li>
+    <li>3-SAT: 7 qubit · clause = <code class="code">bit_or</code> (+ X ครอบถ้ามี NOT) · flip = CZ บน scratch 4 ตัว · inv ย้อนลำดับ · <code class="code">reg.Grover()</code> (p40–45)</li>
+    <li>หลัง 1 รอบ |5⟩ ≈ 78% (a=1, b=0, c=1) · ทุกวงชี้ลง = global phase · ⚠️ p41 "seven-qubit" ที่จริงคือ 3 (p41, p46)</li>
+    <li>NP: หาคำตอบยาก ตรวจง่าย (p47)</li>
+    <li>เติม <b>AND b</b> → CZ เพิ่ม ● บน 0x2 → ไม่มีอะไรถูก flip → "Nothing has happened!" → อ่านค่าสุ่มแล้วแทนสูตร ได้ 0 = น่าจะ unsatisfiable (p48–54)</li>
+    <li>AA ให้ <b>quadratic speedup</b> กับอัลกอริทึมที่มี <b>one-sided error</b> · เช่น element distinctness, global minima (p55–56)</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 10 <i>Quantum Search</i> หัวข้อ
+      <i>Hands-on: A Satisfiable 3-SAT Problem</i> / <i>Hands-on: Unsatisfiable 3-SAT Problems</i> / <i>Speeding Up Conventional Algorithms</i>
+      (Figure 10-9 ถึง 10-12) · ลองรันโค้ดได้ที่ <a href="https://oreilly-qc.github.io/">oreilly-qc.github.io</a> (ตัวอย่างของบทที่ 10) ·
+      สไลด์ <code class="code">QuantumProg_Lec10.pdf</code> หน้า 37–57</p>
+    <p><b>บทก่อนหน้า</b>: <a href="0039-kittens-and-tigers-one-shot.html">0039 · ปริศนาลูกแมว/เสือ: รันครั้งเดียวต้องถูก</a> ·
+      <b>บทถัดไป</b>: <a href="0041-qss-noise-character-and-blank-canvas.html">0041 · QSS + ผ้าใบเปล่า</a> (เริ่ม Lec 11)</p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="0037-phase-logic-answers-in-phase.html">0037 · phase logic</a> ·
+      <a href="0038-magnitude-first-phase-last.html">0038 · bit_or / pAND / uncompute</a> ·
+      <a href="0024-how-many-aa-iterations.html">0024 · AA กี่รอบ</a> ·
+      <a href="0025-many-marked-values-and-using-aa.html">0025 · หลายคำตอบ (m)</a> ·
+      <a href="0026-inside-the-mirror.html">0026 · ข้างใน mirror</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① ทำไม 8 ค่าต้อง 2 รอบ แต่ 4 ค่ารอบเดียวพอ
+      ② ถ้าโจทย์มีคำตอบ 2 ตัว (m = 2) ผลจะเปลี่ยนยังไง
+      ③ "unsatisfiable ด้วยความน่าจะเป็นสูง" ทำไมไม่ชัวร์ 100%
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

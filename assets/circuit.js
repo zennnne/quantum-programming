@@ -40,10 +40,17 @@
      XWIRE:a,b        SWAP แบบ "สายไขว้" (ไม่มี ×) — เส้นสาย a กับ b ไขว้กันในคอลัมน์นั้น
                       ใช้คู่ SWAP ในคอลัมน์เดียวกันได้ เช่น "SWAP:0,3 + XWIRE:1,2" (QFT Lec07 p15 · เพิ่มตอนบท 0027)
      READ:w           detector (อ่านค่า)
+     READ:w:1 / READ:w:0   detector แสดงค่าที่อ่านได้ (เหลือง+ขีด = 1 · เทา+วง = 0) · Lec09 Fig 9-3 (บท 0034)
+     QRAM:lo,hi:ตาราง:กว้าง  กล่องเทา QRAM คร่อมสาย lo..hi · ตาราง "00>011|01>110" (ไม่ใส่ได้) · Fig 9-4 (บท 0034)
+     RAM:lo,hi:ตาราง:กว้าง   เหมือน QRAM แต่ชื่อกล่อง "RAM" (RAM ธรรมดา Fig 9-2)
+     QRAMDA:lo,hi:k   กล่อง QRAM แบ่ง D (k สายบน) / A (ที่เหลือ) + จุดครึ่งวงที่ขอบ · Fig 9-5 (บท 0034)
      WRITE:w          สัญลักษณ์ write ▷ หัวสาย (เส้นก่อนหน้านี้จะจางลงอัตโนมัติ)
      WRITE:w:1        write 1 = สามเหลี่ยมเหลืองทึบ (ไม่ใส่ :1 = write 0 วงฟ้า) · เพิ่มตอนบท 0029
      BOX:wlo,whi:?:2  กล่องโปร่งคร่อมสาย wlo..whi มีข้อความข้างใน (เพิ่มตอนบท 0021)
                       พารามิเตอร์ที่ 4 = กว้างกี่คอลัมน์ (ไม่ใส่ = 1) — ต้องเว้น "_" ต่อท้ายให้ครบ
+     ELL:w[,w2,...]   สายขาดเป็น "···" (ละช่วงกลาง) · Fig 9-9 (บท 0036)
+     data-dash="0-4; 6-10"        กรอบแดงเส้นประคร่อมคอลัมน์ (ทุกสาย) · บท 0036
+     data-under="0-16:m times"    ปีกกาแดงใต้วงจร + ป้ายตัวเอียง · บท 0036 · หลายอันคั่น ";" ได้ (บท 0043)
      CC:src,tgt       ควบคุมด้วยบิตคลาสสิก = ลูกศรประฟ้าจากสาย src ลงไปที่ gate บนสาย tgt
                       ใช้คู่กับ gate ในคอลัมน์เดียวกันเสมอ เช่น  "CC:1,2 + X:2"
 
@@ -99,11 +106,63 @@
     g.appendChild(el("line", { x1: x - d, y1: y + d, x2: x + d, y2: y - d,
       stroke: "#1a1a1a", "stroke-width": 2.6 }));
   }
-  function detector(g, x, y) {
+  /* val = "1" → detector เหลือง + ขีดฟ้า (อ่านได้ 1) · "0" → เทา + วงฟ้า (อ่านได้ 0)
+     สไตล์ QCEngine Lec09 Fig 9-3 · ไม่ใส่ = detector ม่วงอ่อนแบบเดิม (เพิ่มตอนบท 0034) */
+  function detector(g, x, y, val) {
+    var fill = val === "1" ? "#f3ef9a" : val === "0" ? "#d4d6da" : "#efe9fb";
     g.appendChild(el("path", { d: "M" + x + "," + (y - 12) + " A12,12 0 0 1 " + x + "," + (y + 12),
-      fill: "#efe9fb", stroke: "#1a1a1a", "stroke-width": 1.8 }));
+      fill: fill, stroke: "#1a1a1a", "stroke-width": 1.8 }));
     g.appendChild(el("line", { x1: x, y1: y - 12, x2: x, y2: y + 12,
       stroke: "#1a1a1a", "stroke-width": 1.8 }));
+    if (val === "1") g.appendChild(el("line", { x1: x + 5, y1: y - 5, x2: x + 5, y2: y + 5,
+      stroke: "#29a3d9", "stroke-width": 2.6 }));
+    if (val === "0") g.appendChild(el("circle", { cx: x + 5.5, cy: y, r: 3.2, fill: "#fff",
+      stroke: "#29a3d9", "stroke-width": 2 }));
+  }
+
+  /* กล่อง QRAM สีเทา คร่อมสาย yTop..yBot + ตาราง Address→Value ข้างใน (Lec09 Fig 9-4 · บท 0034)
+     table = "00>011|01>110|10>100|11>111" (ไม่ใส่ = กล่องเปล่ามีแค่คำว่า QRAM) */
+  function qramBox(g, x, yTop, yBot, table, span, title) {
+    title = title || "QRAM";
+    var w = (span || 1) * COLW - 10, bx = x - COLW / 2 + 5, cx = bx + w / 2;
+    var y = yTop - 17, h = (yBot - yTop) + 34;
+    g.appendChild(el("rect", { x: bx, y: y, width: w, height: h,
+      rx: 8, fill: "#e2e3e5", stroke: "#1a1a1a", "stroke-width": 2.4 }));
+    var rows = table ? table.split("|").map(function (r) { return r.split(">"); }) : [];
+    if (!rows.length) { g.appendChild(txt(cx, (yTop + yBot) / 2 + 9, title, 24, 800)); return; }
+    g.appendChild(txt(cx, y + 30, title, 24, 800));
+    var RH = 20, tw = Math.min(w - 16, 150), tx = cx - tw / 2, ty = y + 42, th = RH * (rows.length + 1) + 6;
+    g.appendChild(el("rect", { x: tx, y: ty, width: tw, height: th, rx: 5,
+      fill: "#fff", stroke: "#1a1a1a", "stroke-width": 1.6 }));
+    g.appendChild(el("line", { x1: cx, y1: ty, x2: cx, y2: ty + th, stroke: "#1a1a1a", "stroke-width": 1.2 }));
+    g.appendChild(el("line", { x1: tx, y1: ty + RH + 2, x2: tx + tw, y2: ty + RH + 2, stroke: "#1a1a1a", "stroke-width": 1 }));
+    g.appendChild(txt(cx - tw / 4, ty + 15, "Address", 11, 600));
+    g.appendChild(txt(cx + tw / 4, ty + 15, "Value", 11, 600));
+    rows.forEach(function (r, i) {
+      var ry = ty + RH * (i + 2) - 1;
+      var a = txt(cx - tw / 4, ry, (r[0] || "").split("").join(" "), 14, 800);
+      var v = txt(cx + tw / 4, ry, (r[1] || "").split("").join(" "), 14, 800);
+      a.setAttribute("font-family", "monospace"); v.setAttribute("font-family", "monospace");
+      g.appendChild(a); g.appendChild(v);
+    });
+  }
+
+  /* กล่อง QRAM แบบแบ่ง D / A (Lec09 Fig 9-5 · บท 0034) — ys = ทุกสายที่คร่อม, k = จำนวนสายฝั่ง D (บน)
+     จุดดำครึ่งวงที่ขอบซ้าย-ขวาของกล่องบนทุกสาย */
+  function qramDA(g, x, ys, k) {
+    var hw = 17, yTop = ys[0] - 17, yBot = ys[ys.length - 1] + 17;
+    var ySplit = (ys[k - 1] + ys[k]) / 2;
+    ys.forEach(function (yy) {
+      [x - hw, x + hw].forEach(function (ex) {
+        g.appendChild(el("circle", { cx: ex, cy: yy, r: 6, fill: "#1a1a1a" }));
+      });
+    });
+    g.appendChild(el("rect", { x: x - hw, y: yTop, width: 2 * hw, height: yBot - yTop,
+      rx: 4, fill: "#fff", stroke: "#1a1a1a", "stroke-width": 2.4 }));
+    g.appendChild(el("line", { x1: x - hw, y1: ySplit, x2: x + hw, y2: ySplit,
+      stroke: "#1a1a1a", "stroke-width": 1.4 }));
+    g.appendChild(txt(x, (yTop + ySplit) / 2 + 7, "D", 20, 800));
+    g.appendChild(txt(x, (ySplit + yBot) / 2 + 7, "A", 20, 800));
   }
   /* สัญลักษณ์ write ▷ — วงกลมเล็กสีฟ้า + สามเหลี่ยมเปิด (QCEngine วางไว้หัวสาย) */
   /* one = true → เขียน 1: สามเหลี่ยมเหลืองทึบ + ขีดฟ้า (สไตล์ QCEngine Lec07 p49) · ไม่ใส่ = เขียน 0: วงฟ้า + สามเหลี่ยมโปร่ง */
@@ -133,7 +192,9 @@
     var y = yTop - 17, h = (yBot - yTop) + 34;
     g.appendChild(el("rect", { x: x - COLW / 2 + 5, y: y, width: w, height: h,
       rx: 6, fill: "#fff", stroke: "#1a1a1a", "stroke-width": 2.4 }));
-    g.appendChild(txt(x - COLW / 2 + 5 + w / 2, (yTop + yBot) / 2 + 11, label, 30, 800));
+    /* ป้ายยาว (เช่น "Phase estimation" บท 0031) ล้นกล่อง → ย่อฟอนต์ให้พอดีความกว้าง (≈0.6em ต่อตัวอักษร) */
+    var fs = Math.min(30, Math.floor((w - 14) / (0.6 * label.length)));
+    g.appendChild(txt(x - COLW / 2 + 5 + w / 2, (yTop + yBot) / 2 + fs * 0.37, label, fs, 800));
   }
 
   /* ปีกกา } ฝั่งขวา สำหรับป้ายเอาต์พุต — เพิ่มตอนบท 0021 */
@@ -194,12 +255,27 @@
         break;
       case "CSWAP":
         link(g, x, y); ctrl(g, x, y[0]); cross(g, x, y[1]); cross(g, x, y[2]); break;
-      case "READ": detector(g, x, y[0]); break;
+      case "READ": y.forEach(function (yy) { detector(g, x, yy, arg); }); break;
+      case "QRAM":
+        qramBox(g, x, y[0], y[y.length - 1], arg, parseInt(arg2, 10) || 1); break;
+      case "RAM":   /* RAM ธรรมดา (Fig 9-2) — หน้าตาเดียวกับ QRAM ต่างแค่ชื่อ */
+        qramBox(g, x, y[0], y[y.length - 1], arg, parseInt(arg2, 10) || 1, "RAM"); break;
+      case "QRAMDA": {
+        var ys = [];
+        for (var wi = ws[0]; wi <= ws[ws.length - 1]; wi++) ys.push(yOf(wi));
+        qramDA(g, x, ys, parseInt(arg, 10) || 1); break;
+      }
       case "WRITE": y.forEach(function (yy) { write(g, x, yy, arg === "1"); }); break;
       case "BOX":
         wideBox(g, x, y[0], y[y.length - 1], arg || "?", parseInt(arg2, 10) || 1); break;
       case "CC": cclassic(g, x, y[0], y[1]); break;
       case "_": break;
+      case "ELL":   /* สายขาดเป็น "···" (ละไว้ในฐานที่เข้าใจ) — Fig 9-9 บท 0036 */
+        y.forEach(function (yy) {
+          g.appendChild(el("rect", { x: x - COLW / 2 + 6, y: yy - 4, width: COLW - 12, height: 8, fill: "#fff" }));
+          g.appendChild(txt(x, yy + 4, "···", 15, 800));
+        });
+        break;
       default: console.warn("circuit.js: ไม่รู้จัก op", name);
     }
   }
@@ -239,7 +315,21 @@
     var x0 = nameW + labW + initW + 22;
     var W = x0 + ops.length * COLW + PAD_R + outW;
     var OY = groups ? 40 : 0;              // ที่ว่างด้านบนสำหรับป้ายชื่อกล่อง
-    var H = TOP + OY + (nw - 1) * GAP + 30;
+    /* กรอบแดงเส้นประคร่อมคอลัมน์ + ปีกกาแดงด้านล่าง (Fig 9-9 "m times") — เพิ่มตอนบท 0036 */
+    var spanOf = function (spec) {
+      var p = spec.split(":"), r = p[0].split("-");
+      return { a: parseInt(r[0], 10), b: parseInt(r[1] !== undefined ? r[1] : r[0], 10),
+               label: (p[1] || "").trim() };
+    };
+    var dashes = node.dataset.dash
+      ? node.dataset.dash.split(";").map(function (s) { return s.trim(); }).filter(Boolean).map(spanOf)
+      : null;
+    /* data-under หลายช่วงคั่นด้วย ";" ได้ (Fig 11-10 มีปีกกา 2 อัน) — บท 0043 */
+    var unders = node.dataset.under
+      ? node.dataset.under.split(";").map(function (s) { return s.trim(); }).filter(Boolean).map(spanOf)
+      : null;
+    var UY = unders ? 44 : 0;
+    var H = TOP + OY + (nw - 1) * GAP + 30 + UY;
     var angleY = groups ? 42 : 10;
 
     var svg = el("svg", { width: W, height: H, viewBox: "0 0 " + W + " " + H,
@@ -254,7 +344,7 @@
         var r = p[0].split("-");
         var a = parseInt(r[0], 10), b = parseInt(r[1] !== undefined ? r[1] : r[0], 10);
         var gx = xOf(a) - COLW / 2 + 5, gw = (b - a) * COLW + COLW - 10;
-        var gy = 22, gh = H - gy - 12;
+        var gy = 22, gh = H - gy - 12 - UY;   // ไม่ลงไปทับปีกกา data-under (บท 0043)
         svg.appendChild(el("rect", { x: gx, y: gy, width: gw, height: gh,
           rx: 12, fill: "#eef1f5" }));
         svg.appendChild(el("path", {                    // วงเล็บโค้งสีเขียวน้ำเงิน บน+ล่าง
@@ -278,7 +368,10 @@
         var w = parseInt((q[1] || "").split(",")[0], 10);
         if (isNaN(w)) return;
         if (nm === "WRITE") wCol[w] = j;
-        if (nm === "READ") rCol[w] = j;
+        if (nm === "READ") (q[1] || "").split(",").forEach(function (v) {
+          var wi = parseInt(v, 10);
+          if (!isNaN(wi)) rCol[wi] = j;
+        });
         if (nm === "XWIRE") (q[1] || "").split(",").forEach(function (v) {
           var wi = parseInt(v, 10);
           if (!isNaN(wi)) (gaps[wi] = gaps[wi] || []).push(j);
@@ -327,6 +420,27 @@
         svg.appendChild(t2);
       }
     }
+
+    var RED = "#c62828";
+    if (dashes) dashes.forEach(function (d) {
+      var dx = xOf(d.a) - COLW / 2 + 1, dy = yOf(0) - 22;
+      svg.appendChild(el("rect", { x: dx, y: dy, width: (d.b - d.a + 1) * COLW - 2,
+        height: yOf(nw - 1) - yOf(0) + 44, fill: "none", stroke: RED,
+        "stroke-width": 1.6, "stroke-dasharray": "5 4" }));
+    });
+    if (unders) unders.forEach(function (under) {
+      var ux1 = xOf(under.a) - COLW / 2 + 1, ux2 = xOf(under.b) + COLW / 2 - 1;
+      var uy = yOf(nw - 1) + 28, um = (ux1 + ux2) / 2, ur = 6;
+      svg.appendChild(el("path", {
+        d: "M" + ux1 + "," + uy + " q0," + ur + " " + ur + "," + ur + " H" + (um - ur) +
+           " q" + ur + ",0 " + ur + "," + ur + " q0,-" + ur + " " + ur + ",-" + ur +
+           " H" + (ux2 - ur) + " q" + ur + ",0 " + ur + ",-" + ur,
+        fill: "none", stroke: RED, "stroke-width": 1.8 }));
+      var ut = txt(um, uy + 32, under.label, 15, 700);
+      ut.setAttribute("fill", RED);
+      ut.setAttribute("font-style", "italic");
+      svg.appendChild(ut);
+    });
 
     /* ปีกกา + ป้ายเอาต์พุตฝั่งขวา */
     if (outs) {

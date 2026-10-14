@@ -871,6 +871,238 @@
     </div>
   </div>
 
+  <h2>กล่อง primitive Phase estimation (บท 0031 · Lec 08 slide 11, Figure 8-3)</h2>
+  <p class="meta"><b>qout</b> (m qubit, บน) write 0 → READ ทุกสาย → ปีกกา <b>θ</b> · <b>qin</b> (n qubit, ล่าง) = eigenstate ไม่ READ ·
+  กล่องเทา <b>cont_u</b> + ลูกศรชี้<b>ขึ้นเข้า</b>ใต้กล่อง = ส่ง subroutine ที่ทำ U แบบมีเงื่อนไข · สไลด์ใช้ ⋮ แทนจำนวนสาย ·
+  detector ในรูปมีป้ายค่าตัวอย่าง 0, 1, 1</p>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="6" data-names="qout,qout,qout,qin,qin,qin"
+           data-out="0-2:θ; 3-5:eigenstate"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3:1 + WRITE:4 + WRITE:5; _; BOX:0,5:Phase estimation:3; _; _; _; READ:0 + READ:1 + READ:2"></div>
+      <div class="subin"><span class="arw"></span><span class="bx">cont_u</span><span class="note">(Access to subroutine conditionally performing U)</span></div>
+    </div>
+  </div>
+
+  <h2>ผลของ Phase estimation กับ HAD (บท 0032 · Lec 08 slide 20, Figure 8-4)</h2>
+  <p class="meta">qout <b>4 สาย</b> (บน, 0x1→0x8) READ ทุกสาย · detector สาย 0x1–0x4 <b>ฟ้า = 0</b> · สาย 0x8 <b>เหลือง = 1</b> → ปีกกา <b>8</b> ·
+  qin 1 สาย (ล่าง) ไม่ READ · กล่องเทา <b>cont_u</b> ลูกศรเข้าใต้กล่อง · 8/2⁴ × 360° = <b>180°</b></p>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="5" data-names="qout,qout,qout,qout,qin"
+           data-wire-labels="0x1,0x2,0x4,0x8,0x1" data-out="0-3:8"
+           data-ops="_; BOX:0,4:Phase estimation:3; _; _; _; READ:0 + READ:1 + READ:2 + READ:3"></div>
+      <div class="subin"><span class="arw"></span><span class="bx">cont_u</span><span class="note">(controlled-HAD)</span></div>
+    </div>
+  </div>
+
+  <h2>🔴 วงจรเต็มของ Phase estimation (บท 0033 · Lec 08 slide 32, 39–44, Figure 8-6 / 8-12)</h2>
+  <p class="meta"><b>น่าออกสอบที่สุดของ Lec 08</b> · ลำดับ: write 0 → <b>H ทุกสายบน</b> → controlled-U กล่องใหญ่คร่อม eigenstate
+  (● สายบนบิต 2ʲ คุม <b>U^(2ʲ)</b>: U, U², U⁴, …) → <b>invQFT</b> คร่อมสายบน → READ สายบน (ปีกกา <b>eigenphase</b>) ·
+  สายล่าง “eigenstate (n qubits)” <b>ไม่ READ</b> · ⚠️ สไลด์ป้ายกล่องสุดท้าย <b>U^(2ⁿ)</b> (ตอบตามนี้) แต่ที่ถูกคือ U^(2^(m−1)) ·
+  READ ในรูปมีค่าตัวอย่าง 0, 1, 1, …, 0</p>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="7" data-wire-labels="0x1,0x2,0x4,0x8,e,e,e"
+           data-out="0-3:eigenphase; 4-6:eigenstate (n qubits)"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4:1 + WRITE:5:1 + WRITE:6; H:0 + H:1 + H:2 + H:3; CTRL:0 + BOX:4,6:U; CTRL:1 + BOX:4,6:U²; CTRL:2 + BOX:4,6:U⁴; CTRL:3 + BOX:4,6:U^2ⁿ; BOX:0,3:invQFT:2; _; READ:0 + READ:1 + READ:2 + READ:3"></div>
+    </div>
+  </div>
+  <p class="meta">ชิ้นส่วนย่อยที่โผล่ระหว่างทาง: <b>Figure 8-7</b> กล่อง U คร่อม eigenstate ไม่มี READ = “ไอเดียง่ายๆ ที่ใช้ไม่ได้” (ได้แค่ global phase) ·
+  <b>Figure 8-10</b> = วงจรเดียวกันแต่ register บน write ค่า k ตรงๆ (ไม่มี H, ไม่มี invQFT) → หมุน kθ · <b>Figure 8-11</b> = เติม H แต่ยังไม่มี invQFT</p>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="3" data-ops="WRITE:0:1 + WRITE:1 + WRITE:2:1; _; BOX:0,2:U; _"></div>
+      <div class="cap">Figure 8-7 · U บน eigenstate</div>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="2" data-ops="CTRL:0 + BOX:1,1:U"></div>
+      <div class="cap">controlled-U · ● + เส้นตั้ง + กล่อง</div>
+    </div>
+  </div>
+
+  <h2>🔴 READ ที่บอกค่า + วงจร +1 กับค่าจาก RAM (บท 0034 · Lec 09 slide 13–14, Figure 9-3)</h2>
+  <p class="meta">detector มีสี: <b>เหลือง + ขีด = อ่านได้ 1</b> · <b>เทา + วง = อ่านได้ 0</b> (เข้าชุดกับ ▷ ของ WRITE) ·
+  3 ช่วง: <code class="code">a[2]→qreg</code> (write 5) → <code class="code">add 1</code> (CCNOT, CNOT, NOT) → <code class="code">qreg→a[2]</code> (READ ได้ 6)</p>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="3" data-wire-labels="0x1,0x2,0x4"
+           data-groups="0-0:a[2]→qreg; 1-3:add 1; 4-4:qreg→a[2]"
+           data-ops="WRITE:0:1 + WRITE:1 + WRITE:2:1; CCNOT:0,1,2; CNOT:0,1; X:0; READ:0:0 + READ:1:1 + READ:2:1"></div>
+    </div>
+  </div>
+
+  <h2>🔴 Fixed point Q8.6 (บท 0034 · Lec 09 slide 7, Figure 9-1)</h2>
+  <p class="meta">ป้ายสาย = ค่าของบิต · สายบน = 1/64 · อ่านล่าง→บน 11101001 = 2 + 1 + ½ + ⅛ + 1/64 = <b>3.640625</b></p>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="8" data-wire-labels="0x1/64,0x1/32,0x1/16,0x1/8,0x1/4,0x1/2,0x1,0x2"
+           data-ops="WRITE:0:1 + WRITE:1 + WRITE:2 + WRITE:3:1 + WRITE:4 + WRITE:5:1 + WRITE:6:1 + WRITE:7:1; _"></div>
+    </div>
+  </div>
+
+  <h2>🔴 กล่อง RAM / QRAM (บท 0034 · Lec 09 slide 11, 17–19, Figure 9-2 / 9-4 / 9-5)</h2>
+  <p class="meta"><b>Figure 9-4</b>: กล่องเทา <b>QRAM</b> คร่อม output (3 สาย) + address (2 สาย) มีตาราง Address/Value ข้างใน · address |1⟩+|3⟩ → output |6⟩+|7⟩ ·
+  <b>Figure 9-5</b>: กล่องแบ่ง <b>D</b> (data = qreg) / <b>A</b> (address) + จุดดำครึ่งวงที่ขอบทุกสาย · ตามด้วย +1 ·
+  Figure 9-2 (RAM ธรรมดา) หน้าตาเหมือนกันแต่ชื่อกล่อง RAM · ⚠️ ลำดับบิตใน Figure 9-2 ขัดกันเอง ตอบตามรูป (address 10 → 100)</p>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="5" data-names="out,out,out,addr,addr"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3:1 + WRITE:4; H:4; QRAM:0,4:00>011|01>110|10>100|11>111:4; _; _; _; _"></div>
+      <div class="cap">Figure 9-4 · QRAM</div>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="5" data-names="qreg,,,addr," data-wire-labels="0x1,0x2,0x4,0x1,0x2"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4:1; H:3; QRAMDA:0,4:3; CCNOT:0,1,2; CNOT:0,1; X:0"></div>
+      <div class="cap">Figure 9-5 · QRAM แบบ D/A + increment</div>
+    </div>
+  </div>
+
+  <h2>🔴 Product formula / Lie product formula (บท 0036 · Lec 09 slide 55, Figure 9-9)</h2>
+  <p class="meta">กล่องใหญ่ <b>e<sup>−iH₁δt</sup> … e<sup>−iHₙδt</sup></b> คร่อม<b>ทุกสาย</b> · <b>กรอบแดงเส้นประ</b> 1 กรอบ = 1 รอบ (n กล่อง) · <b>ปีกกาแดง "m times"</b> = วนทั้งชุดซ้ำ m รอบ ·
+  ▷ วงฟ้าที่หัวสาย = write 0 · ⋮ ระหว่างสาย = กี่ qubit ก็ได้ · ความหมาย: exp(−iHt) ≈ (U₁…Uₙ)<sup>m</sup></p>
+  <div class="wide">
+    <div class="circuit" data-wires="3"
+         data-dash="1-5; 7-11; 13-17" data-under="1-17:m times"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2; BOX:0,2:e^−iH₁δt:2; _; ELL:0,1,2; BOX:0,2:e^−iHₙδt:2; _; _; BOX:0,2:e^−iH₁δt:2; _; ELL:0,1,2; BOX:0,2:e^−iHₙδt:2; _; ELL:0,1,2; BOX:0,2:e^−iH₁δt:2; _; ELL:0,1,2; BOX:0,2:e^−iHₙδt:2; _; _"
+         data-cap="Figure 9-9 · quantum simulation ด้วย product formula"></div>
+  </div>
+
+  <h2>🔴 Phase logic 6 แบบ (บท 0037 · Lec 10 slide 11–13, Figure 10-2)</h2>
+  <p class="meta">กล่องเทาพร้อมชื่อทั้งบนและล่าง · <b>φ ทุกตัว = 180°</b> · AND = <b>CZ เฉยๆ</b> · OR = φ(a) <b>ก่อน</b> CZ แล้ว φ(b) <b>หลัง</b> CZ ·
+  NOR/NAND = ครอบ AND/OR ด้วย X ทั้งสองสาย · XOR ใช้ <b>scratch ที่เตรียมเป็น |−⟩</b> (▷ → X → H) และกล่องเทาครอบ<b>เฉพาะ CNOT 2 ตัว</b> ·
+  พลิก: NOT→|0⟩ · OR→123 · NOR→0 · AND→3 · NAND→012 · XOR→12</p>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="1" data-names="a" data-groups="0-2:phase NOT" data-ops="X:0; P:0:180; X:0"></div>
+      <div class="cap">phase NOT</div>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="2" data-names="a,b" data-groups="0-2:phase OR" data-ops="P:0:180; CZ:0,1; P:1:180"></div>
+      <div class="cap">phase OR</div>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="2" data-names="a,b" data-groups="0-2:phase NOR" data-ops="X:0 + X:1; CZ:0,1; X:0 + X:1"></div>
+      <div class="cap">phase NOR</div>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="2" data-names="a,b" data-groups="0-0:phase AND" data-ops="CZ:0,1"></div>
+      <div class="cap">phase AND</div>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="2" data-names="a,b" data-groups="0-4:phase NAND" data-ops="X:0 + X:1; P:0:180; CZ:0,1; P:1:180; X:0 + X:1"></div>
+      <div class="cap">phase NAND</div>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="3" data-names="a,b,scr" data-groups="3-4:phase XOR" data-ops="WRITE:2; X:2; H:2; CNOT:0,2; CNOT:1,2; H:2; X:2"></div>
+      <div class="cap">phase XOR (scratch |−⟩ + kickback)</div>
+    </div>
+  </div>
+
+  <h2>🔴 compute → pAND → uncompute (บท 0038 · Lec 10 slide 17–20, Figure 10-4)</h2>
+  <p class="meta">(a OR NOT b) AND c · a=0x1 b=0x2 c=0x4 · scratch 0x8 <b>เริ่ม |0⟩ ไม่มี H</b> (H แค่ 3 สาย) ·
+  <code class="code">bit_or</code> = X(q1,q2) → Toffoli → X(q1,q2,out) (De Morgan) · pAND = CZ(0x4, 0x8) · uncompute = กลับลำดับ ·
+  ⊕ สองตัวติดกันบน 0x2 = <code class="code">qc.not(2)</code> + X แรกของ <code class="code">bit_or</code> · ผล: พลิก |4⟩ |5⟩ |7⟩ ·
+  ⚠️ โค้ด p19 <code class="code">reg.hadamard()</code> ไม่มี mask แต่รูปมี H 3 สาย → วาดตามรูป</p>
+  <div class="grid">
+    <div class="sym" style="grid-column:1/-1">
+      <div class="circuit" data-wires="4" data-names="a,b,c,scr" data-wire-labels="0x1,0x2,0x4,0x8"
+           data-groups="2-5:(a OR NOT b); 6-6:pAND; 7-10:uncompute"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2; X:1; X:0 + X:1; CCNOT:0,1,3; X:0 + X:1 + X:3; CZ:2,3; X:0 + X:1 + X:3; CCNOT:0,1,3; X:0 + X:1; X:1"></div>
+      <div class="cap">Figure 10-4 · (a OR NOT b) AND c แบบ phase logic</div>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="3" data-names="q1,q2,out" data-ops="X:0 + X:1; CCNOT:0,1,2; X:0 + X:1 + X:2"></div>
+      <div class="cap">bit_or(q1,q2,out) · out = q1 OR q2</div>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="3" data-names="q1,q2,out" data-ops="X:0 + X:1 + X:2; CCNOT:0,1,2; X:0 + X:1"></div>
+      <div class="cap">inv_bit_or (กลับลำดับ)</div>
+    </div>
+  </div>
+
+  <h2>🔴 ปริศนาลูกแมว/เสือ + XNOR แบบ kickback (บท 0039 · Lec 10 slide 31–34, Figure 10-8)</h2>
+  <p class="meta">boxes A=0x1 B=0x2 · noteA 0x4 · scratch 0x8 (ป้ายในรูปเขียน 0x1 ทุก register) · 0 = เสือ, 1 = แมว ·
+  noteA = A OR B (X → Toffoli → X) · NOT A = X ทับสาย A · <b>XNOR</b>: X,H scratch (→ |−⟩) → CNOT จาก noteA → CNOT จากสาย A → X → H,X คืน ·
+  uncompute (มี nop 1 ช่อง) · mirror = H X CZ X H บน boxes · READ: A = 0 · B = 1 → <b>กล่อง B 100%</b> · ⚠️ คอมเมนต์ p33 เขียน |+&gt; แต่ของจริง |−⟩</p>
+  <div class="grid">
+    <div class="sym" style="grid-column:1/-1">
+      <div class="circuit" data-wires="4" data-names="boxes,boxes,noteA,scratch" data-wire-labels="0x1,0x2,0x1,0x1"
+           data-groups="2-4:noteA = A OR B; 5-5:NOT A; 8-10:XNOR; 13-17:uncompute; 18-22:mirror"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1; X:0 + X:1; CCNOT:0,1,2; X:0 + X:1 + X:2; X:0; X:3; H:3; CNOT:2,3; CNOT:0,3; X:3; H:3; X:3; X:0; _; X:0 + X:1 + X:2; CCNOT:0,1,2; X:0 + X:1; H:0 + H:1; X:0 + X:1; CZ:0,1; X:0 + X:1; H:0 + H:1; READ:0:0 + READ:1:1"></div>
+      <div class="cap">Figure 10-8 · (A OR B) XNOR (NOT A) → mirror 1 รอบ</div>
+    </div>
+  </div>
+
+  <h2>🔴 3-SAT 7 สาย (บท 0040 · Lec 10 slide 41–53, Figure 10-9 / 10-11)</h2>
+  <p class="meta">(a OR b) AND (NOT a OR c) AND (NOT b OR NOT c) AND (a OR c) · reg a=0x1 b=0x2 c=0x4 · scratch clause 1–4 = 0x8/0x10/0x20/0x40 ·
+  clause = <code>bit_or</code> (X → Toffoli → X) · มี NOT → X ครอบก่อน/หลัง (⊕ ซ้อน 2 ตัววาดไว้ทั้งคู่) · <b>flip = CZ ● 4 จุดบน scratch</b> · inv clause 4→1 (ภาพกระจก) ·
+  mirror = <code>reg.Grover()</code> บน <b>3 สาย</b> (⚠️ p41 เขียน seven-qubit ผิด) · ผล |5⟩ ≈ 78% หลัง 1 รอบ ·
+  <b>Figure 10-11 (ไม่มีคำตอบ, + AND b)</b> = วงจรเดียวกัน แต่ flip มี ● บน <b>0x2</b> เพิ่มเป็น 5 จุด</p>
+  <div class="grid">
+    <div class="sym" style="grid-column:1/-1">
+      <div class="circuit" data-wires="7" data-wire-labels="0x1,0x2,0x4,0x8,0x10,0x20,0x40"
+           data-groups="2-4:clause 1; 5-9:clause 2; 10-14:clause 3; 15-17:clause 4; 18-18:flip; 19-21:inv 4; 22-26:inv 3; 27-31:inv 2; 32-34:inv 1; 35-39:mirror"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6; H:0 + H:1 + H:2; X:0,1; CCNOT:0,1,3; X:0,1,3; X:0; X:0,2; CCNOT:0,2,4; X:0,2,4; X:0; X:1,2; X:1,2; CCNOT:1,2,5; X:1,2,5; X:1,2; X:0,2; CCNOT:0,2,6; X:0,2,6; CZ:3,4,5,6; X:0,2,6; CCNOT:0,2,6; X:0,2; X:1,2; X:1,2,5; CCNOT:1,2,5; X:1,2; X:1,2; X:0; X:0,2,4; CCNOT:0,2,4; X:0,2; X:0; X:0,1,3; CCNOT:0,1,3; X:0,1; H:0 + H:1 + H:2; X:0,1,2; CZ:0,1,2; X:0,1,2; H:0 + H:1 + H:2"></div>
+      <div class="cap">Figure 10-9 · 3-SAT ที่มีคำตอบ (ป้าย mirror เติมเอง) · Figure 10-11 เปลี่ยนแค่ CZ:3,4,5,6 → CZ:1,3,4,5,6</div>
+    </div>
+  </div>
+
+  <h2>🔴 ผ้าใบเปล่า + ระบายครึ่งขวา (บท 0041 · Lec 11 slide 11–12, Figure 11-4 / 11-5)</h2>
+  <p class="meta">8 สาย: <b>qx</b> 0x1–0x8 อยู่บน · <b>qy</b> 0x1–0x8 อยู่ล่าง · write 0 ทุกสาย · H ของ qx กับ H ของ qy อยู่<b>คนละคอลัมน์</b> (กล่องเทาไม่มีชื่อ) ·
+  ระบายครึ่งขวา (qx ≥ 8) = กล่องป้าย <b>180°</b> มี φ บนสาย <b>qx 0x8</b> สายเดียว = <code>qc.phase(180, qx.bits(0x8))</code> · ผล: 128 วงขวา phase 180°</p>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="8" data-names="qx,qx,qx,qx,qy,qy,qy,qy"
+           data-wire-labels="0x1,0x2,0x4,0x8,0x1,0x2,0x4,0x8" data-groups="0-2:"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1 + H:2 + H:3; H:4 + H:5 + H:6 + H:7"></div>
+      <div class="cap">Figure 11-4 · blank canvas</div>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="8" data-names="qx,qx,qx,qx,qy,qy,qy,qy"
+           data-wire-labels="0x1,0x2,0x4,0x8,0x1,0x2,0x4,0x8" data-groups="0-2:; 3-3::180°"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1 + H:2 + H:3; H:4 + H:5 + H:6 + H:7; P:3"></div>
+      <div class="cap">Figure 11-5 · invert color if qx ≥ 8</div>
+    </div>
+  </div>
+
+  <h2>🔴 dither 50% gray + ลายทางเฉียง (บท 0042 · Lec 11 slide 15–17, Figure 11-6 / 11-7)</h2>
+  <p class="meta">สูตรเดียวกันทั้งคู่: <b>คำนวณ → flip phase → uncompute</b> ·
+  <b>dither</b>: ต่อจากกล่อง 180° (φ ที่ qx 0x8) ด้วยกล่อง <b>⊕ – จุดดำ 3 จุด – ⊕</b> · CNOT มี ● ที่ qy 0x1 และ ⊕ ที่ qx 0x1 · จุดดำ 3 จุดอยู่ที่ qx 0x1, qx 0x8, qy 0x8
+  = <code>qx.cnot(qy, 0x1); qc.cphase(180, qy.bits(0x8), qx.bits(0x8|0x1)); qx.cnot(qy, 0x1);</code> ·
+  <b>ลายทาง</b>: จังหวะ <b>1 – 2 – 3 · φ · 3 – 2 – 1</b> (qy 0x4, 0x2, 0x1 แล้วสะท้อนกลับ) · φ ที่ qx 0x8 · สาย qx 0x1 กับ qy 0x8 ว่าง · กล่องเทาใบเดียวป้าย 180°
+  = <code>qx.subtractShifted(qy, 1); qc.phase(180, qx.bits(0x8)); qx.addShifted(qy, 1);</code> → flip เมื่อ (qx − 2·qy) mod 16 ≥ 8 ·
+  ⚠️ Figure 11-8 (เสี้ยววงกลม) <b>ไม่มีวงจร</b>ในสไลด์ มีแต่โค้ด</p>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="8" data-names="qx,qx,qx,qx,qy,qy,qy,qy"
+           data-wire-labels="0x1,0x2,0x4,0x8,0x1,0x2,0x4,0x8" data-groups="0-2:; 3-3::180°; 4-6:"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1 + H:2 + H:3; H:4 + H:5 + H:6 + H:7; P:3; CNOT:4,0; CZ:0,3,7; CNOT:4,0"></div>
+      <div class="cap">Figure 11-6 · dither pattern (50% gray in corner)</div>
+    </div>
+    <div class="sym">
+      <div class="circuit" data-wires="8" data-names="qx,qx,qx,qx,qy,qy,qy,qy"
+           data-wire-labels="0x1,0x2,0x4,0x8,0x1,0x2,0x4,0x8" data-groups="3-15::180°"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1 + H:2 + H:3; H:4 + H:5 + H:6 + H:7; CNOT:6,3; CNOT:5,2; CCNOT:5,2,3; CNOT:4,1; CCNOT:4,1,2; CTRL:1,2,4 + X:3; P:3; CTRL:1,2,4 + X:3; CCNOT:4,1,2; CNOT:4,1; CCNOT:5,2,3; CNOT:5,2; CNOT:6,3"></div>
+      <div class="cap">Figure 11-7 · playing with stripes</div>
+    </div>
+  </div>
+
+  <h2>🔴 วาดเส้นของ 1 tile (บท 0043 · Lec 11 slide 25–27, Figure 11-10)</h2>
+  <p class="meta">8 สาย = qx 2 + qy 2 + qacc 4 · แต่ละเส้น: <b>CNOT คัดลอก → บวก offset → ⊕ บิตที่ N เป็น 0 · CZ 4 จุดบน qacc · ⊕ ซ้ำ → ลบ offset → CNOT</b> ·
+  เส้นนอน == 3 → ⊕ 0x4, 0x8 · เส้นตั้ง == 10 → ⊕ 0x1, 0x4 · บวก 8 = ⊕ 0x8 ตัวเดียว · "⊕ 0x4 แล้ว ● 0x4 → ⊕ 0x8" = ลบ 4 = บวก 12 (mod 16) ·
+  ⚠️ สไลด์: ป้าย <code>flip if qacc==10</code> อยู่ผิดครึ่ง · บล็อก offset สลับครึ่ง (วงจรตามรูปไม่ flip อะไรเลย) · <b>ตอบตามรูปสไลด์</b></p>
+  <div class="grid">
+    <div class="sym">
+      <div class="circuit" data-wires="8" data-names="qx,qx,qy,qy,qacc,qacc,qacc,qacc"
+           data-wire-labels="0x1,0x2,0x1,0x2,0x1,0x2,0x4,0x8"
+           data-groups="1-2:; 5-5:; 6-8:; 9-9:; 14-15:; 16-18:; 19-20:"
+           data-under="3-11:Horizontal line at y=3; 12-22:Vertical line at x=10"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1; H:2 + H:3; CNOT:2,4; CNOT:3,5; X:7; X:6,7; CZ:4,5,6,7; X:6,7; X:7; CNOT:2,4; CNOT:3,5; CNOT:0,4; CNOT:1,5; X:6; CNOT:6,7; X:4,6; CZ:4,5,6,7; X:4,6; CNOT:6,7; X:6; CNOT:0,4; CNOT:1,5"></div>
+      <div class="cap">Figure 11-10 · drawing the subpixels of one tile (ตามสไลด์)</div>
+    </div>
+  </div>
+
   <h2>เทียบสไตล์: QCEngine ↔ IBM Qiskit (บท 0016 · Lec 04 slide 16)</h2>
   <p class="meta">🔴 <b>ข้อสอบใช้สไตล์ QCEngine (คอลัมน์ซ้าย)</b> — ตารางนี้มีไว้กันสับสนเวลาเจอ
   ไดอะแกรมแบบ IBM ในสไลด์ p16–p17 หรือในเน็ตเท่านั้น</p>

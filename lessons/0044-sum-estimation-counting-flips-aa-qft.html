@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0044 — นับว่า tile โดน flip กี่วง: AA + QFT</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+<script defer src="../assets/canvas.js"></script>
+<script defer src="../assets/wave.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 11 · บทที่ 0044</div>
+  <h1>นับว่า tile โดน flip กี่วง: AA + QFT</h1>
+  <p class="lead">ตั้งแต่บท 0041 เราวาดรูปลง phase ได้แล้ว แต่ READ ออกมาได้แค่ค่าสุ่มวงเดียว ·
+    พอแบ่งภาพเป็น tile ในบท 0043 ปมก็ชัดขึ้นอีก: สิ่งที่อยากรู้จริงๆ คือ<b>ใน tile นี้มี subpixel ขาวกี่ตัว</b>
+    เพราะตัวเลขนี้คือความสว่างของ pixel ผลลัพธ์ · บทนี้ตอบว่า QPU นับได้ยังไง โดยไม่ต้องอ่าน subpixel ทีละตัวเลย</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 4 อย่าง
+    ① <b>Quantum Sum Estimation</b> = เอาโปรแกรมวาดรูปไปเป็น <code class="code">flip</code> ของ AA แล้วต่อด้วย QFT → ได้<b>จำนวน</b>ที่ถูก flip
+    ② QSS ไม่ได้ทำงานน้อยกว่า · ที่ชนะคือ<b>ลักษณะของ noise</b>: pixel ถูกเป๊ะเยอะขึ้นเกือบ 2 เท่า
+    ③ กลไก: counter register บอกว่าจะวน AA กี่รอบ → HAD ใส่ทุกจำนวนรอบพร้อมกัน → เกิด<b>การแกว่ง</b>ที่เร็วช้าตามจำนวนที่ถูก flip → QFT อ่านความเร็วนั้น
+    ④ เป็นเครื่องเดียวกับ <b>phase estimation</b> ในบท 0033 แค่เปลี่ยนตัว U
+  </div>
+
+  <div class="box aha">
+    <b>ของเก่าที่จะกลับมาใช้</b>:
+    AA วนกี่รอบ โอกาสได้คำตอบจะ<b>ขึ้นๆ ลงๆ เป็นคลื่น</b> (<a href="0024-how-many-aa-iterations.html">บท 0024</a>) ·
+    QFT อ่าน<b>ความถี่</b>ที่ซ่อนอยู่ใน register (<a href="0027-qft-hidden-frequency.html">บท 0027</a>) ·
+    และชื่อ "Quantum Sum Estimation" เคยโผล่มาแล้วครั้งหนึ่งตอนท้าย Lec 06 (<a href="0025-many-marked-values-and-using-aa.html">บท 0025</a>)
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · QSS ให้อะไรเรา: ผลก่อน แล้วค่อยดูว่าทำงานยังไง (p30–36)</h2></div>
+
+  <h2>เป้าหมายต่อ 1 tile: นับ subpixel ที่ถูก flip</h2>
+  <p>จำได้ไหมคะว่าในภาพที่เข้ารหัสด้วย phase (<i>phase-encoded image</i>) <b>ขาว = phase ถูก flip เป็น 180°</b> ·
+    ดำ = ไม่ถูก flip · ดังนั้นถ้านับได้ว่า tile นี้มี subpixel ที่ถูก flip กี่ตัวจาก 16 ตัว
+    ก็ได้ <b>ความสว่าง (intensity)</b> ของ pixel ผลลัพธ์ทันที เช่น 4 ตัวจาก 16 = สว่าง 25% (p30)</p>
+
+  <table class="cmp">
+    <thead><tr><th>วิธี</th><th>นับยังไง (p30)</th></tr></thead>
+    <tbody>
+      <tr><td data-label="วิธี"><b>แบบปกติ</b> · Monte Carlo sampling</td>
+        <td data-label="นับยังไง">สุ่มค่า x, y มาตำแหน่งหนึ่ง → รันโปรแกรมวาดรูป → ได้ "ดำ" หรือ "ขาว" 1 คำตอบ →
+          ทำซ้ำหลายรอบ แล้วเอามาเฉลี่ย</td></tr>
+      <tr><td data-label="วิธี"><b>QSS</b> · Quantum Sum Estimation</td>
+        <td data-label="นับยังไง">ให้โปรแกรมวาดรูปทำหน้าที่ <code class="code">flip</code> ของ amplitude amplification (AA) ·
+          รันหลายรอบเหมือนกัน · ต่อท้ายด้วย QFT → READ ได้ค่าที่บอก<b>จำนวน</b>ที่ถูก flip</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box aha">
+    <b>Quantum Sum Estimation (การประมาณผลรวมเชิงควอนตัม)</b>: มองโปรแกรมควอนตัมที่วาดรูปเป็น
+    <b>flip subroutine ของ AA</b> แล้วรวมกับ <b>Quantum Fourier Transform</b> → ประมาณจำนวน subpixel ที่ถูก flip ทั้งหมดใน tile (p30)
+  </div>
+
+  <div class="box warn">
+    <b>สไลด์อ้างเลขบทสลับระบบ</b>: p30 เขียน "Chapter 6" (เลขบทในหนังสือ) คู่กับ "lecture 7" (เลขคาบเรียน) ·
+    ในวิชานี้ AA อยู่ <b>Lec 06</b> และ QFT อยู่ <b>Lec 07</b> · เนื้อหาไม่ผิด แค่นับคนละระบบ
+  </div>
+
+  <h2>ผลเทียบ: Figure 11-12</h2>
+  <p>หนังสือรันภาพวงแหวน 256×256 จากบท 0043 แล้วย่อเหลือ 64×64 ด้วยสองวิธี
+    <b>ใช้จำนวน sample เท่ากัน</b> เทียบกับภาพอุดมคติ (<i>ideal reference</i>) ที่ sample ได้สมบูรณ์แบบ (p31, p35)</p>
+
+  <table class="cmp">
+    <thead><tr><th>ภาพ</th><th>mean pixel error (เพี้ยนเฉลี่ยต่อ pixel)</th><th>error-free pixels (pixel ที่ถูกเป๊ะ)</th></tr></thead>
+    <tbody>
+      <tr><td data-label="ภาพ">Monte Carlo result</td><td data-label="mean pixel error">9%</td><td data-label="error-free pixels">23%</td></tr>
+      <tr><td data-label="ภาพ">Ideal reference</td><td data-label="mean pixel error">—</td><td data-label="error-free pixels">—</td></tr>
+      <tr><td data-label="ภาพ"><b>QSS result</b></td><td data-label="mean pixel error"><b>6%</b></td><td data-label="error-free pixels"><b>46%</b></td></tr>
+    </tbody>
+  </table>
+
+  <p>ภาพจริงในสไลด์ (หนูเปิดดูแบบขยายแล้ว): ฝั่ง Monte Carlo เป็น<b>เม็ดเทาหยาบๆ ทั่วทั้งภาพ</b> ·
+    ฝั่ง QSS <b>พื้นเรียบเหมือนภาพอุดมคติเป็นส่วนใหญ่</b> แต่มี<b>จุดขาวจัด/ดำจัดโผล่เป็นเม็ดๆ</b> ·
+    ข้างล่างคือภาพประกอบที่หนูทำเองให้เห็น "นิสัย" ของ noise สองแบบนี้ (ไม่ใช่ภาพจากสไลด์)</p>
+
+  <div class="qcrow">
+    <div class="qcanvas" data-n="16" data-cell="11" data-mode="gray" data-axes="0"
+         data-gray="Math.round((x + y)/30*16)/16"
+         data-cap="ภาพอุดมคติ"></div>
+    <div class="qcanvas" data-n="16" data-cell="11" data-mode="gray" data-axes="0"
+         data-gray="Math.round((x + y)/30*16)/16 + (rnd(x,y) - 0.5)*0.3"
+         data-cap="แบบ Monte Carlo: เพี้ยนนิดๆ ทุกช่อง"></div>
+    <div class="qcanvas" data-n="16" data-cell="11" data-mode="gray" data-axes="0"
+         data-gray="rnd(x,y) < 0.8 ? Math.round((x + y)/30*16)/16 : (rnd(y+5,x) < 0.5 ? 0 : 1)"
+         data-cap="แบบ QSS: ส่วนใหญ่เป๊ะ บางช่องเพี้ยนแรง"></div>
+  </div>
+
+  <div class="box aha">
+    <b>ประโยคทองของ p35</b>: ข้อได้เปรียบที่น่าสนใจของ QSS <b>ไม่ได้อยู่ที่จำนวน drawing operation</b>
+    แต่อยู่ที่ <b>character (ลักษณะ) ของ noise</b> · ที่จำนวน sample เท่ากัน QSS มี mean pixel error ต่ำกว่าราว 33%
+    และมี zero-error pixel มาก<b>เกือบ 2 เท่า</b>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">ลองคิดเองก่อนเลือก: ตัวเลข "ต่ำกว่าราว 33%" กับ "เกือบ 2 เท่า" ใน p35 คำนวณมาจากคู่ไหนในตาราง</div>
+    <button class="opt">9 → 6 คือ 33% · 23 → 46 คือ 2 เท่า · ใช้ตัวหาร 6</button>
+    <button class="opt">9 → 6 ลด 3 จาก 9 · 23 → 46 คือคูณ 2 · ใช้ตัวหาร 9</button>
+    <button class="opt">6 → 9 เพิ่ม 3 จาก 6 · 46 → 23 คือหาร 2 · ใช้ตัวหาร 6</button>
+    <div class="fb ok" data-for="ok">ใช่ค่ะ ลดลง 3 จากของเดิม 9 = 3/9 ≈ 33% · error-free 23% → 46% = 2 เท่าพอดี ·
+      ระวังตัวหาร: ต้องหารด้วย<b>ค่าเดิม</b> (Monte Carlo) ไม่ใช่ค่าใหม่</div>
+    <div class="fb no" data-for="no">ลองดูใหม่นะคะ "ต่ำกว่า 33%" = ลดลงเท่าไรเมื่อเทียบกับ<b>ค่าเดิม</b> ·
+      ค่าเดิมคือ Monte Carlo 9% → ลดลง 3 → 3/9 ≈ 33%</div>
+  </div>
+
+  <h2>ทำไม noise แบบ QSS ถึงน่าสนใจ</h2>
+  <p>ลองนึกถึงบทที่ 0041 ค่ะ: noise ที่ "<b>เพี้ยนนิดๆ ทุก pixel</b>" ลบออกด้วยมือแทบไม่ได้ เพราะไม่รู้จะแก้ตรงไหนก่อน ·
+    แต่ noise ที่ "<b>ถูกเกือบหมด ผิดแรงแค่บางจุด</b>" หาจุดผิดเจอง่าย เพราะจุดขาวจัด/ดำจัดโดดออกมาจากพื้นเรียบ</p>
+
+  <h2>QSS ไม่เหมือน Monte Carlo ตรงไหนกันแน่ (p36)</h2>
+  <p>QSS shader <b>ไม่เคย output ค่าของ subpixel ตัวใดตัวหนึ่งออกมาเลย</b> · มันใช้ superposition ของค่าทั้งหมด
+    เพื่อประมาณ<b>ผลรวม</b>อย่างเดียว · ถ้าอยากได้ค่าทุก subpixel ระหว่างทาง ใช้คอมพิวเตอร์ปกติเหมาะกว่า ·
+    ถ้าอยากได้แค่ผลรวม หรือคุณสมบัติของ<b>กลุ่ม</b> subpixel นั่นแหละที่ QPU น่าสนใจ</p>
+
+  <table class="cmp">
+    <thead><tr><th>วิธี</th><th>เพิ่มจำนวน sample แล้วเกิดอะไร (p36)</th></tr></thead>
+    <tbody>
+      <tr><td data-label="วิธี">Conventional supersampling</td>
+        <td data-label="เพิ่ม sample">ผลลัพธ์<b>ค่อยๆ ขยับเข้าหา</b> (converge) คำตอบที่ถูกเป๊ะ</td></tr>
+      <tr><td data-label="วิธี">Quantum supersampling</td>
+        <td data-label="เพิ่ม sample"><b>ความน่าจะเป็น</b>ที่จะได้คำตอบถูกเป๊ะ<b>เพิ่มขึ้น</b></td></tr>
+    </tbody>
+  </table>
+
+  <div class="analogy">
+    <div class="cell"><b>Monte Carlo ≈ ปาลูกดอกหลายลูกแล้วหาจุดเฉลี่ย</b>
+      <small>ยิ่งปาเยอะ จุดเฉลี่ยยิ่งเข้าใกล้กลางเป้า แต่แทบไม่เคยตรงกลางเป๊ะ</small></div>
+    <div class="arrow">vs</div>
+    <div class="cell"><b>QSS ≈ ลูกดอกที่เข้ากลางเป้าเป๊ะ หรือไม่ก็พลาดไปเลย</b>
+      <small>ยิ่งทำให้ดีขึ้น โอกาส "เข้าเป๊ะ" ยิ่งสูง แต่ตอนพลาดก็พลาดแรง</small></div>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ถ้าเพิ่มจำนวน sample ให้ QSS อะไรเปลี่ยนไปตามสไลด์ p36</div>
+    <button class="opt">ค่าที่ได้ค่อยๆ ขยับเข้าหาคำตอบ</button>
+    <button class="opt">ได้ค่าของ subpixel ครบทุกตัว</button>
+    <button class="opt">โอกาสได้คำตอบที่ถูกเป๊ะสูงขึ้น</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · "converge เข้าหา" เป็นของ Monte Carlo · ของ QSS คือ<b>ความน่าจะเป็น</b>ที่ได้คำตอบเป๊ะเพิ่มขึ้น</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · "ขยับเข้าหา" เป็นของ Monte Carlo · ส่วน QSS ไม่เคย output subpixel รายตัวเลย ได้แค่ผลรวม</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · เปิดฝาดูข้างใน: counter → การแกว่ง → QFT (p37–40, p32–34)</h2></div>
+
+  <p>สไลด์ p37–40 เป็นตัวหนังสือล้วน ไม่มีรูปเลย · หนูเลยทำกราฟประกอบเองจากการจำลองด้วย numpy ·
+    ก่อนไปดูกราฟ ขอเปรียบเทียบก่อนนะคะ</p>
+
+  <div class="analogy">
+    <div class="cell"><b>เคาะขวดแก้วฟังเสียง</b>
+      <small>อยากรู้ว่ามีน้ำในขวดเท่าไร ไม่ต้องเทออกมาตวง · เคาะแล้วฟังว่า<b>เสียงสูงหรือต่ำ</b> ก็บอกปริมาณน้ำได้</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>QSS</b>
+      <small>อยากรู้ว่ามี subpixel ถูก flip กี่ตัว ไม่ต้อง READ ทีละตัว ·
+        ทำให้ register <b>แกว่ง</b> แล้วให้ QFT ฟังว่าแกว่ง<b>เร็วหรือช้า</b></small></div>
+  </div>
+
+  <h2>ขั้น ① counter register = "จะวน AA กี่รอบ"</h2>
+  <p>แก่นของ QSS คือ<b>เอา AA iteration มารวมกับ QFT</b> เพื่อประมาณจำนวนของที่ถูก flip โดย <code class="code">flip</code>
+    ของ AA ในที่นี้ก็คือโปรแกรมวาดรูป ซึ่ง flip phase ของ subpixel ขาวทั้งหมด (p37) ·
+    แล้วเพิ่ม register ใหม่ชื่อ <b>counter</b> (ตัวนับ) ที่<b>ค่าของมันกำหนดว่าจะทำ AA กี่รอบ</b>:
+    ค่า counter = 5 → ทำ AA 5 รอบ</p>
+
+  <div class="box aha">
+    <b>ทริกของ p37</b>: ถ้า HAD counter ให้เป็น superposition ก่อน ก็เท่ากับทำ
+    <b>superposition ของจำนวนรอบ AA ที่ต่างกัน</b> · counter 4 qubit = ทำ 0, 1, 2, …, 15 รอบ<b>พร้อมกันในคราวเดียว</b>
+  </div>
+
+  <h2>ขั้น ② จำนวนรอบต่างกัน → เกิดการแกว่ง</h2>
+  <p>จากบท 0024: วน AA ไปเรื่อยๆ โอกาสเจอของที่ถูก mark จะขึ้นแล้วลงแล้วขึ้นใหม่ เป็นคลื่น ·
+    ตอนนี้ counter ถือทุกจำนวนรอบไว้พร้อมกัน คลื่นนั้นจึงกลายเป็น<b>ลายแกว่งเป็นคาบ
+    (periodic oscillation)</b> ที่กางอยู่ตลอดแนว amplitude ของ counter register ·
+    และที่สำคัญ: <b>ความถี่ของการแกว่งขึ้นกับจำนวนที่ถูก flip</b> (p38)</p>
+
+  <p>กราฟซ้ายคือ amplitude ของส่วน "subpixel ขาว" เมื่อทำ AA ไป k รอบ (k = ค่าของ counter) ·
+    กราฟขวาคือสิ่งที่ QFT เห็น · tile มี 16 subpixel</p>
+
+  <div class="wave" data-n="16" data-sig="sin:1.287:1:14.48" data-mark="1,15"
+       data-ax="k (รอบ AA),amplitude,QFT,ความถี่,ความแรง"
+       data-lab="ขาว 1 ตัวจาก 16" data-cap="แกว่งช้า → peak ที่ 1 (และภาพสะท้อนที่ 15)"></div>
+  <div class="wave" data-n="16" data-sig="sin:2.667:1:30" data-mark="3,13"
+       data-ax="k (รอบ AA),amplitude,QFT,ความถี่,ความแรง"
+       data-lab="ขาว 4 ตัวจาก 16" data-cap="แกว่งเร็วขึ้น → peak ย้ายไปที่ 3"></div>
+  <div class="wave" data-n="16" data-sig="sin:5.333:1:60" data-mark="5,11"
+       data-ax="k (รอบ AA),amplitude,QFT,ความถี่,ความแรง"
+       data-lab="ขาว 12 ตัวจาก 16" data-cap="แกว่งเร็วกว่าอีก → peak ที่ 5"></div>
+
+  <div class="box mathref">
+    <b>คณิตย่อๆ (หนูเติมเอง สไลด์ไม่ได้ให้สูตร)</b>: ถ้ามีของที่ถูก flip M ตัวจาก N ตัว ให้ sin²θ = M/N ·
+    หลังทำ AA k รอบ amplitude ของส่วนที่ถูก flip เป็น sin((2k+1)θ) · คือคลื่นที่<b>ก้าวทีละ 2θ ต่อรอบ</b> ·
+    ใน register 16 ช่อง peak จึงอยู่ราวๆ <span class="term">16 × θ / 180°</span> ·
+    เช่น M = 4: sin²θ = 4/16 → θ = 30° → 16 × 30 / 180 ≈ 2.7 → peak ที่ช่อง 3 ·
+    มุมมองที่ใช้คือ mirror = "สะท้อนรอบค่าเฉลี่ย" แบบ<a href="0026-inside-the-mirror.html">บท 0026</a>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">ใช้สูตรในกล่องคณิต: tile ที่มีขาว <b>8 ตัวจาก 16</b> (เทาครึ่งๆ) peak จะอยู่ช่องไหน</div>
+    <button class="opt">ช่อง 4 · θ = 45°</button>
+    <button class="opt">ช่อง 8 · θ = 90°</button>
+    <button class="opt">ช่อง 2 · θ = 22°</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · sin²θ = 8/16 = 0.5 → sinθ ≈ 0.707 → θ = 45° → 16 × 45 / 180 = 4 พอดี ·
+      ลงช่องเต็มพอดีแบบนี้ peak จะคมกริบ ไม่บานไปช่องข้างๆ · (θ = 90° คือกรณีขาวครบ 16 ตัว → peak ที่ 8)</div>
+    <div class="fb no" data-for="no">ลองใหม่นะคะ เริ่มจาก sin²θ = 8/16 = 0.5 ก่อน · sinθ = √0.5 ≈ 0.707 → θ เท่าไร
+      แล้วค่อยคูณ 16 หาร 180</div>
+  </div>
+
+  <h2>ขั้น ③ QFT อ่านความถี่ → จำนวน → ความสว่าง</h2>
+  <p>จะอ่านความถี่ที่ซ่อนอยู่ใน register ต้องใช้ <b>QFT</b> · ได้ความถี่ ก็ได้จำนวน subpixel ที่ถูก flip ·
+    แล้วเอาจำนวนนั้นไปกำหนด <b>brightness (ความสว่าง)</b> ของ pixel ในภาพความละเอียดต่ำ (p38)</p>
+
+  <div class="eq">จำนวนที่ถูก flip → ความถี่ของการแกว่ง → QFT อ่านความถี่ → ได้จำนวนกลับมา → ความสว่างของ pixel</div>
+
+  <div class="box warn">
+    <b>สังเกตว่า peak บานได้</b>: กราฟขาว 4 ตัว (2.7) กับขาว 12 ตัว (5.3) ไม่ลงช่องเต็ม → ความแรงรั่วไปช่องข้างๆ ·
+    ค่าที่ READ ได้จึง<b>สุ่มได้หลายค่า</b> และในโค้ดจริงของ QCEngine เลขช่องยังถูกสลับลำดับอีกชั้น ·
+    นี่คือเหตุผลที่ต้องมี <b>QSS lookup table</b> แปลค่า READ เป็นจำนวน subpixel · เป็นเรื่องของบทถัดไป (p41 เป็นต้นไป)
+  </div>
+
+  <div class="box warn">
+    <b>สไลด์ใช้คำไม่ตรงกัน</b>: p37 บอกว่า flip ของ subpixel <i>"white"</i> แต่ p38 เรียกว่า <i>"shaded subpixels"</i> ·
+    หมายถึงกลุ่มเดียวกัน คือ subpixel ที่ shader flip phase · ตอบตามสไลด์ได้ แต่รู้ไว้ว่าเป็นของชิ้นเดียวกัน
+  </div>
+
+  <h2>นี่คือ phase estimation ในชุดใหม่</h2>
+  <p>ถ้ารู้สึกคุ้นๆ ไม่แปลกค่ะ · เทียบกับ<a href="0033-inside-phase-estimation-theta-as-frequency.html">บท 0033</a>
+    ทีละชิ้น: HAD register output → ทำ U แบบมีเงื่อนไข โดย qubit ที่มีน้ำหนัก 2ʲ คุม U<sup>2ʲ</sup> → invQFT → READ ·
+    QSS ทำแบบเดียวกันเป๊ะ แค่ <b>U = AA 1 รอบ</b> (shader + mirror) และ register output ชื่อ counter ·
+    ผังข้างล่าง<b>หนูวาดเองจากโค้ด Example 11-4</b> สไลด์ไม่มีรูปวงจรนี้ (ใช้ G แทน AA 1 รอบ)</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="6" data-names="cnt,cnt,cnt,cnt,qx,qy"
+         data-wire-labels="0x1,0x2,0x4,0x8,,"
+         data-groups="0-0:เตรียม; 1-4:AA k รอบ; 5-7:อ่านความถี่"
+         data-ops="H:0 + H:1 + H:2 + H:3 + H:4 + H:5; CTRL:0 + BOX:4,5:G; CTRL:1 + BOX:4,5:G²; CTRL:2 + BOX:4,5:G⁴; CTRL:3 + BOX:4,5:G⁸; BOX:0,3:invQFT:2; _; READ:0 + READ:1 + READ:2 + READ:3"
+         data-cap="ผังที่คาโฮะวาดเองจากโค้ด (ไม่ใช่รูปจากสไลด์) · G = shader_quantum + grover_iteration · cnt = counter · qx, qy สายละ 2 qubit"></div>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">ในผังข้างบน ถ้า counter มีค่า <b>|6⟩</b> แขนงนั้นของ superposition ทำ AA ไปกี่รอบ และ qubit ไหนของ counter เป็นคนสั่ง</div>
+    <button class="opt">3 รอบ · 0x2 กับ 0x4 สั่ง</button>
+    <button class="opt">6 รอบ · 0x2 กับ 0x4 สั่ง</button>
+    <button class="opt">6 รอบ · 0x1 กับ 0x8 สั่ง</button>
+    <div class="fb ok" data-for="ok">ใช่ค่ะ · 6 = 0x2 + 0x4 → G² + G⁴ = G⁶ · ค่าของ counter คือจำนวนรอบ AA พอดี ตรงกับที่ p37 บอก</div>
+    <div class="fb no" data-for="no">ลองแตก 6 เป็นเลขฐานสองก่อนนะคะ: 6 = 4 + 2 → qubit 0x4 กับ 0x2 เปิด → G⁴ · G² รวมเป็นกี่รอบ</div>
+  </div>
+
+  <h2>trade-off: counter มาก = ภาพดี แต่รันโค้ดวาดรูปมากขึ้น (p39–40)</h2>
+  <p>ยิ่งใช้ counter qubit มาก การ sample ภาพยิ่งดี แต่แลกกับต้องรัน drawing code หลายครั้งขึ้น ·
+    trade-off นี้จริงทั้งฝั่ง quantum และฝั่ง conventional (p39) · p39 ยังแนะนำให้ไล่รันโค้ด Example 11-4
+    ทีละขั้นแล้วดู circle notation จะเห็นภาพชัดกว่าอ่านตัวหนังสือ</p>
+
+  <table class="cmp">
+    <thead><tr><th>Figure 11-13</th><th>Monte Carlo (แถวบน)</th><th>QSS (แถวล่าง)</th></tr></thead>
+    <tbody>
+      <tr><td data-label="รอบ">1</td><td data-label="Monte Carlo">ขาวดำล้วน noise หนักทั้งภาพ</td><td data-label="QSS">หน้าตาแทบเหมือน Monte Carlo</td></tr>
+      <tr><td data-label="รอบ">3</td><td data-label="Monte Carlo">เม็ดเทาหยาบทั่วภาพ</td><td data-label="QSS">พื้นเทาเรียบเกือบทั้งภาพ มีจุดขาว/ดำห่างๆ</td></tr>
+      <tr><td data-label="รอบ">7</td><td data-label="Monte Carlo">ยังหยาบ เริ่มเห็นวงแหวนรอง</td><td data-label="QSS">เริ่มเห็นลายวงแหวน + จุดผิดกระจาย</td></tr>
+      <tr><td data-label="รอบ">15</td><td data-label="Monte Carlo">ลายชัดขึ้น ยังมีเม็ดทั่วภาพ</td><td data-label="QSS">ลายชัด พื้นเรียบ เหลือจุดผิดประปราย</td></tr>
+      <tr><td data-label="รอบ">31</td><td data-label="Monte Carlo">ชัดสุดในแถว ยังมีเม็ดละเอียด</td><td data-label="QSS">ชัดสุด เหลือจุดผิดน้อยมาก</td></tr>
+    </tbody>
+  </table>
+  <p class="src">คำบรรยายภาพเป็นการอ่านด้วยตาของหนูจากสไลด์ p40 (ขยายดูแล้ว) · ป้ายบนรูปเขียน "samples" ให้แถวบน และ "iterations" ให้แถวล่าง</p>
+
+  <div class="box warn">
+    <b>สไลด์ไม่ได้บอกว่าตัวเลข 1, 3, 7, 15, 31 มาจากไหน</b>: ข้อความ p40 พูดถึง "จำนวน counter qubit"
+    แต่รูปติดป้าย "จำนวน iteration" · หนูอนุมานจากโค้ดว่า counter n qubit รัน shader รวม
+    1 + 2 + 4 + … + 2ⁿ⁻¹ = <b>2ⁿ − 1</b> ครั้ง → n = 1…5 ให้ 1, 3, 7, 15, 31 พอดี (สูตรเดียวกับ "เรียก U 2ᵐ − 1 ครั้ง" ในบท 0033)
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ภาพคอลัมน์ "31 iterations" ของ Figure 11-13 ใช้ counter กี่ qubit (ตามที่หนูอนุมาน)</div>
+    <button class="opt">31 qubit · 1 qubit ต่อ 1 รอบ</button>
+    <button class="opt">4 qubit · 2⁴ − 1 = 15 รอบ</button>
+    <button class="opt">5 qubit · 2⁵ − 1 = 31 รอบ</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · 1 + 2 + 4 + 8 + 16 = 31 · counter เพิ่ม 1 qubit = รันโค้ดวาดรูปเพิ่มเกือบเท่าตัว นี่คือราคาของภาพที่ดีขึ้น</div>
+    <div class="fb no" data-for="no">ลองบวกดูนะคะ: qubit ตัวที่ j สั่ง AA 2ʲ รอบ · 5 qubit → 1 + 2 + 4 + 8 + 16 = ?</div>
+  </div>
+
+  <h2>อ่านโค้ด Example 11-4 (p32–34)</h2>
+  <p>สไลด์โชว์โค้ดก่อนคำอธิบาย แต่หนูย้ายมาไว้ท้ายบท เพราะพอรู้กลไกแล้วโค้ดอ่านง่ายขึ้นมาก ·
+    ข้างล่างคัดเฉพาะส่วนสำคัญ และ<b>แก้ตัวพิมพ์ที่ผิด</b>แล้ว (ดูกล่องแดงถัดไป)</p>
+
+  <pre class="code-blk">function do_qss_image() {
+    var sp = {};
+    var total_qubits = 2 * res_aa_bits + num_counter_bits + accum_bits;
+    qc.reset(total_qubits);
+    sp.qx      = qint.new(res_aa_bits, 'qx');
+    sp.qy      = qint.new(res_aa_bits, 'qy');
+    sp.counter = qint.new(num_counter_bits, 'counter');
+    sp.qacc    = qint.new(accum_bits, 'scratch');
+    sp.qacc.write(0);
+    for (sp.ty = 0; sp.ty &lt; res_tiles; ++sp.ty)      // วนทุก tile
+        for (sp.tx = 0; sp.tx &lt; res_tiles; ++sp.tx)
+            qss_tile(sp);
+}
+
+function qss_tile(sp) {
+    // ① เตรียมผ้าใบของ tile + counter
+    sp.qx.write(0);  sp.qy.write(0);  sp.counter.write(0);
+    sp.qx.hadamard(); sp.qy.hadamard(); sp.counter.hadamard();
+
+    // ② รัน shader หลายรอบ
+    for (var cbit = 0; cbit &lt; num_counter_bits; ++cbit) {
+        var iters = 1 &lt;&lt; cbit;                              // 1, 2, 4, 8, …
+        var qxy_bits = sp.qx.bits().or(sp.qy.bits());
+        var condition = sp.counter.bits(iters);              // counter qubit น้ำหนัก iters
+        var mask_with_condition = qxy_bits.or(condition);
+        for (var i = 0; i &lt; iters; ++i) {
+            shader_quantum(sp.qx, sp.qy, sp.tx, sp.ty, sp.qacc,
+                           condition, sp.qcolor);            // flip
+            grover_iteration(qxy_bits, mask_with_condition);  // mirror
+        }
+    }
+    invQFT(sp.counter);
+
+    // ③ อ่านและแปลผล
+    sp.readVal = sp.counter.read();
+    sp.hits = qss_count_to_hits[sp.readVal];              // lookup table (บทถัดไป)
+    sp.color = sp.hits / (res_aa * res_aa);
+    return sp.color;
+}</pre>
+
+  <table class="cmp">
+    <thead><tr><th>บรรทัด</th><th>ตรงกับขั้นไหนของกลไก</th></tr></thead>
+    <tbody>
+      <tr><td data-label="บรรทัด"><code class="code">counter.hadamard()</code></td>
+        <td data-label="ขั้น">① superposition ของจำนวนรอบ AA ทั้งหมด</td></tr>
+      <tr><td data-label="บรรทัด"><code class="code">iters = 1 &lt;&lt; cbit</code> + <code class="code">counter.bits(iters)</code></td>
+        <td data-label="ขั้น">qubit น้ำหนัก 1, 2, 4, 8 สั่ง AA 1, 2, 4, 8 รอบ → ค่า counter = จำนวนรอบ</td></tr>
+      <tr><td data-label="บรรทัด"><code class="code">shader_quantum</code> + <code class="code">grover_iteration</code></td>
+        <td data-label="ขั้น">AA 1 รอบ = flip (วาดรูป) + mirror · ทั้งคู่มีเงื่อนไขบน counter qubit ตัวนั้น</td></tr>
+      <tr><td data-label="บรรทัด"><code class="code">invQFT(sp.counter)</code></td>
+        <td data-label="ขั้น">③ อ่านความถี่ของการแกว่ง</td></tr>
+      <tr><td data-label="บรรทัด"><code class="code">qss_count_to_hits[readVal]</code></td>
+        <td data-label="ขั้น">ค่า READ <b>ไม่ใช่</b>จำนวน hits ตรงๆ ต้องแปลผ่านตารางก่อน</td></tr>
+      <tr><td data-label="บรรทัด"><code class="code">hits / (res_aa * res_aa)</code></td>
+        <td data-label="ขั้น">สัดส่วนขาวใน tile = ความสว่างของ pixel (tile 4×4 → หารด้วย 16)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box warn">
+    <b>โค้ดในสไลด์พิมพ์ผิด 3 จุด (หนูแก้ในกล่องข้างบนแล้ว)</b>:
+    ① p32 <code class="code">for (var sp.ty = 0; …)</code> ใส่ <code class="code">var</code> หน้า property ไม่ได้ ไม่ใช่ JavaScript ที่รันได้ ·
+    ② p33–34 <code class="code">for(vari=0;i&lt;iters;++i){</code> ช่องว่างหาย กลายเป็นตัวแปรชื่อ <code class="code">vari</code> ·
+    ③ <code class="code">sp.qcolor</code> ถูกส่งเข้า shader แต่ไม่เห็นการประกาศในโค้ดที่โชว์ ·
+    สไลด์ไม่ได้บอกค่า <code class="code">res_aa_bits</code>, <code class="code">num_counter_bits</code> ฯลฯ ด้วย
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>ทบทวนจากความจำ</h2>
+  <p>ลองตอบในหัวก่อนแล้วค่อยกดเปิดนะคะ</p>
+  <details class="recall"><summary>Quantum Sum Estimation คือการเอาอะไรมารวมกับอะไร</summary>
+    เอาโปรแกรมวาดรูปไปเป็น <code class="code">flip</code> ของ AA แล้วรวมกับ QFT → ประมาณจำนวน subpixel ที่ถูก flip ใน tile (p30)</details>
+  <details class="recall"><summary>ตัวเลขของ Figure 11-12 ทั้ง 4 ตัว และสรุปเป็นประโยคได้ว่าอะไร</summary>
+    Monte Carlo 9% / 23% · QSS 6% / 46% (mean pixel error / error-free) · error ต่ำกว่าราว 33% และ pixel เป๊ะเกือบ 2 เท่า ·
+    ข้อได้เปรียบอยู่ที่ character of noise ไม่ใช่จำนวน operation (p35)</details>
+  <details class="recall"><summary>เพิ่ม sample แล้ว Monte Carlo กับ QSS ต่างกันยังไง</summary>
+    Monte Carlo: ผล converge เข้าหาคำตอบ · QSS: ความน่าจะเป็นที่ได้คำตอบเป๊ะเพิ่มขึ้น · QSS ไม่เคย output subpixel รายตัว (p36)</details>
+  <details class="recall"><summary>เล่าสายเหตุผลของ QSS 5 ขั้น</summary>
+    counter = จำนวนรอบ AA → HAD counter = ทุกจำนวนรอบพร้อมกัน → เกิดการแกว่งที่ความถี่ขึ้นกับจำนวนที่ถูก flip →
+    QFT อ่านความถี่ → ได้จำนวน → ความสว่างของ pixel (p37–38)</details>
+  <details class="recall"><summary>tile ขาวครบ 16 ตัว peak อยู่ช่องไหน (ใช้สูตรในกล่องคณิต)</summary>
+    sin²θ = 16/16 → θ = 90° → 16 × 90 / 180 = <b>8</b></details>
+  <details class="recall"><summary>trade-off ของ counter qubit คืออะไร และ counter 3 qubit รัน shader กี่ครั้ง</summary>
+    counter มาก = ภาพดีขึ้น แต่รัน drawing code มากขึ้น (จริงทั้ง quantum และ conventional) · 3 qubit → 1 + 2 + 4 = 7 ครั้ง (p39–40)</details>
+  <details class="recall"><summary>QSS คล้าย primitive ตัวไหนที่เรียนมาแล้ว ต่างกันตรงไหน</summary>
+    phase estimation (บท 0033): HAD output → controlled U<sup>2ʲ</sup> → invQFT → READ · ต่างแค่ U = AA 1 รอบ</details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li>เป้าหมายต่อ tile = นับ subpixel ที่ถูก flip → ได้ความสว่างของ pixel · ใช้ <b>Quantum Sum Estimation</b> (AA + QFT) (p30)</li>
+    <li>Figure 11-12: Monte Carlo 9% / 23% · QSS 6% / 46% · ชนะที่<b>ลักษณะของ noise</b> ไม่ใช่จำนวน operation (p31–35)</li>
+    <li>QSS ไม่เคยให้ค่า subpixel รายตัว · เพิ่ม sample = โอกาสได้คำตอบเป๊ะเพิ่ม (ไม่ใช่ converge) (p36)</li>
+    <li>counter = จำนวนรอบ AA · HAD counter → แกว่งที่ความถี่ขึ้นกับจำนวนที่ถูก flip → QFT อ่าน → brightness (p37–38)</li>
+    <li>counter มาก = ภาพดีแต่รันโค้ดมาก · Figure 11-13 (1, 3, 7, 15, 31) (p39–40)</li>
+    <li>โค้ด Example 11-4: HAD → loop <code class="code">1 &lt;&lt; cbit</code> → <code class="code">invQFT</code> → READ → lookup table (p32–34)</li>
+  </ul>
+
+  <div class="footer" id="next">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 11 <i>Quantum Supersampling</i> หัวข้อ
+      <i>Supersampling</i>, <i>QSS Versus Conventional Monte Carlo Sampling</i> และ <i>How QSS Works</i> (Figure 11-12, 11-13) ·
+      ลองไล่รันโค้ดทีละขั้นตามที่ p39 แนะนำได้ที่ <a href="https://oreilly-qc.github.io/?p=11-4">oreilly-qc.github.io/?p=11-4</a> ·
+      สไลด์ <code class="code">QuantumProg_Lec11.pdf</code> หน้า 30–40</p>
+    <p><b>บทก่อนหน้า</b>: <a href="0043-tiles-drawing-16-subpixels-at-once.html">0043 · แบ่งภาพเป็น tile</a> ·
+      <b>บทถัดไป</b>: <a href="0045-qss-lookup-table-confidence-color.html">0045 · QSS lookup table, confidence map และสี</a></p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="0024-how-many-aa-iterations.html">0024 · วน AA กี่รอบดี</a> ·
+      <a href="0025-many-marked-values-and-using-aa.html">0025 · หลายค่าที่ถูก mark</a> ·
+      <a href="0027-qft-hidden-frequency.html">0027 · QFT หาความถี่ที่ซ่อนอยู่</a> ·
+      <a href="0033-inside-phase-estimation-theta-as-frequency.html">0033 · ข้างใน phase estimation</a> ·
+      <a href="0041-qss-noise-character-and-blank-canvas.html">0041 · QSS กับ character of noise</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① "superposition ของจำนวนรอบ" หน้าตาเป็นยังไงใน circle notation
+      ② ทำไมจำนวนที่ถูก flip ถึงไปเปลี่ยน<b>ความเร็ว</b>ของการแกว่ง
+      ③ ทำไม QSS ถึงผิดแรงบางจุด แทนที่จะผิดนิดๆ ทุกจุดแบบ Monte Carlo
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

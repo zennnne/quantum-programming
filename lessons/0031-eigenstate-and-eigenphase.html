@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0031 — eigenstate และ eigenphase: สิ่งที่ phase estimation หา</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 08 · บทที่ 0031 (บทเปิดคาบ)</div>
+  <h1>eigenstate และ eigenphase: สิ่งที่ phase estimation หา</h1>
+  <p class="lead">AA (บท <a href="0023-flip-and-mirror.html">0023</a>) กับ QFT (บท <a href="0027-qft-hidden-frequency.html">0027</a>)
+    บอกเราเรื่อง <b>state ของ register</b> · คาบนี้เป็น primitive ตัวที่สาม ชื่อ
+    <b>phase estimation (การประมาณเฟส)</b> ซึ่งบอกเราเรื่อง<b>ตัว operation</b> ที่กระทำกับ register แทน ·
+    ก่อนจะใช้มันได้ ต้องรู้ก่อนว่า “คุณสมบัติของ operation” หน้าตาเป็นยังไง → คำตอบคือ eigenstate กับ eigenphase ค่ะ</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 3 อย่าง
+    ① <b>eigenstate (สถานะเฉพาะ)</b> = state ที่ operation <b>ไม่เปลี่ยน</b> (ได้มากสุดแค่ global phase)
+    ② <b>eigenphase (เฟสเฉพาะ)</b> = global phase ที่ eigenstate ตัวนั้นได้รับ · เซตของคู่นี้<b>ระบุ operation ได้แบบไม่ซ้ำ</b>
+    ③ phase estimation รับ <b>U + eigenstate</b> → คืน <b>มุม θ</b> ไว้ใน register อีกตัวที่ READ ได้ (Figure 8-3 · เรื่องสอบ)
+  </div>
+
+  <h3>ทำไมต้องมี primitive ที่ “สอนเราเรื่อง operation”? (p2–3)</h3>
+  <p>ฟังดูแปลกนะคะ — วงจรเราสร้างเอง ก็น่าจะรู้ทุกอย่างของมันอยู่แล้ว · แต่สไลด์บอกว่า
+    <b>input บางแบบถูก encode ไว้ใน operation</b> ไม่ได้อยู่ใน register · ถ้าอยากได้คำตอบ
+    ก็ต้องมีเครื่องมือที่ “ส่อง” operation ได้ · สไลด์ยอมรับเองด้วยว่านี่อาจเป็น primitive
+    <b>ที่ยากที่สุดจนถึงตอนนี้</b> เพราะ ① มันพูดเรื่อง operation ไม่ใช่ state ② ประโยชน์ของ eigenphase
+    อธิบายยากถ้าไม่ใช้คณิตขั้นสูง → บทนี้เลยจะไปช้าๆ ทีละขั้นค่ะ</p>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · eigenstate และ eigenphase (ตัวอย่าง HAD)</h2></div>
+
+  <div class="box mathref">
+    <b>ทบทวนก่อน: global phase vs relative phase</b> (บท <a href="midterm/0003-amplitude-and-phase.html">0003</a>,
+    <a href="midterm/0008-multi-qubit-registers.html">0008</a>)<br>
+    · <b>relative phase</b> = เฟส<b>ต่างกัน</b>ระหว่างวง → มีผล (เช่น H ถัดไปจะให้ผลต่างกัน)<br>
+    · <b>global phase</b> = หมุน<b>ทุกวงเท่ากัน</b> → READ ยังไงก็ได้ความน่าจะเป็นเดิม ไม่มีทางสังเกตได้ → ถือว่าเป็น state เดิม<br>
+    จำประโยคสุดท้ายไว้ เพราะมันคือ “ปม” ของทั้งคาบนี้ค่ะ
+  </div>
+
+  <h3>1.1 ปกติ HAD เปลี่ยน state เป็นของใหม่ (Figure 8-1, p4)</h3>
+  <p>ใส่ |0⟩ หรือ |1⟩ เข้า HAD ได้ state ใหม่หมดเลย — magnitude เปลี่ยนจาก 100/0 เป็น 50/50:</p>
+  <div class="crow" data-n="2" data-lab="เข้า |0⟩" data-phase="0,0" data-mag="1,0"></div>
+  <div class="crow" data-n="2" data-lab="H → ออก" data-phase="0,0" data-mag="0.5,0.5" data-hl="0,1" data-sub="50%,50%"></div>
+  <div class="crow" data-n="2" data-lab="เข้า |1⟩" data-phase="0,0" data-mag="0,1"></div>
+  <div class="crow" data-n="2" data-lab="H → ออก" data-phase="0,180" data-mag="0.5,0.5" data-hl="0,1" data-sub="50%,50%"></div>
+  <p class="meta">input ส่วนใหญ่เป็นแบบนี้: ผ่าน operation แล้ว<b>กลายเป็น state อื่น</b></p>
+
+  <h3>1.2 แต่มี input พิเศษ 2 ตัวที่ HAD “ไม่เปลี่ยน” (Figure 8-2, p5)</h3>
+  <p><b>state ที่ 1</b>: |0⟩ 85.35% · |1⟩ 14.64% · เฟส 0° ทั้งคู่</p>
+  <div class="crow" data-n="2" data-lab="ก่อน" data-phase="0,0" data-mag="0.8536,0.1464" data-sub="85.35%,14.64%"></div>
+  <div class="crow" data-n="2" data-lab="H → หลัง" data-phase="0,0" data-mag="0.8536,0.1464" data-hl="0,1" data-sub="85.35%,14.64%"></div>
+  <p>ออกมา<b>เหมือนเดิมเป๊ะ</b> ทุกวง · ส่วน <b>state ที่ 2</b>: |0⟩ 14.64% เฟส 180° · |1⟩ 85.35% เฟส 0°</p>
+  <div class="crow" data-n="2" data-lab="ก่อน" data-phase="180,0" data-mag="0.1464,0.8536" data-sub="14.64%,85.35%"></div>
+  <div class="crow" data-n="2" data-lab="H → หลัง" data-phase="0,180" data-mag="0.1464,0.8536" data-hl="0,1" data-sub="14.64%,85.35%"></div>
+  <p>magnitude เท่าเดิม แต่<b>ทั้งสองวงหมุนไป 180° พร้อมกัน</b> (|0⟩: 180° → 0° · |1⟩: 0° → 180°) ·
+    ระยะห่างของเฟสระหว่างสองวงยังเป็น 180° เหมือนเดิม → นี่คือ <b>global phase 180°</b> เท่านั้น
+    ซึ่งสังเกตไม่ได้ → ในทางปฏิบัติ HAD ก็ “ไม่เปลี่ยน” state ที่ 2 เหมือนกันค่ะ (p6)</p>
+
+  <div class="box aha">
+    <b>นิยาม (p6–7)</b><br>
+    · <b>eigenstate</b> ของ operation = state ที่ operation นั้น<b>ไม่เปลี่ยน</b> ยกเว้นอาจใส่ global phase ให้<br>
+    · <b>eigenphase</b> = global phase ที่ eigenstate ตัวนั้นได้รับ (ระบุเป็นมุม θ)<br>
+    HAD มี eigenstate <b>2 ตัว และมีแค่ 2 ตัวเท่านั้น</b>
+  </div>
+
+  <div class="analogy">
+    <div class="cell"><b>หมุนลูกโลก</b><small>ทุกเมืองบนผิวโลกย้ายที่ไปหมด ยกเว้นจุด<b>ขั้วโลกเหนือ/ใต้</b> ที่อยู่บนแกนหมุน — มันอยู่ที่เดิม</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>ใส่ operation ให้ register</b><small>state ส่วนใหญ่กลายเป็น state ใหม่ ยกเว้น <b>eigenstate</b> ที่เป็น “แกน” ของ operation นั้น (ภาพนี้อธิบาย eigenstate ได้ แต่อธิบาย eigenphase ไม่ได้นะคะ)</small></div>
+  </div>
+
+  <h3>1.3 Table 8-1: eigenstate และ eigenphase ของ HAD (p7)</h3>
+  <div class="crow" data-n="2" data-lab="eigenstate 1" data-phase="0,0" data-mag="0.8536,0.1464" data-sub="85.35%,14.64%"></div>
+  <p class="meta">→ <b>eigenphase = 0°</b> (ออกมาเหมือนเดิมเป๊ะ ไม่หมุนเลย)</p>
+  <div class="crow" data-n="2" data-lab="eigenstate 2" data-phase="180,0" data-mag="0.1464,0.8536" data-sub="14.64%,85.35%"></div>
+  <p class="meta">→ <b>eigenphase = 180°</b> (ทุกวงหมุน 180° พร้อมกัน)</p>
+
+  <div class="box warn">
+    <b>⚠️ “180°” ในตารางนี้มี 2 ความหมาย อย่าปนกัน</b><br>
+    · 180° ในวง |0⟩ ของ eigenstate 2 = <b>relative phase</b> → เป็น “หน้าตา” ของ state ก่อนเข้า HAD<br>
+    · 180° ในคอลัมน์ eigenphase = <b>global phase</b> ที่ HAD ใส่ให้<b>ทั้ง state</b> ตอนกระทำ<br>
+    ตัวเลขบังเอิญเท่ากันเฉยๆ ค่ะ · (เกร็ด: ค่าจริงคือ cos²22.5° ≈ 85.36% — สไลด์พิมพ์ 85.35% เพราะปัดเศษ
+    ผลรวมเลยได้ 99.99% · ตอบตามสไลด์ได้เลย)
+  </div>
+
+  <div class="box mathref">
+    <b>เกร็ดคณิต (ไม่ต้องจำ)</b>: ในภาษา linear algebra เขียนว่า U|ψ⟩ = e<sup>iθ</sup>|ψ⟩ ·
+    ตัวคูณ e<sup>iθ</sup> เรียกว่า <b>eigenvalue</b> · ของ HAD คือ +1 (θ = 0°) กับ −1 (θ = 180°) ·
+    เพราะ QPU operation ไม่ยืด/หดความยาว state ตัวคูณเลยมีขนาด 1 เสมอ → ต่างกันแค่ “มุม” θ นี่แหละคือ eigenphase
+  </div>
+
+  <h3>ลองเอง: เช็คว่าเป็น eigenstate ไหม</h3>
+  <p>วิธีคิด: ① กระทำ operation กับทุกวง ② เทียบกับก่อน — magnitude เท่าเดิมไหม? ทุกวงหมุนเท่ากันไหม?</p>
+
+  <div class="crow" data-n="2" data-lab="state |−⟩" data-phase="0,180" data-mag="0.5,0.5" data-sub="50%,50%"></div>
+  <div class="quiz" data-answer="1">
+    <div class="q">① ใส่ <b>NOT</b> (สลับวง |0⟩ กับ |1⟩) ให้ state ข้างบน · state นี้เป็น eigenstate ของ NOT ไหม?</div>
+    <button class="opt">ใช่ · eigenphase = 0°</button>
+    <button class="opt">ใช่ · eigenphase = 180°</button>
+    <button class="opt">ไม่ใช่ · ได้ state ใหม่</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! สลับแล้วได้ |0⟩ เฟส 180°, |1⟩ เฟส 0° → เทียบกับเดิม (0°, 180°) ทุกวงหมุนไป 180° เท่ากัน = global phase 180°</div>
+    <div class="fb no" data-for="no">ลองวาดหลังสลับดูนะคะ: |0⟩ ได้เฟส 180° (มาจาก |1⟩ เดิม) · |1⟩ ได้ 0° · magnitude 50/50 เท่าเดิม แล้วทุกวงหมุนไปกี่องศาจากเดิม?</div>
+  </div>
+
+  <div class="crow" data-n="2" data-lab="state |1⟩" data-phase="0,0" data-mag="0,1"></div>
+  <div class="quiz" data-answer="0">
+    <div class="q">② ใส่ <b>PHASE(90°)</b> (หมุนเฉพาะวง |1⟩ ไป 90°) ให้ |1⟩ · ผลคืออะไร?</div>
+    <button class="opt">ใช่ · eigenphase = 90°</button>
+    <button class="opt">ใช่ · eigenphase = 0°</button>
+    <button class="opt">ไม่ใช่ · เฟสสัมพัทธ์เปลี่ยน</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! วง |0⟩ ว่าง → วงที่มีของอยู่มีแค่ |1⟩ วงเดียว · หมุนมัน 90° = หมุน “ทุกวงที่มีของ” เท่ากัน = global phase 90°</div>
+    <div class="fb no" data-for="no">ใบ้: วง |0⟩ ว่าง (magnitude 0) · relative phase ต้องมีอย่างน้อย 2 วงที่มีของถึงจะเทียบกันได้ · แล้ววง |1⟩ หมุนไปกี่องศา?</div>
+  </div>
+
+  <div class="crow" data-n="2" data-lab="state |+⟩" data-phase="0,0" data-mag="0.5,0.5" data-sub="50%,50%"></div>
+  <div class="quiz" data-answer="2">
+    <div class="q">③ ใส่ <b>HAD</b> ให้ |+⟩ (50/50 เฟส 0° ทั้งคู่ — หน้าตาคล้าย eigenstate 1) · เป็น eigenstate ของ HAD ไหม?</div>
+    <button class="opt">ใช่ · eigenphase = 0°</button>
+    <button class="opt">ใช่ · eigenphase = 180°</button>
+    <button class="opt">ไม่ใช่ · ได้ state ใหม่</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! H|+⟩ = |0⟩ 100% → magnitude เปลี่ยน = state ใหม่ · HAD มี eigenstate แค่ 2 ตัวใน Table 8-1 เท่านั้น (85/15 ไม่ใช่ 50/50)</div>
+    <div class="fb no" data-for="no">ย้อนดูบท 0005: H บน |+⟩ ทำให้สองทางหักล้างกันที่ |1⟩ → ออกมาเป็น |0⟩ 100% · magnitude เปลี่ยนแล้วนะคะ</div>
+  </div>
+
+  <h3>1.4 เซต eigenstate + eigenphase = “ลายนิ้วมือ” ของ operation (p8)</h3>
+  <p>Table 8-1 เป็นของ HAD <b>เท่านั้น</b> · operation อื่นมี eigenstate/eigenphase ต่างไปโดยสิ้นเชิง
+    (เช่นที่เพิ่งเห็น: NOT มี |−⟩ ที่ 180° · PHASE(90°) มี |1⟩ ที่ 90°) ·
+    และสไลด์บอกว่า <b>เซตนี้กำหนด operation ได้ทั้งหมด — ไม่มี QPU operation อื่นที่มีเซตเดียวกัน</b> ·
+    แปลว่าถ้ารู้ eigenphase ก็เหมือนได้ข้อมูลสำคัญของ operation มาอยู่ในมือ → นี่คือเหตุผลที่อยากหามันค่ะ</p>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · phase estimation ทำอะไร (p9–11)</h2></div>
+
+  <h3>2.1 ปัญหา: eigenphase คือ global phase → อ่านตรงๆ ไม่ได้</h3>
+  <p>ถ้าเอา eigenstate ไปใส่ U แล้ว READ เลย ผลที่ได้จะเหมือนเดิมทุกครั้ง ไม่ว่า θ จะเป็นเท่าไร
+    (เพราะ global phase ไม่เปลี่ยนความน่าจะเป็น) · <b>จุดเด่นของ phase estimation</b> คือ
+    <b>ย้ายข้อมูลเรื่อง global phase นั้นไปไว้ใน register อีกตัว</b> ในรูปที่ READ ได้ (p9)</p>
+
+  <div class="box aha">
+    <b>นิยามงานของ phase estimation (p10)</b><br>
+    มี QPU operation <b>U</b> กระทำกับ n qubit · มี eigenstate u₁, u₂, …, uⱼ ·
+    eigenphase ของตัวที่ j คือ <b>มุม θⱼ</b><br>
+    <i>“Given a QPU operation U and one of its eigenstates uⱼ, phase estimation returns (to some precision)
+    the corresponding eigenphase angle θⱼ.”</i><br>
+    = ให้ <b>U</b> กับ <b>eigenstate uⱼ</b> ไป 1 ตัว → คืน<b>มุม θⱼ</b> (แม่นระดับหนึ่ง)
+  </div>
+
+  <h3>2.2 ภาพรวม input/output: Figure 8-3 (p11) — เรื่องสอบ</h3>
+  <p>ใน QCEngine เรียกผ่านฟังก์ชัน <code class="code">phase_est()</code> · หน้าตากล่องดำเป็นแบบนี้:</p>
+
+  <div class="circuit" data-wires="6" data-names="qout,qout,qout,qin,qin,qin"
+       data-out="0-2:θ; 3-5:eigenstate"
+       data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3:1 + WRITE:4 + WRITE:5; _; BOX:0,5:Phase estimation:3; _; _; _; READ:0 + READ:1 + READ:2"></div>
+  <div class="subin"><span class="arw"></span><span class="bx">cont_u</span><span class="note">(Access to subroutine conditionally performing U)</span></div>
+
+  <table class="cmp">
+    <thead><tr><th>ส่วน</th><th>คืออะไร</th></tr></thead>
+    <tbody>
+      <tr><td data-label="ส่วน"><b>qout</b> (บน · m qubit)</td><td data-label="คืออะไร">register สำหรับ<b>คำตอบ</b> · เริ่มด้วย write 0 ทุกสาย (▷ วงฟ้า) · ปลายทาง <b>READ</b> ทุกสาย → ตัวเลขที่อ่านได้รวมกันแทน <b>θ</b></td></tr>
+      <tr><td data-label="ส่วน"><b>qin</b> (ล่าง · n qubit)</td><td data-label="คืออะไร">ใส่ <b>eigenstate</b> ของ U ที่เตรียมไว้ (ในรูปเป็นตัวอย่าง: สายแรก write 1 = ▷ สามเหลี่ยมเหลือง) · ปลายทาง<b>ไม่ READ</b> · ออกมายังเป็น eigenstate เดิม</td></tr>
+      <tr><td data-label="ส่วน"><b>cont_u</b> (กล่องเทาใต้กล่องใหญ่)</td><td data-label="คืออะไร">ลูกศรชี้<b>เข้า</b>กล่อง = เราต้อง<b>ส่ง subroutine</b> ที่ทำ U “แบบมีเงื่อนไข” (controlled-U) ให้มันใช้ · ไม่ใช่สายควบคุมในวงจร</td></tr>
+    </tbody>
+  </table>
+  <p class="meta">ในสไลด์มี <b>⋮</b> แทน “กี่ qubit ก็ได้” (m กับ n) และ detector ของ qout มีป้ายผลตัวอย่าง 0, 1, 1
+    (สองตัวหลังพื้นเหลือง = อ่านได้ 1) · หนูวาดเป็น 3+3 สายแทน ⋮ นะคะ</p>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">④ ใน Figure 8-3 ค่า θ ที่เราอยากรู้ ได้มาจากการ READ register ไหน?</div>
+    <button class="opt">qout · m qubit ที่เริ่มด้วย 0</button>
+    <button class="opt">qin · n qubit ที่ใส่ eigenstate</button>
+    <button class="opt">cont_u · กล่องที่ส่งเข้าไปข้างใน</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! qin ไม่ถูก READ เลย (ออกมาเป็น eigenstate เดิม) — คำตอบถูก “ย้าย” ไปอยู่ที่ qout ตามข้อ 2.1</div>
+    <div class="fb no" data-for="no">ดูปลายขวาของวงจรนะคะ: สายไหนมี detector (READ)? และ qin มีอะไรเปลี่ยนไหม?</div>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">⑤ ทำไมเราไม่ใส่ U ให้ eigenstate แล้ว READ qin ตรงๆ ให้จบเรื่อง?</div>
+    <button class="opt">READ qin ได้ θ แต่แม่นยำน้อยกว่า</button>
+    <button class="opt">global phase ไม่เปลี่ยนผล READ เลย</button>
+    <button class="opt">eigenstate จะไม่ยอมถูก READ ได้</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! eigenphase เป็น global phase → ความน่าจะเป็นตอน READ เท่าเดิมไม่ว่า θ เป็นเท่าไร → ข้อมูล θ หายไปหมด · ต้องมีกลไกย้ายมันไปเป็น relative phase ของ register อื่น (บท 0033 จะเปิดดูว่าทำยังไง)</div>
+    <div class="fb no" data-for="no">ย้อนไปกล่องทบทวนต้นส่วนที่ 1: global phase เปลี่ยนความน่าจะเป็นตอน READ ไหมคะ?</div>
+  </div>
+
+  <div class="box why">
+    <b>ชิมลางบทหน้า</b>: qout ไม่ได้คืนเลข “180” ออกมาตรงๆ แต่คืนเป็น<b>เศษส่วนของ 360°</b> —
+    สูตรเดียวกับกฎ θ = n/2ᴺ × 360° ที่พี่เพิ่งเรียนในบท <a href="0030-inside-the-invqft-circuit.html">0030</a> เลยค่ะ ·
+    บท 0032 จะลองหา eigenphase ของ HAD จริงด้วยโค้ด แล้วอ่านได้เลข <b>8</b>… ลองเดาไว้ก่อนว่าทำไม 8 ถึงแปลว่า 180°
+  </div>
+
+  <details class="recall">
+    <summary>ทดสอบความจำ (ปิดหน้าจอแล้วตอบเองก่อนเปิด)</summary>
+    <ol>
+      <li>phase estimation ต่างจาก AA และ QFT ยังไง? → <b>บอกคุณสมบัติของ operation ไม่ใช่ของ state</b></li>
+      <li>eigenstate คืออะไร? → <b>state ที่ operation ไม่เปลี่ยน ยกเว้นใส่ global phase</b></li>
+      <li>eigenstate ของ HAD มีกี่ตัว หน้าตาแบบไหน? → <b>2 ตัว: 85.35/14.64 เฟส 0,0 และ 14.64/85.35 เฟส 180,0</b></li>
+      <li>eigenphase ของแต่ละตัว? → <b>0° และ 180°</b></li>
+      <li>180° ใน eigenstate 2 กับ eigenphase 180° ต่างกันยังไง? → <b>relative (หน้าตา state) vs global (ที่ HAD ใส่ให้)</b></li>
+      <li>ทำไม eigenphase ถึงน่าสนใจ? → <b>เซต eigenstate + eigenphase ระบุ operation ได้แบบไม่ซ้ำ</b></li>
+      <li>วาด Figure 8-3: register ไหนอยู่บน, อันไหน READ, cont_u อยู่ตรงไหน? → <b>qout (m) บน + READ → θ · qin (n) ล่างไม่ READ · cont_u ลูกศรเข้าใต้กล่อง</b></li>
+    </ol>
+  </details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li>phase estimation = primitive ตัวที่ 3 · บอกเรื่อง <b>operation</b> (AA/QFT บอกเรื่อง state)</li>
+    <li><b>eigenstate</b> = state ที่ U ไม่เปลี่ยน (ยกเว้น global phase) · <b>eigenphase θ</b> = global phase นั้น</li>
+    <li>HAD: eigenstate 2 ตัวเท่านั้น → eigenphase <b>0°</b> และ <b>180°</b> (Table 8-1)</li>
+    <li>เซต eigenstate + eigenphase = ลายนิ้วมือที่<b>ระบุ operation ได้แบบไม่ซ้ำ</b></li>
+    <li>global phase อ่านไม่ได้ → phase estimation <b>ย้าย θ ไปไว้ใน qout</b> ที่ READ ได้ · input = qin (eigenstate) + qout (เริ่ม 0) + <code class="code">cont_u</code></li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 8 <i>Quantum Phase Estimation</i>
+      หัวข้อ Learning About QPU Operations, Eigenphases Teach Us Something Useful, What Phase Estimation Does
+      และต้นหัวข้อ How to Use Phase Estimation (Figure 8-1 ถึง 8-3, Table 8-1) ·
+      ลองใส่ state ให้ HAD เองได้ที่ <a href="https://oreilly-qc.github.io/">QCEngine online (oreilly-qc.github.io)</a> ·
+      สไลด์ <code class="code">QuantumProg_Lec08.pdf</code> หน้า 1–11</p>
+    <p><b>บทถัดไป</b>: <a href="0032-using-phase-est-read-8-means-180.html">0032 · ใช้ <code class="code">phase_est()</code> จริง: อ่าน 8 แปลว่า 180°</a></p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="midterm/0003-amplitude-and-phase.html">0003 · amplitude และ phase</a> ·
+      <a href="midterm/0005-hadamard.html">0005 · HAD</a> ·
+      <a href="midterm/0010-cphase-cz-phase-kickback.html">0010 · phase kickback</a> ·
+      <a href="0030-inside-the-invqft-circuit.html">0030 · ข้างใน invQFT</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① ทำไมหมุนทุกวงเท่ากันแล้วถือว่า “ไม่เปลี่ยน” ② 180° สองความหมายใน Table 8-1
+      ③ ทำไม |1⟩ ที่โดน PHASE(90°) ถึงนับเป็น global phase ทั้งที่ PHASE หมุนแค่วงเดียว
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

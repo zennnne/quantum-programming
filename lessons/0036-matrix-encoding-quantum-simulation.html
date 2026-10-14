@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0036 — เก็บ matrix: quantum simulation</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 09 · บทที่ 0036 (บทปิด Lec 09)</div>
+  <h1>เก็บ matrix: quantum simulation</h1>
+  <p class="lead">ข้อมูลที่เราเก็บใน register ซับซ้อนขึ้นมาเรื่อยๆ: <b>ตัวเลข</b> (บท 0034) → <b>vector</b> (บท 0035) → และบทนี้คือ <b>matrix (เมทริกซ์)</b> ·
+    คำตอบของบทนี้อาจดูแปลกในตอนแรก: เราจะ<b>ไม่เก็บ matrix ไว้เป็นตัวเลข</b> แต่จะทำให้มันกลายเป็น <b>QPU operation</b> ที่เอาไปกระทำกับ vector ได้ ·
+    เครื่องมือที่ใช้ทำแบบนี้มีชื่อว่า <b>quantum simulation (การจำลองเชิงควอนตัม)</b></p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 4 อย่าง
+    ① จะบอกว่า QPU operation <b>"แทน" matrix ได้</b> ต้องมี <b>eigen decomposition เดียวกัน</b> และต้องสร้างจาก gate พื้นฐานได้อย่าง <b>efficient</b>
+    ② quantum simulation ใช้ได้กับ <b>Hermitian matrix</b> เท่านั้น (matrix อื่นแปลงด้วย block matrix ได้)
+    ③ หัวใจคือ <b>U = exp(−iHt)</b> ซึ่งทำได้ 3 ขั้น: แตก H → จำลองทีละชิ้น → ประกอบกลับ (Lie product formula, Figure 9-9)
+    ④ ต้นทุนอยู่ใน <b>Table 9-2</b> ·
+    บทนี้ใช้คณิตมากที่สุดเท่าที่เรียนมา หนูจึงแทรกกล่องทบทวนคณิตไว้ตรงที่ต้องใช้ทุกจุด และมี<b>สัญลักษณ์วงจรใหม่ 1 แบบ</b> (Figure 9-9) ซึ่งเพิ่มลงชีตแล้ว
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · "แทน matrix ได้ถูก" แปลว่าอะไร (p40–48)</h2></div>
+
+  <h3>1.1 วิธีที่ตรงที่สุด: เก็บทีละแถว แต่ใช้งานไม่ได้</h3>
+  <p>สมมติมี matrix ขนาด m × n (m แถว n หลัก) · วิธีที่คิดได้ทันทีคือใช้ <b>m register</b> แล้ว amplitude-encode <b>แต่ละแถว</b>เหมือนเป็น vector หนึ่งตัว (register ละ log₂ n qubit แบบบท 0035) (p40) ·
+    วิธีนี้ใส่ตัวเลขเข้า QPU ได้จริง แต่สไลด์ชี้ว่า<b>ยังไม่ได้แทนข้อมูลในฐานะ matrix</b> เพราะไม่ชัดเลยว่าจะทำของพื้นฐานอย่าง
+    <b>transpose (สลับแถวกับหลัก)</b> หรือ<b>คูณ matrix กับ vector</b> ที่อยู่ใน register อื่นได้ยังไง</p>
+
+  <p>ลองถามกลับว่าปกติเราใช้ matrix ทำอะไร คำตอบเกือบทุกครั้งคือ<b>เอาไปคูณกับ vector</b> และ vector ของเราก็อยู่ใน register อยู่แล้ว (amplitude encoding) ·
+    สไลด์เลยตั้งเป็นข้อกำหนดว่า: <b>ให้เข้ารหัส matrix เป็น QPU operation</b> ที่กระทำกับ register ของ vector ได้ (p41)</p>
+
+  <div class="analogy">
+    <div class="cell"><b>เก็บ matrix เป็นตัวเลข</b><small>เหมือนจดสูตรอาหารลงกระดาษ · ข้อมูลครบทุกอย่าง แต่กระดาษทำอาหารเองไม่ได้</small></div>
+    <div class="arrow">→</div>
+    <div class="cell"><b>เก็บ matrix เป็น operation</b><small>เหมือนมีพ่อครัวที่จำสูตรได้ · ยื่นวัตถุดิบ (vector) ให้ ก็ได้อาหาร (M·v) ออกมาทันที</small></div>
+  </div>
+
+  <div class="box mathref"><span class="tag">ทบทวนคณิต · คูณ matrix กับ vector</span>
+    แถวที่ i ของผลลัพธ์ = เอาแถวที่ i ของ matrix ไปคูณกับ vector ทีละตัวแล้วบวกกัน ·
+    ตัวอย่างที่ใช้ทั้งบท: M = [[2, 1], [1, 2]]<br>
+    M · [1, 0] = [2·1 + 1·0, 1·1 + 2·0] = <b>[2, 1]</b> · คือ matrix เป็น "เครื่องแปลง vector" ตัวหนึ่ง
+  </div>
+
+  <h3>1.2 เกณฑ์แบบตรงๆ: input เดียวกัน ต้องได้ output เดียวกัน</h3>
+  <p>QPU operation U จะ "แทน" matrix M ได้ ก็ต่อเมื่อ <b>ทุก vector v</b> ให้ผลตรงกัน (p42):</p>
+  <div class="eq">M · v &nbsp;↔&nbsp; U|v⟩ &nbsp;&nbsp;(ผลของ U ต้องเป็น amplitude encoding ของ M·v)</div>
+  <p>นิยามนี้ถูก แต่ใช้จริงลำบาก เพราะ vector มีได้ไม่จำกัด เราไล่เช็คทีละตัวไม่ได้ · สไลด์เลยหาเกณฑ์ที่ง่ายกว่า โดยใช้ของที่เรารู้จักแล้วจาก Lec 08</p>
+
+  <h3>1.3 เกณฑ์ที่ง่ายกว่า: eigen decomposition เดียวกัน</h3>
+  <p>ทบทวนบท <a href="0031-eigenstate-and-eigenphase.html">0031</a>: QPU operation ถูกระบุได้ครบด้วย<b>เซตของ eigenstate กับ eigenphase</b> ของมัน (เหมือนลายนิ้วมือ) ·
+    matrix ก็มีของแบบเดียวกัน เรียกว่า <b>eigenvector (เวกเตอร์เฉพาะ)</b> กับ <b>eigenvalue (ค่าเฉพาะ)</b> (p42–43)</p>
+
+  <div class="box mathref"><span class="tag">ทบทวนคณิต · eigenvector คืออะไร</span>
+    eigenvector คือ vector ที่พอเข้า matrix แล้ว<b>ทิศไม่เปลี่ยน</b> แค่ถูกยืด/หดด้วยตัวคูณ λ (eigenvalue): <b>M · v = λ v</b><br>
+    ใช้ M = [[2, 1], [1, 2]]:
+    M · [1, 1] = [3, 3] = <b>3</b> · [1, 1] → eigenvalue 3 ·
+    M · [1, −1] = [1, −1] = <b>1</b> · [1, −1] → eigenvalue 1<br>
+    แต่ M · [1, 0] = [2, 1] → ทิศเปลี่ยน → <b>ไม่ใช่</b> eigenvector
+  </div>
+
+  <p>เทียบกับ QPU operation: eigenstate คือ state ที่ U ทำแล้ว<b>ไม่เปลี่ยน</b> แค่ได้ global phase: U|ψ⟩ = e<sup>iθ</sup>|ψ⟩ ·
+    จะเห็นว่าเป็นแนวคิดเดียวกัน ต่างกันแค่ว่า matrix<b>ยืด</b>ได้ แต่ QPU operation <b>หมุน phase</b> ได้อย่างเดียว · ดังนั้น "eigen decomposition เดียวกัน" แปลว่า (p43):</p>
+
+  <table class="cmp">
+    <thead><tr><th>ฝั่ง matrix M</th><th>ฝั่ง QPU operation U</th></tr></thead>
+    <tbody>
+      <tr><td data-label="ฝั่ง matrix M">eigenvector [1, 1] กับ [1, −1]</td><td data-label="ฝั่ง QPU operation U">eigenstate = <b>amplitude encoding ของ eigenvector</b> → [1,1]/√2 = <b>|+⟩</b> · [1,−1]/√2 = <b>|−⟩</b></td></tr>
+      <tr><td data-label="ฝั่ง matrix M">eigenvalue 3 กับ 1</td><td data-label="ฝั่ง QPU operation U">eigenphase <b>"สัมพันธ์กับ" (related to)</b> eigenvalue · สไลด์ไม่ได้บอกว่าเท่ากัน</td></tr>
+    </tbody>
+  </table>
+  <p class="src">หมายเหตุ: ÷√2 คือการ normalize จาก Caveat 2 ของบท 0035 · ส่วน "สัมพันธ์กันยังไง" เดี๋ยวจะเห็นในส่วนที่ 2 (คือ θ = −λt)</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q"><b>ลองใช้เกณฑ์เอง</b>: matrix M = [[2, 1], [1, 2]] มี eigenvector [1, 1] กับ [1, −1] ·
+      ถ้า QPU operation U แทน M ได้ถูกต้อง ข้อไหนต้องเป็นจริง?</div>
+    <button class="opt">U ทำกับ |0⟩ แล้วต้องได้ |0⟩ คืนมาพร้อม phase</button>
+    <button class="opt">U ทำกับ |+⟩ แล้วต้องได้ state ใหม่ที่ยาวขึ้น 3 เท่า</button>
+    <button class="opt">U ทำกับ |+⟩ แล้วต้องได้ |+⟩ คืนมาพร้อม phase</button>
+    <button class="opt">U ทำกับ |−⟩ แล้วต้องได้ |+⟩ คืนมาพร้อม phase</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · [1, 1] เป็น eigenvector ของ M → amplitude encoding ของมันคือ |+⟩ ต้องเป็น <b>eigenstate</b> ของ U = ได้ตัวเดิมคืนมา เปลี่ยนแค่ global phase · ส่วน "ยาวขึ้น 3 เท่า" QPU ทำไม่ได้ เพราะ state ต้องมีความน่าจะเป็นรวม 100% เสมอ</div>
+    <div class="fb no" data-for="no">ลองเริ่มจาก eigenvector ของ M ก่อนนะคะ · [1, 1] พอ normalize แล้วเป็น state อะไร · แล้ว eigenstate คือ state ที่ U ทำแล้วได้อะไรคืนมา? (ระวังด้วยว่า QPU "ยืด" state ไม่ได้)</div>
+  </div>
+
+  <h3>1.4 "เกือบพอ": ต้องสร้างได้จริง และต้องเร็ว</h3>
+  <p>ถ้าเจอ U ที่ eigen decomposition ตรงกับ M แล้ว จบหรือยัง? สไลด์ตอบว่า <b>"เกือบ" (Almost)</b> (p44) · เพราะสิ่งที่เราอยากได้ไม่ใช่แค่คำอธิบายทางคณิตของ U ·
+    เราต้องได้ <b>prescription (วิธีทำ)</b> ที่บอกว่าจะต่อ U ขึ้นมาจริงด้วย gate เดี่ยว/หลาย qubit พื้นฐานยังไง และวิธีนั้นต้อง <b>efficient (มีประสิทธิภาพ)</b> คือไม่ใช้ gate เยอะจนโปรแกรมทั้งตัวช้าจนไม่มีประโยชน์ (p45)</p>
+
+  <div class="box aha"><span class="tag">นิยามจากสไลด์ (p45)</span>
+    <i>"A good matrix representation is a procedure for associating a matrix with a QPU operation that can be efficiently implemented through basic single- and multi-qubit operations."</i><br>
+    การแทน matrix ที่ดี = <b>วิธีจับคู่ matrix กับ QPU operation ที่สร้างจาก gate พื้นฐานได้อย่างมีประสิทธิภาพ</b> ·
+    สรุปเป็นเช็กลิสต์ 3 ข้อ: ① eigen decomposition เดียวกัน ② มีวิธีสร้างจาก gate พื้นฐาน ③ วิธีนั้น efficient · สำหรับ matrix บางประเภท quantum simulation ให้ได้ครบทั้ง 3 ข้อ
+  </div>
+
+  <h3>1.5 quantum simulation ใช้ได้กับ Hermitian matrix เท่านั้น</h3>
+  <p><b>quantum simulation</b> เป็นคำเรียกรวม (catch-all term) ของกลุ่มวิธีที่หา QPU operation ซึ่ง implement ได้ efficient มาแทน <b>Hermitian matrix (เมทริกซ์เฮอร์มิเชียน)</b> (p46) ·
+    แต่ละวิธีใช้ทรัพยากรต่างกัน และอาจมีเงื่อนไขเพิ่มต่างกัน แต่<b>อย่างน้อยที่สุด ทุกวิธีต้องการให้ matrix เป็น Hermitian</b></p>
+
+  <div class="box aha"><span class="tag">นิยามจากสไลด์ (p46)</span>
+    Hermitian matrix คือ matrix ที่ <b>H = H†</b> · โดย <b>† (adjoint)</b> หาได้จากการ <b>transpose</b> (สลับแถวกับหลัก) แล้ว <b>complex conjugate (สังยุคเชิงซ้อน)</b> ทุกตัว
+  </div>
+
+  <div class="box mathref"><span class="tag">ทบทวนคณิต · หา H† ทีละขั้น</span>
+    complex conjugate = กลับเครื่องหมายส่วนจินตภาพ: (1 + i)* = 1 − i · ส่วนจำนวนจริงไม่เปลี่ยน: 3* = 3<br>
+    ตัวอย่าง A = [[2, 1−i], [1+i, 3]] →
+    transpose = [[2, 1+i], [1−i, 3]] →
+    conjugate = [[2, 1−i], [1+i, 3]] = A เดิม → <b>Hermitian ✓</b><br>
+    ข้อสังเกตที่ช่วยเช็คเร็ว (หนูเติมเอง ไม่อยู่ในสไลด์): ① ตัวบนเส้นทแยงต้องเป็น<b>จำนวนจริง</b> ② ตัวที่อยู่ตรงข้ามกันข้ามเส้นทแยงต้องเป็นคู่ conjugate กัน ③ matrix จำนวนจริงที่สมมาตร เช่น M = [[2,1],[1,2]] เป็น Hermitian เสมอ
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q"><b>ลองเช็คเอง</b>: matrix ไหน<b>เป็น</b> Hermitian? (ลองหา transpose + conjugate ในกระดาษก่อนกด)</div>
+    <button class="opt">[[1, 2], [3, 4]]</button>
+    <button class="opt">[[0, i], [−i, 0]]</button>
+    <button class="opt">[[i, 0], [0, 1]]</button>
+    <button class="opt">[[0, i], [i, 0]]</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · transpose ได้ [[0, −i], [i, 0]] → conjugate ได้ [[0, i], [−i, 0]] = ตัวเดิม ✓ · (นี่คือ matrix ของ gate Y ที่เราเคยเจอนั่นเอง) · ข้อ 1 ตัวตรงข้าม 2 กับ 3 ไม่เท่ากัน · ข้อ 3 มี i บนเส้นทแยง · ข้อ 4 conjugate ของ i คือ −i ไม่ใช่ i</div>
+    <div class="fb no" data-for="no">ใช้ข้อสังเกตในกล่องคณิตนะคะ · บนเส้นทแยงเป็นจำนวนจริงไหม · ตัวที่อยู่ตรงข้ามกันข้ามเส้นทแยงเป็นคู่ conjugate กันไหม (i คู่กับ −i)</div>
+  </div>
+
+  <h3>1.6 ถ้า matrix ไม่ใช่ Hermitian: ห่อด้วย block matrix</h3>
+  <p>บังคับให้เป็น Hermitian จะทำให้ใช้งานได้แคบไปไหม? สไลด์ตอบว่า<b>ไม่</b> (p47) · ถ้ามี matrix X ที่ไม่ใช่ Hermitian ให้สร้าง matrix ใหญ่ขึ้นแบบนี้:</p>
+  <div class="eq">H = [ 0 &nbsp;&nbsp; X ]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ X† &nbsp; 0 ]</div>
+  <p>ทำไมได้ Hermitian: ลองหา H† โดยสลับ block ข้ามเส้นทแยงแล้วใส่ † ทุกชิ้น · ได้ [[0, (X†)†], [X†, 0]] = [[0, X], [X†, 0]] = H เดิม ✓ ·
+    สไลด์บอกว่าต้นทุนในการสร้าง matrix ใหญ่ขึ้นเป็นค่าคงที่ที่จ่ายครั้งเดียว (constant one-off) จึงมักไม่สำคัญ (p47–48)</p>
+
+  <div class="work">
+    <div class="step"><span class="lbl">ตัวอย่าง</span> X = [[1, 2], [3, 4]] (ไม่ใช่ Hermitian เพราะ 2 ≠ 3) · X เป็นจำนวนจริง → X† = transpose = [[1, 3], [2, 4]]</div>
+    <div class="step"><span class="lbl">ผล</span> H = [[0, 0, 1, 2], [0, 0, 3, 4], [1, 3, 0, 0], [2, 4, 0, 0]] · ขนาด 4 × 4 · ตรวจด้วย numpy แล้วว่า H = H† ✓</div>
+  </div>
+
+  <div class="box warn"><span class="tag">⚠️ สไลด์เขียนขนาดผิด (p47–48)</span>
+    สไลด์บอกว่า X ขนาด m × n จะได้ H ขนาด <b>2m × 2n</b> และ block ศูนย์ขนาด <b>m × n</b> · ข้อความนี้ถูกเฉพาะตอน <b>m = n</b> ·
+    ของจริง: X† มีขนาด n × m → ศูนย์บนซ้ายต้องเป็น m × m และล่างขวาเป็น n × n → H มีขนาด <b>(m+n) × (m+n)</b> (Hermitian ต้องเป็น matrix จัตุรัสอยู่แล้ว) ·
+    เช่น X ขนาด 2 × 3 จะได้ H ขนาด 5 × 5 ไม่ใช่ 4 × 6 · ข้อความเดียวกันนี้อยู่ในหนังสือ O'Reilly ด้วย · <b>ตอบตามสไลด์ตอนสอบ แต่รู้ของจริงไว้นะคะ</b>
+  </div>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">X เป็น matrix ขนาด 3 × 3 ที่ไม่ใช่ Hermitian · ห่อเป็น H = [[0, X], [X†, 0]] แล้วได้ H ขนาดเท่าไร?</div>
+    <button class="opt">3 × 3 เท่าเดิม</button>
+    <button class="opt">9 × 9 คือ 3 × 3</button>
+    <button class="opt">3 × 6 แนวนอน</button>
+    <button class="opt">6 × 6 จัตุรัส</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · m = n = 3 → สูตรสไลด์ 2m × 2n = 6 × 6 และสูตรจริง (m+n) × (m+n) = 6 × 6 ตรงกันพอดี · ถ้าโจทย์ให้ m ≠ n ค่อยต้องระวังว่าสไลด์กับของจริงจะได้ไม่เท่ากัน</div>
+    <div class="fb no" data-for="no">H มี block 2 × 2 และแต่ละ block มีขนาดเท่า X (3 × 3) · ลองนับจำนวนแถวกับหลักรวมดูนะคะ</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · quantum simulation ทำงานยังไง และแพงแค่ไหน (p49–61)</h2></div>
+
+  <h3>2.1 QPU ทำได้แค่ unitary → ใช้ U = exp(−iHt)</h3>
+  <p>ถ้าเขียนแบบเต็มทางคณิต state ของ register คือ vector ของจำนวนเชิงซ้อน และ QPU operation ก็คือ matrix ตัวหนึ่ง (p49) ·
+    ไอเดียแรกคือ "หา QPU operation ที่ matrix ของมันเท่ากับข้อมูลของเรา" แต่ทำไม่ได้ เพราะ QPU operation ที่สร้างได้จริงมีแค่ matrix กลุ่มเดียว คือ <b>unitary matrix (เมทริกซ์ยูนิแทรี)</b></p>
+
+  <p><b>ทำไมต้องเป็น unitary</b> (หนูเติม intuition เอง): unitary คือ operation ที่<b>รักษาความน่าจะเป็นรวมไว้ที่ 100% เสมอ</b> · ทุก gate ที่เราใช้มา (H, X, PHASE, CNOT) เป็นแบบนี้หมด ·
+    แต่ M = [[2,1],[1,2]] ยืด [1,1] ไปเป็น [3,3] ซึ่งยาวขึ้น 3 เท่า ถ้า QPU ทำแบบนี้ได้ ความน่าจะเป็นรวมจะเกิน 100% ซึ่งเป็นไปไม่ได้ (ตรงกับ Caveat 2 ในบท 0035)</p>
+
+  <p>ทางออกของสไลด์: ถ้า H เป็น Hermitian แล้ว (p49–50)</p>
+  <div class="eq">U = exp(−iHt) &nbsp;&nbsp; เป็น unitary เสมอ</div>
+  <p>นี่คือเหตุผลที่ quantum simulation ใช้ได้แค่กับ Hermitian matrix · หน้าที่ของ quantum simulation จึงสรุปได้ว่า <b>หาวงจรที่ทำ exp(−iHt) ได้อย่าง efficient</b> (p50)</p>
+
+  <div class="box mathref"><span class="tag">ทบทวนคณิต · ทำไม exp(−iHt) "เปลี่ยนการยืดเป็นการหมุน"</span>
+    e<sup>iφ</sup> คือจุดบนวงกลมรัศมี 1 ที่ทำมุม φ · ขนาดเป็น 1 เสมอ (เหมือนเข็มใน circle notation ที่หมุนได้แต่ยาวเท่าเดิม)<br>
+    eigenvector v ของ H ที่ eigenvalue λ จะได้ U·v = <b>e<sup>−iλt</sup> v</b> · Hermitian มี eigenvalue เป็นจำนวนจริงเสมอ → e<sup>−iλt</sup> มีขนาด 1 →
+    "การยืด λ เท่า" กลายเป็น "<b>การหมุน phase ไป −λt</b>" แทน · นี่คือความหมายของคำว่า eigenphase <b>"สัมพันธ์กับ"</b> eigenvalue ในข้อ 1.3: <b>θ = −λt</b> (เป็นความรู้เสริม สไลด์บอกแค่ "related to")
+  </div>
+
+  <p>ลองดูตัวอย่างจริง: M = [[2,1],[1,2]] กับ t = π/6 (คำนวณด้วย numpy) · |+⟩ มี λ = 3 → หมุน −3 · 30° = <b>−90°</b> · |−⟩ มี λ = 1 → หมุน <b>−30°</b> · ทั้งสองแบบเป็น global phase เพราะทุกวงหมุนเท่ากัน:</p>
+  <div class="crow" data-n="2" data-r="18" data-lab="|+⟩ ก่อน" data-phase="0,0"></div>
+  <div class="crow" data-n="2" data-r="18" data-lab="U|+⟩ (−90°)" data-phase="270,270"></div>
+  <div class="crow" data-n="2" data-r="18" data-lab="|−⟩ ก่อน" data-phase="0,180"></div>
+  <div class="crow" data-n="2" data-r="18" data-lab="U|−⟩ (−30°)" data-phase="330,150"></div>
+
+  <h3>2.2 t คืออะไร และทำไมถึงชื่อ "simulation"</h3>
+  <ul>
+    <li><b>t</b> คือ<b>เวลา</b>ที่ใช้ทำ operation exp(−iHt) · ในวิชานี้ถือว่าการเลือก t เป็นรายละเอียดของ hardware ข้ามไปได้ (p50)</li>
+    <li>ชื่อนี้มาจากงานเดิมของมัน: แต่ก่อนใช้<b>จำลอง</b>วัตถุควอนตัม เช่น โมเลกุลและวัสดุ · ในฟิสิกส์ Hermitian matrix ที่อธิบายระบบเรียกว่า <b>Hamiltonian (แฮมิลโทเนียน)</b> (นี่คือที่มาของตัวอักษร H) และ exp(−iHt) บอกว่าระบบเปลี่ยนไปตามเวลายังไง · บทนี้เอาเครื่องมือเดียวกันมาใช้กับข้อมูลแทน</li>
+  </ul>
+
+  <h3>2.3 H แบบไหน "ง่าย"</h3>
+  <p>สไลด์ยกตัวอย่าง H ที่หาวงจรมาทำ exp(−iHt) ได้ง่าย 2 แบบ (p51): ① มีค่า<b>เฉพาะบนเส้นทแยง (diagonal)</b> ② กระทำกับ qubit <b>จำนวนน้อยมาก</b></p>
+  <p><b>ทำไม diagonal ถึงง่าย</b> (หนูเติมตัวอย่างเอง): exp ของ matrix ทแยงคือเอา exp ไปใส่ทีละช่องบนเส้นทแยง · เช่น H = diag(0, π/2), t = 1 →
+    exp(−iHt) = diag(1, e<sup>−iπ/2</sup>) = diag(1, −i) ซึ่งก็คือ <b>PHASE(−90°)</b> ที่เรารู้จักแล้ว (ตรวจด้วย numpy ✓)</p>
+  <p>ปัญหาคือ Hermitian matrix ของข้อมูลจริงมักไม่ใช่ทั้งสองแบบ · quantum simulation จึงต้อง<b>แตก matrix ที่ยาก ให้เป็นหลาย matrix ที่ง่าย</b> (p51)</p>
+
+  <h3>2.4 ภาพรวม 3 ขั้น</h3>
+  <div class="analogy">
+    <div class="cell"><b>ย้ายตู้ใหญ่ขึ้นบันไดแคบ</b><small>ยกทั้งตู้ไม่ได้ → ถอดเป็นชิ้น → ขนทีละชิ้น → ประกอบกลับข้างบน</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>quantum simulation</b><small>ทำ exp(−iHt) ทั้งก้อนไม่ได้ → แตก H → จำลองทีละชิ้น → ประกอบกลับ</small></div>
+  </div>
+  <ol>
+    <li><b>Deconstruct (แตก)</b>: เขียน H เป็นผลบวกของ Hermitian ที่ง่ายกว่า: <b>H = H₁ + H₂ + … + Hₙ</b> (p52)</li>
+    <li><b>Simulate components (จำลองทีละชิ้น)</b>: หาวงจรที่ efficient ของ Hᵢ แต่ละตัว</li>
+    <li><b>Reconstruction (ประกอบกลับ)</b>: เอาวงจรเล็กๆ มาต่อกันเป็นวงจรของ H ทั้งก้อน</li>
+  </ol>
+  <p>ขั้นที่ต้องอธิบายเพิ่มคือขั้น 1 กับขั้น 3 และแต่ละวิธีทำต่างกัน · สไลด์เล่าแค่กลุ่มเดียวคือ <b>product formula methods (วิธีสูตรผลคูณ)</b> โดย<b>เล่าขั้น 3 ก่อน</b>เพราะง่ายที่สุด (p53)</p>
+
+  <h3>2.5 ขั้น 3: Lie product formula และ Figure 9-9</h3>
+  <p>สมมติว่าแตก H = H₁ + … + Hₙ ได้แล้ว · <b>Lie product formula (สูตรผลคูณของลี)</b> บอกว่าประมาณ U = exp(−iHt) ได้แบบนี้ (p54–55):
+    ทำ U₁ = exp(−iH₁δt), …, Uₙ = exp(−iHₙδt) <b>ต่อกันตามลำดับ</b> โดยแต่ละตัวทำแค่<b>ช่วงเวลาสั้นๆ δt</b> แล้ว<b>วนทั้งชุดซ้ำ m รอบ</b></p>
+  <div class="eq">exp(−iHt) ≈ (U₁ U₂ … Uₙ)<sup>m</sup> &nbsp;&nbsp; โดย δt = t/m</div>
+  <p class="src">⚠️ สไลด์เขียนแค่ U₁ = exp(−iH₁δt), …, Uₙ = exp(−iHₙδt) แล้วเล่าเป็นคำพูด · บรรทัดสูตรรวมข้างบนกับ δt = t/m หนูเขียนสรุปเองจากสูตร Lie product ที่ใช้กันทั่วไป</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="3"
+         data-dash="1-5; 7-11; 13-17" data-under="1-17:m times"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2; BOX:0,2:e^−iH₁δt:2; _; ELL:0,1,2; BOX:0,2:e^−iHₙδt:2; _; _; BOX:0,2:e^−iH₁δt:2; _; ELL:0,1,2; BOX:0,2:e^−iHₙδt:2; _; ELL:0,1,2; BOX:0,2:e^−iH₁δt:2; _; ELL:0,1,2; BOX:0,2:e^−iHₙδt:2; _; _"
+         data-cap="Figure 9-9 (p55): กรอบแดงเส้นประ 1 กรอบ = 1 รอบ (U₁ … Uₙ) · วนซ้ำ m รอบ · กล่อง exp คร่อมทุกสาย · ในสไลด์มี ⋮ ระหว่างสาย 2 กับ 3 แปลว่ากี่ qubit ก็ได้"></div>
+  </div>
+
+  <p><b>ทำไมต้องหั่นเป็นชิ้นเล็กแล้ววนหลายรอบ</b> (หนูเติม intuition เอง): ถ้า H₁ กับ H₂ ทำสลับลำดับกันแล้วได้ผลเหมือนกัน ทำแต่ละตัวครั้งเดียวยาวๆ ก็จะได้คำตอบตรงเป๊ะ (m = 1) ·
+    แต่ส่วนใหญ่<b>ลำดับมีผล</b> ทำ H₁ จนเสร็จแล้วค่อยทำ H₂ จึงได้คำตอบเพี้ยน · ทางแก้คือทำสลับกันทีละนิด</p>
+  <div class="analogy">
+    <div class="cell"><b>อยากเดินทแยงในเมืองที่ถนนเป็นตาราง</b><small>เดินขวาจนสุดแล้วค่อยขึ้นเหนือ = อ้อมไกล · เดินขวาทีละช่วงสั้นสลับกับขึ้นเหนือ = ได้ขั้นบันไดเล็กๆ ที่ใกล้เส้นตรง</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>Lie product formula</b><small>δt เล็ก + วนหลายรอบ (m มาก) = ใกล้ exp(−iHt) จริงมากขึ้น แต่วงจรยาวขึ้นตาม m</small></div>
+  </div>
+
+  <p>หนูลองคำนวณกับ H = X + Z (X กับ Z ลำดับมีผล) ที่ t = 1 ด้วย numpy · ค่าความคลาดเคลื่อน (ยิ่งน้อยยิ่งดี):</p>
+  <table class="cmp">
+    <thead><tr><th>จำนวนรอบ m</th><th>ความคลาดเคลื่อน</th></tr></thead>
+    <tbody>
+      <tr><td data-label="จำนวนรอบ m">1</td><td data-label="ความคลาดเคลื่อน">0.80</td></tr>
+      <tr><td data-label="จำนวนรอบ m">4</td><td data-label="ความคลาดเคลื่อน">0.18</td></tr>
+      <tr><td data-label="จำนวนรอบ m">10</td><td data-label="ความคลาดเคลื่อน">0.07</td></tr>
+      <tr><td data-label="จำนวนรอบ m">100</td><td data-label="ความคลาดเคลื่อน">0.007</td></tr>
+    </tbody>
+  </table>
+  <p class="src">m เพิ่ม 10 เท่า error ลด 10 เท่า · ชิ้นส่วนแต่ละตัวก็ง่ายจริง: Z เป็น diagonal (แค่หมุน phase) และ X = H·Z·H จึงทำ exp(−iXδt) ได้ด้วย H → หมุน phase → H (ตรวจ numpy ✓)</p>
+
+  <div class="box aha"><span class="tag">ประเด็นสำคัญ (p55)</span>
+    Lie product formula บอกว่า <b><i>ถ้า</i></b> แตก H เป็นชิ้นที่มีวงจร efficient ได้ ก็จะประมาณ exp(−iHt) ได้อย่าง efficient ด้วย · คำว่า "ถ้า" เป็นตัวเอียงในสไลด์ เพราะ<b>ทุกอย่างขึ้นกับว่าแตก H ได้หรือเปล่า</b> → เป็นที่มาของขั้น 1
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">ใช้ product formula แล้วผลยังคลาดเคลื่อนเกินไป · ควรปรับอะไร และต้องแลกกับอะไร?</div>
+    <button class="opt">เพิ่ม m ให้ δt สั้นลง แลกกับวงจรที่ยาวขึ้น</button>
+    <button class="opt">ลด m ให้ δt ยาวขึ้น แลกกับวงจรที่ยาวขึ้น</button>
+    <button class="opt">เพิ่ม t ให้ δt ยาวขึ้น แลกกับวงจรที่สั้นลง</button>
+    <button class="opt">ลด n ให้ H ง่ายขึ้น แลกกับวงจรที่สั้นลง</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · หั่นละเอียดขึ้น (m มาก, δt = t/m เล็ก) ทำให้ใกล้ exp(−iHt) จริงขึ้น แต่ใน Figure 9-9 กรอบแดงก็ต้องซ้ำมากขึ้น = วงจรยาวขึ้น · ความแม่นยำกับขนาดวงจรต้องแลกกันเสมอ (เดี๋ยวจะเห็นอีกใน Table 9-2)</div>
+    <div class="fb no" data-for="no">นึกถึงตารางเมื่อกี้นะคะ · m เพิ่มแล้ว error เป็นยังไง · แล้วใน Figure 9-9 ถ้า m มากขึ้น กรอบแดงจะมีกี่กรอบ?</div>
+  </div>
+
+  <h3>2.6 ขั้น 1: แตก H ด้วย graph coloring</h3>
+  <div class="box warn"><span class="tag">⚠️ หัวสไลด์ p56–58 พิมพ์ผิด</span>
+    หัวสไลด์เขียนว่า "<b>Destructing</b> H" แต่เนื้อหาคือขั้น <b>Deconstruct</b> (การแตก H) · ถ้าข้อสอบใช้คำว่า Destructing ให้เข้าใจว่าเป็นเรื่องเดียวกัน
+  </div>
+  <p>วิธีในกลุ่ม product formula แต่ละวิธีแตก H ต่างกัน ใช้คณิตหนัก และ<b>ตั้งเงื่อนไขกับ H ต่างกัน</b> (p56) · สไลด์ยกตัวอย่างวิธีหนึ่ง:</p>
+  <ol>
+    <li>ถ้า H เป็น <b>sparse (เบาบาง)</b> คือส่วนใหญ่เป็นศูนย์ และเข้าถึงตัวที่ไม่เป็นศูนย์ได้อย่าง efficient</li>
+    <li>มอง H เป็น <b>adjacency matrix (เมทริกซ์ประชิด)</b> ของ <b>graph (กราฟ)</b>: ช่อง (j, k) ไม่เป็นศูนย์ = มี edge เชื่อม vertex j กับ k</li>
+    <li>แก้ <b>coloring problem (ปัญหาระบายสีกราฟ)</b> บนกราฟนั้น → <b>แต่ละสีจะรวมเป็นชิ้น Hᵢ ที่ simulate ง่าย</b></li>
+  </ol>
+
+  <p><b>นิยาม (p57)</b>: graph คือ <b>vertex (จุดยอด)</b> ที่เชื่อมกันด้วย <b>edge (เส้นเชื่อม)</b> · coloring problem คือระบายสีให้ทุก vertex โดย<b>vertex ที่มี edge ต่อกันตรงๆ ห้ามสีเดียวกัน</b></p>
+
+  <p><b>ตัวอย่างจากสไลด์ (p58, Graph Coloring Problem by Backtracking)</b>: กราฟ 4 vertex · edge คือ A–B, B–C, C–D, D–A และเส้นทแยง A–C (<b>ไม่มี</b> B–D) · ใช้ 3 สี ·
+    <b>backtracking (การย้อนรอย)</b> คือระบายทีละ vertex ตามลำดับ A → B → C → D แต่ละตัวลองสีแดง → เขียว → น้ำเงิน · ถ้าสีชนกับเพื่อนบ้านให้<b>ตัดกิ่งนั้นทิ้งทันที</b>แล้วย้อนกลับไปลองสีถัดไป</p>
+  <div class="work">
+    <div class="step"><span class="lbl">A=แดง</span> B=แดง → ✖ ชน A ทันที (ไม่ต้องลอง C, D ต่อ)</div>
+    <div class="step"><span class="lbl">B=เขียว</span> C=แดง → ✖ ชน A ผ่านเส้นทแยง · C=เขียว → ✖ ชน B · C=น้ำเงิน → ผ่าน</div>
+    <div class="step"><span class="lbl">D=?</span> D=แดง → ✖ ชน A · D=เขียว → ✓ <b>ได้คำตอบที่ 1</b> · D=น้ำเงิน → ✖ ชน C</div>
+    <div class="step"><span class="lbl">ย้อนรอย</span> กลับไปลอง B=น้ำเงิน ทำแบบเดิมต่อไปเรื่อยๆ จนลองครบทุกกิ่ง</div>
+  </div>
+  <table class="cmp">
+    <thead><tr><th>คำตอบ</th><th>A</th><th>B</th><th>C</th><th>D</th></tr></thead>
+    <tbody>
+      <tr><td data-label="คำตอบ">1st</td><td data-label="A">แดง</td><td data-label="B">เขียว</td><td data-label="C">น้ำเงิน</td><td data-label="D">เขียว</td></tr>
+      <tr><td data-label="คำตอบ">2nd</td><td data-label="A">แดง</td><td data-label="B">น้ำเงิน</td><td data-label="C">เขียว</td><td data-label="D">น้ำเงิน</td></tr>
+      <tr><td data-label="คำตอบ">3rd</td><td data-label="A">เขียว</td><td data-label="B">แดง</td><td data-label="C">น้ำเงิน</td><td data-label="D">แดง</td></tr>
+      <tr><td data-label="คำตอบ">4th</td><td data-label="A">เขียว</td><td data-label="B">น้ำเงิน</td><td data-label="C">แดง</td><td data-label="D">น้ำเงิน</td></tr>
+      <tr><td data-label="คำตอบ">5th</td><td data-label="A">น้ำเงิน</td><td data-label="B">แดง</td><td data-label="C">เขียว</td><td data-label="D">แดง</td></tr>
+      <tr><td data-label="คำตอบ">6th</td><td data-label="A">น้ำเงิน</td><td data-label="B">เขียว</td><td data-label="C">แดง</td><td data-label="D">เขียว</td></tr>
+    </tbody>
+  </table>
+  <p class="src">ตรวจด้วย Python โดยไล่ครบ 3⁴ = 81 แบบ ได้ 6 คำตอบตรงกับสไลด์ ✓ · สไลด์มีแผนที่ออสเตรเลียประกอบด้วย (รัฐ = vertex, รัฐที่มีชายแดนติดกัน = edge, Tasmania เป็นเกาะจึงไม่มี edge)</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ดูตาราง 6 คำตอบ · ทำไม B กับ D <b>ได้สีเดียวกันทุกคำตอบ</b>?</div>
+    <button class="opt">เพราะ B กับ D มี edge ต่อกันโดยตรง</button>
+    <button class="opt">เพราะ backtracking ลองสีแดงก่อนทุกครั้ง</button>
+    <button class="opt">เพราะ A กับ C บังคับให้เหลือสีเดียว</button>
+    <button class="opt">เพราะกราฟนี้มีแค่ 4 vertex พอดีกัน</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · A–C ต่อกัน → A กับ C ใช้ไป 2 สีที่ต่างกัน · B กับ D ต่อกับทั้ง A และ C จึงเหลือได้แค่สีที่ 3 · และ B–D ไม่มี edge จึงใช้สีเดียวกันได้ → เลือก A ได้ 3 แบบ × C ได้ 2 แบบ = 6 คำตอบ</div>
+    <div class="fb no" data-for="no">ลองดูว่า B ต่อกับใครบ้าง แล้ว D ต่อกับใครบ้าง · ถ้า A กับ C ใช้ไปแล้ว 2 สี B กับ D จะเหลือสีให้เลือกกี่สี?</div>
+  </div>
+
+  <p><b>แล้วการระบายสีเกี่ยวกับการแตก H ยังไง?</b> สไลด์บอกตรงๆ ว่า "<b>ไม่ได้เห็นชัดทันที</b> แต่มาจากโครงสร้างทางคณิตของปัญหา" แล้วไม่ได้อธิบายต่อ (p57) · ถ้าข้อสอบถาม ให้ตอบตามขั้นในสไลด์: sparse → adjacency matrix → coloring → แต่ละสีเป็น Hᵢ</p>
+
+  <div class="box mathref"><span class="tag">เกร็ดเพิ่ม (ไม่ออกสอบ) · ทำไมสีถึงให้ชิ้นที่ง่าย</span>
+    ในงานวิจัยที่เป็นต้นทาง เช่น <a href="https://arxiv.org/abs/quant-ph/0508139">Berry, Ahokas, Cleve, Sanders (2007)</a> เขา<b>ระบายสีที่ edge</b> (ไม่ใช่ที่ vertex แบบตัวอย่าง p58) ·
+    edge ที่สีเดียวกันจะ<b>ไม่มีปลายร่วมกันเลย</b> แต่ละสีจึงเป็นคู่ vertex ที่แยกขาดจากกัน และแต่ละคู่ทำงานเหมือน X บน 2 ช่องนั้น → simulate ง่าย<br>
+    ตัวอย่างที่หนูทำเอง: H = [[0,1,0,0],[1,0,1,0],[0,1,0,1],[0,0,1,0]] คือกราฟเส้นตรง 0–1–2–3 ·
+    สีแดง = edge {0–1, 2–3} · สีน้ำเงิน = edge {1–2} · H = H<sub>แดง</sub> + H<sub>น้ำเงิน</sub> (ตรวจ numpy ✓) แล้วค่อยเอาไปเข้า Lie product ในข้อ 2.5
+  </div>
+
+  <h3>2.7 ต้นทุน: Table 9-2</h3>
+  <p>ยังมีวิธี quantum simulation แบบอื่นอีก และหลายวิธีดีกว่า product formula เพราะ<b>วงจรเล็กกว่า</b> หรือ<b>ต้องเข้าถึง matrix น้อยกว่า</b> (p59) ·
+    ในตารางนี้ <b>"runtime" = ขนาดของวงจร</b> (จำนวน operation พื้นฐาน) · <b>d</b> = sparsity คือจำนวนตัวที่ไม่เป็นศูนย์<b>มากที่สุดต่อหนึ่งแถว</b> · <b>ϵ</b> = precision (ความแม่นยำ) ที่ต้องการ ยิ่งเล็กยิ่งแม่น</p>
+  <table class="cmp">
+    <thead><tr><th>Technique</th><th>Circuit runtime</th><th>ลองแทน d = 10, ϵ = 0.01 (หนูคำนวณเอง)</th></tr></thead>
+    <tbody>
+      <tr><td data-label="Technique">Product formula<sup>a</sup></td><td data-label="Circuit runtime">O(d⁴)</td><td data-label="d = 10, ϵ = 0.01">10,000</td></tr>
+      <tr><td data-label="Technique">Quantum walks</td><td data-label="Circuit runtime">O(d/√ϵ)</td><td data-label="d = 10, ϵ = 0.01">10 / 0.1 = 100</td></tr>
+      <tr><td data-label="Technique">Quantum signal processing (QSP)</td><td data-label="Circuit runtime">O(d + log(1/ϵ) / log log(1/ϵ))</td><td data-label="d = 10, ϵ = 0.01">≈ 13</td></tr>
+    </tbody>
+  </table>
+  <p class="src">a: ปรับ product formula ให้ดีขึ้นได้เล็กน้อยด้วยสูตร Lie product "อันดับสูงขึ้น" (higher order) (p60) · อ่านตาราง: product formula โตเร็วมากตาม d · quantum walks โตตาม d แบบเส้นตรงแต่แพงขึ้นเมื่อ ϵ เล็ก · QSP เป็น d <b>บวก</b>เทอม ϵ (ไม่ใช่คูณ) จึงถูกที่สุด</p>
+
+  <div class="box warn"><span class="tag">⚠️ Table 9-2 ตัดตัวแปรบางตัวออก (p60)</span>
+    ① ไม่มี <b>t</b> (เวลาจำลอง) เลยทั้งที่ของจริงทุกวิธีขึ้นกับ t ② แถว product formula <b>ไม่มี ϵ</b> ③ ฟอนต์ในสไลด์ทำให้ O ดูเหมือนเลข 0 ("0(d⁴)") ซึ่งความหมายคือ Big-O ·
+    <b>ตอบตามตารางในสไลด์ตอนสอบนะคะ</b>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q"><b>ลองคำนวณ</b>: matrix ใหม่มี d เพิ่มเป็น <b>2 เท่า</b> (ϵ เท่าเดิม) · วงจรของ product formula กับ quantum walks โตขึ้นกี่เท่าตามลำดับ?</div>
+    <button class="opt">2 เท่า กับ 16 เท่า</button>
+    <button class="opt">16 เท่า กับ 2 เท่า</button>
+    <button class="opt">8 เท่า กับ 4 เท่า</button>
+    <button class="opt">4 เท่า กับ 2 เท่า</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · (2d)⁴ = 16 d⁴ → <b>16 เท่า</b> · (2d)/√ϵ = 2 · d/√ϵ → <b>2 เท่า</b> · นี่คือเหตุผลที่ product formula แย่มากเมื่อ matrix ไม่ค่อย sparse</div>
+    <div class="fb no" data-for="no">แทน d ด้วย 2d ในแต่ละสูตรนะคะ · (2d)⁴ เท่ากับ d⁴ คูณเท่าไร?</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <details class="recall"><summary>ทดสอบความจำก่อนปิดบท (พยายามตอบเองก่อนเปิด)</summary>
+    <ol>
+      <li>ทำไมเก็บ matrix แถวละ register ถึงไม่ดี? → ทำ transpose หรือคูณกับ vector ใน register อื่นไม่ได้ → ควรเก็บเป็น QPU operation</li>
+      <li>เกณฑ์ที่ง่ายกว่า "M·v ↔ U|v⟩ ทุก v" คืออะไร? → eigen decomposition เดียวกัน: eigenstate = amplitude encoding ของ eigenvector · eigenphase สัมพันธ์กับ eigenvalue</li>
+      <li>good matrix representation ต้องมีอะไรเพิ่มจาก eigen decomposition? → prescription จาก gate พื้นฐาน + efficient</li>
+      <li>Hermitian คืออะไร · † คืออะไร? → H = H† · † = transpose แล้ว complex conjugate</li>
+      <li>matrix X ที่ไม่ Hermitian ทำยังไง · ขนาดตามสไลด์กับของจริง? → [[0, X], [X†, 0]] · สไลด์ 2m × 2n · ของจริง (m+n) × (m+n)</li>
+      <li>ทำไมต้อง exp(−iHt)? → QPU ทำได้แค่ unitary และ exp(−iHt) เป็น unitary เมื่อ H เป็น Hermitian</li>
+      <li>3 ขั้นของ quantum simulation? → Deconstruct → Simulate components → Reconstruction</li>
+      <li>Figure 9-9 หน้าตาเป็นยังไง? → กล่อง e^−iH₁δt … e^−iHₙδt คร่อมทุกสาย 1 ชุด (กรอบแดง) วนซ้ำ m รอบ</li>
+      <li>ขั้น 1 แตก H ยังไง (ตามสไลด์)? → H sparse → adjacency matrix ของ graph → coloring problem → แต่ละสีเป็น Hᵢ</li>
+      <li>Table 9-2: d กับ ϵ คืออะไร · วิธีไหนถูกสุด? → d = sparsity, ϵ = precision · QSP</li>
+    </ol>
+  </details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li>เก็บ matrix เป็น<b>ตัวเลข</b>ใช้งานไม่ได้ ต้องเก็บเป็น <b>QPU operation</b> (p40–41)</li>
+    <li>"แทนได้" = M·v ↔ U|v⟩ ทุก v · เกณฑ์ที่ง่ายกว่าคือ <b>eigen decomposition เดียวกัน</b> · บวกกับ prescription + efficient = <b>good matrix representation</b> (p42–45)</li>
+    <li>quantum simulation ต้องการ <b>Hermitian (H = H†)</b> · ถ้าไม่ใช่ ให้ห่อเป็น [[0, X], [X†, 0]] (สไลด์บอก 2m × 2n · ของจริง (m+n) × (m+n)) (p46–48)</li>
+    <li>QPU ทำได้แค่ <b>unitary</b> → <b>U = exp(−iHt)</b> · การยืด λ กลายเป็นการหมุน phase −λt · H ที่ง่าย = diagonal หรือกระทำกับ qubit น้อยตัว (p49–51)</li>
+    <li>3 ขั้น: <b>Deconstruct → Simulate → Reconstruct</b> · ขั้น 3 ใช้ <b>Lie product formula</b>: ทำ e^−iH₁δt … e^−iHₙδt ต่อกัน <b>วนซ้ำ m รอบ</b> (Figure 9-9) (p52–55)</li>
+    <li>ขั้น 1: H sparse → adjacency matrix → <b>graph coloring</b> → แต่ละสีเป็น Hᵢ · ตัวอย่าง backtracking ได้ 6 คำตอบ (p56–58)</li>
+    <li><b>Table 9-2</b>: runtime = ขนาดวงจร · Product formula O(d⁴) · Quantum walks O(d/√ϵ) · QSP O(d + log(1/ϵ)/log log(1/ϵ)) (p59–60)</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 9 <i>Real Data</i> หัวข้อ <i>Matrix Encodings</i> และ <i>Quantum Simulation</i> (Figure 9-9, Table 9-2) ·
+      ถ้าอยากเห็นที่มาของการแตก H ด้วยการระบายสี อ่านบทนำของ <a href="https://arxiv.org/abs/quant-ph/0508139">Berry et al. (2007)</a> (ไม่บังคับ คณิตหนัก) ·
+      สไลด์ <code class="code">QuantumProg_Lec09.pdf</code> หน้า 40–61</p>
+    <p><b>บทก่อนหน้า</b>: <a href="0035-vector-state-vs-amplitude-encoding.html">0035 · เก็บ vector: state vs amplitude encoding</a> ·
+      <b>บทถัดไป</b>: <a href="0037-phase-logic-answers-in-phase.html">0037 · phase logic: เก็บคำตอบไว้ใน phase</a></p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="0031-eigenstate-and-eigenphase.html">0031 · eigenstate และ eigenphase</a> ·
+      <a href="0035-vector-state-vs-amplitude-encoding.html">0035 · amplitude encoding + normalize</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① ทำไม QPU "ยืด" vector ไม่ได้ แต่ matrix ทำได้
+      ② exp ของ matrix คืออะไร ทำไมยกกำลังด้วย matrix ได้
+      ③ ทำไมต้องวนซ้ำ m รอบ ไม่ทำ H₁ ทีเดียวแล้วต่อด้วย H₂
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

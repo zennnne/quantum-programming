@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0043 — แบ่งภาพเป็น tile: วาด 16 subpixel พร้อมกัน</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+<script defer src="../assets/canvas.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 11 · บทที่ 0043</div>
+  <h1>แบ่งภาพเป็น tile: วาด 16 subpixel พร้อมกัน</h1>
+  <p class="lead">สองบทที่แล้วเราวาดรูปลงผ้าใบ 16×16 ทั้งผืนในคราวเดียว · แต่เป้าหมายจริงของคาบนี้คือ <b>supersampling</b>
+    คือย่อภาพละเอียดให้เหลือ pixel น้อยลง · บทนี้จึงหั่นผ้าใบเป็นช่องเล็กๆ เรียกว่า <b>tile</b> แล้ววาดทีละช่อง
+    ใช้วงจรที่เล็กลงจาก 8 qubit ของพิกัด เหลือแค่ 4</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 4 อย่าง
+    ① 1 tile = 4×4 subpixel → ย่อเหลือ <b>1 pixel</b> ของภาพผลลัพธ์ · ภาพ 16×16 จึงกลายเป็น 4×4
+    ② <code class="code">qx</code>, <code class="code">qy</code> เหลืออย่างละ <b>2 qubit</b> (ตำแหน่งในช่อง) ·
+       <code class="code">tx</code>, <code class="code">ty</code> เป็น<b>เลขธรรมดา</b> (ช่องที่เท่าไร) ·
+       พิกัดจริง = <code class="code">qx + 4·tx</code>
+    ③ วาดเส้นด้วยสูตร 7 ขั้น: คัดลอกลง <code class="code">qacc</code> → บวก offset → เช็ค "== N" → flip → ย้อนกลับ
+    ④ Figure 11-10 ในสไลด์<b>มีจุดผิด 3 จุด</b> · หนูจำลองแล้ว วงจรตามรูปเป๊ะๆ วาดไม่ได้อะไรเลย
+  </div>
+
+  <div class="box aha">
+    <b>สูตรเดิมจากบท 0042</b> (<a href="0038-magnitude-first-phase-last.html">บท 0038 · magnitude ก่อน phase ทีหลัง</a>):
+    <div class="eq">คำนวณเงื่อนไขให้ไปโผล่ที่ qubit → flip phase → ทำขั้นคำนวณย้อนกลับ</div>
+    บทนี้ไม่มีสูตรใหม่ · ที่ใหม่คือ "ขั้นคำนวณ" ต้องรวมพิกัดในช่องกับเลขช่องก่อน แล้วค่อยเช็คเงื่อนไข
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · ทำไมต้อง tile และตัวแปร 5 ตัว (p22–24)</h2></div>
+
+  <h3>1.1 กลับมาที่โจทย์ supersampling</h3>
+  <p>ทวนจาก <a href="0041-qss-noise-character-and-blank-canvas.html">บท 0041</a>: supersampling คือ
+    คำนวณจุดย่อย (subpixel) หลายๆ จุดใน 1 pixel แล้ว<b>รวมให้เหลือค่าเดียว</b> · สไลด์ p22 จำลองเรื่องนี้แบบนี้ค่ะ</p>
+  <ul>
+    <li>มองผ้าใบ 16×16 เป็น<b>ข้อมูลละเอียด</b> (256 subpixel)</li>
+    <li>หั่นเป็น <b>16 tile</b> ขนาด 4×4</li>
+    <li>แต่ละ tile ต้องย่อเหลือ <b>1 pixel</b> → ภาพผลลัพธ์มี 16 pixel (4×4)</li>
+  </ul>
+
+  <div class="analogy">
+    <div class="cell"><b>tile 1 ช่อง = ภาพโมเสก 1 ชิ้น</b><small>ข้างในมีจุดย่อย 16 จุด บางจุดดำบางจุดขาว ·
+      ถอยออกมาดูไกลๆ ทั้งชิ้นจะกลายเป็นสีเทาสีเดียว เข้มแค่ไหนขึ้นกับว่ามีจุดดำกี่จุด</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>1 pixel ของภาพผลลัพธ์</b><small>ความสว่างของ pixel = สัดส่วน subpixel ที่ถูก flip ใน tile นั้น ·
+      วิธี<b>นับ</b>ว่าถูก flip กี่ตัวคือเรื่องของ<a href="#next">บทหน้า</a> · บทนี้เอาแค่<b>วาด</b>ให้ได้ก่อน</small></div>
+  </div>
+
+  <h3>1.2 Figure 11-9: ภาพทดสอบง่ายๆ</h3>
+  <p>ภาพที่ใช้ทดลองคือ <b>เส้นนอนที่ y = 3</b> ตัดกับ <b>เส้นตั้งที่ x = 10</b> · เส้นประแบ่งเป็น 16 tile ·
+    ลองหาจุดตัดดูนะคะ วงนั้นเป็น<b>ชมพู</b> เพราะโดน flip สองรอบ (180° + 180° = 360° = 0°) เหมือนที่เจอใน dither บท 0042</p>
+  <div class="qcrow">
+    <div class="qcanvas" data-n="16" data-cell="20" data-tiles="4"
+         data-flip="(y == 3) != (x == 10)"
+         data-cap="Figure 11-9 · เส้นนอน y = 3 + เส้นตั้ง x = 10 (วาดใหม่ตามสไลด์ p24)"></div>
+  </div>
+  <p>สังเกตว่าเส้นนอนอยู่<b>แถวล่างสุดของ tile แถวบน</b> และเส้นตั้งอยู่<b>คอลัมน์ที่ 3 (นับจาก 0 คือ 2) ของ tile คอลัมน์ที่ 3</b>
+    ซึ่งจะสำคัญตอนเขียนวงจรค่ะ</p>
+
+  <h3>1.3 ตัวแปร 5 ตัว: อะไรเป็น qubit อะไรเป็นเลขธรรมดา</h3>
+  <p>เพราะ tile มีแค่ 4×4 วง พิกัดในช่องจึงใช้แค่ <b>2 qubit ต่อแกน</b> (0–3) · ที่เหลือคือ "ตอนนี้วาดช่องไหน"
+    ซึ่ง<b>เรารู้อยู่แล้ว</b> เลยไม่ต้องเป็น qubit (p23)</p>
+  <table class="cmp">
+    <thead><tr><th>ตัวแปร</th><th>ชนิด</th><th>หน้าที่</th></tr></thead>
+    <tbody>
+      <tr><td data-label="ตัวแปร"><code class="code">qx</code>, <code class="code">qy</code></td><td data-label="ชนิด">qubit อย่างละ 2</td>
+        <td data-label="หน้าที่">ตำแหน่ง subpixel <b>ในช่อง</b> (0–3) · HAD แล้วจึงเป็น superposition ของทั้ง 16 วงพร้อมกัน</td></tr>
+      <tr><td data-label="ตัวแปร"><code class="code">qacc</code></td><td data-label="ชนิด">qubit 4 ตัว</td>
+        <td data-label="หน้าที่">accumulator (ตัวสะสม) ที่ทดเลขที่ 2 qubit ใส่ไม่พอ · พิกัดจริงไปถึง 15 ต้องใช้ 4 บิต</td></tr>
+      <tr><td data-label="ตัวแปร"><code class="code">tx</code>, <code class="code">ty</code></td><td data-label="ชนิด">เลขธรรมดา (digital)</td>
+        <td data-label="หน้าที่">tile คอลัมน์ที่เท่าไร / แถวที่เท่าไร (0–3) · เป็นค่าคงที่ในโค้ด JavaScript</td></tr>
+    </tbody>
+  </table>
+  <div class="eq">x จริง = qx + 4·tx &nbsp;&nbsp;·&nbsp;&nbsp; y จริง = qy + 4·ty</div>
+  <p class="meta">สไลด์ p23 เขียนสูตรไว้แค่ของ x · ของ y เป็นแบบเดียวกัน</p>
+
+  <div class="analogy">
+    <div class="cell"><b>เลขห้องโรงแรม 1203</b><small>"ชั้น 12" พนักงานรู้แน่นอนว่ากำลังเดินอยู่ชั้นไหน ·
+      "ห้อง 03" คือห้องในชั้นนั้น</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>พิกัดจริง = qx + 4·tx</b><small><code class="code">tx</code> = ชั้นที่เรารู้แน่นอน (digital) ·
+      <code class="code">qx</code> = ห้องในชั้น ที่เปิด<b>ทุกห้องพร้อมกัน</b>ด้วย superposition</small></div>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">① ใน tile <code class="code">tx = 2, ty = 0</code> วงที่ <code class="code">qx = 1, qy = 3</code> คือพิกัดจริงไหน และเป็นสีอะไร (ภาพ Figure 11-9)</div>
+    <button class="opt">พิกัดจริง (9, 3) เป็นสีชมพู</button>
+    <button class="opt">พิกัดจริง (9, 3) เป็นสีเขียว</button>
+    <button class="opt">พิกัดจริง (6, 2) เป็นสีเขียว</button>
+    <button class="opt">พิกัดจริง (10, 3) เป็นชมพู</button>
+    <div class="fb ok" data-for="ok">ใช่ค่ะ x = 1 + 4·2 = 9 · y = 3 + 4·0 = 3 → อยู่บนเส้นนอน แต่ไม่ใช่ x = 10 → flip ครั้งเดียว = เขียว</div>
+    <div class="fb no" data-for="no">ลองแทนสูตร x = qx + 4·tx = 1 + 8 = 9 · y = qy + 4·ty = 3 → อยู่บนเส้นนอน y = 3 และไม่ใช่จุดตัด (x ≠ 10) → <b>(9, 3) เขียว</b></div>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">② ทำไม <code class="code">qacc</code> ต้องมี 4 qubit ทั้งที่ <code class="code">qx</code> มีแค่ 2</div>
+    <button class="opt">ต้องเก็บทั้ง qx กับ qy ไว้พร้อมกัน</button>
+    <button class="opt">ต้องเผื่อบิตเครื่องหมายไว้เช็คค่าลบ</button>
+    <button class="opt">พิกัดจริงไปได้ถึง 15 จึงต้องใช้ 4 บิต</button>
+    <button class="opt">CZ ต้องมีจุดควบคุมอย่างน้อย 4 จุด</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ พิกัดในช่องมีแค่ 0–3 แต่พอบวก 4·tx แล้วไปได้ถึง 15 (= 1111) → ต้อง 4 บิต · qacc เก็บทีละแกน ใช้ซ้ำทั้งเส้นนอนและเส้นตั้ง</div>
+    <div class="fb no" data-for="no">qacc มีไว้เก็บ<b>พิกัดจริง</b> = พิกัดในช่อง + 4·(เลขช่อง) ซึ่งไปได้ถึง 15 → ต้องใช้ 4 บิต · บทนี้ไม่ได้เช็คค่าลบเลย (ต่างจากเสี้ยววงกลมบท 0042)</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · อ่านวงจร Figure 11-10 + ภาพทดสอบจริง (p25–29)</h2></div>
+
+  <h3>2.1 โค้ด: สูตรวาดเส้น 7 ขั้น</h3>
+  <p>โค้ด "Drawing lines using an accumulator" (p26–27) วาดเส้นนอนแล้วต่อด้วยเส้นตั้ง · ทั้งสองเส้นใช้ 7 ขั้นเดียวกัน
+    เปลี่ยนแค่ตัวแปร</p>
+  <pre class="code-blk">qc.reset(8);
+var qx   = qint.new(2, 'qx');
+var qy   = qint.new(2, 'qy');
+var qacc = qint.new(4, 'qacc');
+qc.write(0);
+qx.hadamard();
+qy.hadamard();
+
+var tx = 2;    // tile column
+var ty = 1;    // tile row
+
+// Hz line y=3            // Vt line x=10
+qacc.cnot(qy);            qacc.cnot(qx);         // ① คัดลอกพิกัดในช่อง
+qacc.add(ty * 4);         qacc.add(tx * 4);      // ② บวก offset → พิกัดจริง
+qacc.not(~3);             qacc.not(~10);         // ③ ทำให้ "== N" กลายเป็น "ทุกบิตเป็น 1"
+qacc.cphase(180);         qacc.cphase(180);      // ④ flip ถ้าทุกบิตเป็น 1
+qacc.not(~3);             qacc.not(~10);         // ⑤ ย้อน ③
+qacc.subtract(ty * 4);    qacc.subtract(tx * 4); // ⑥ ย้อน ②
+qacc.cnot(qy);            qacc.cnot(qx);         // ⑦ ย้อน ① → qacc กลับเป็น 0</pre>
+  <p class="meta">หนูเรียงสองเส้นไว้คู่กันเพื่อให้เห็นว่าเหมือนกัน · ในสไลด์เขียนต่อกันลงมา และบรรทัด <code class="code">qacc.cnot(…)</code> แรกไม่มี <code class="code">;</code></p>
+  <p>ขั้น ①–③ คือ "คำนวณ" · ④ คือ "flip" · ⑤–⑦ คือ "uncompute" · ขั้น ⑦ สำคัญเพราะเราใช้ <code class="code">qacc</code> ตัวเดิมวาดเส้นที่สองต่อ
+    จึงต้องคืนให้เป็น 0 ก่อน</p>
+
+  <h3>2.2 ทริก <code class="code">not(~N)</code>: เปลี่ยน "เท่ากับ N" เป็น "ทุกบิตเป็น 1"</h3>
+  <p>CZ (หรือ <code class="code">cphase(180)</code> ทั้ง register) flip เฉพาะตอน<b>ทุกบิตเป็น 1</b> · ถ้าอยากเช็ค "qacc == N"
+    ก็ NOT บิตที่ N เป็น 0 ทิ้ง (<code class="code">~N</code> = กลับบิตของ N) · ค่าที่เท่ากับ N พอดีจะกลายเป็น 1111 ตัวเดียว
+    นี่คือ phase-logic AND จาก <a href="0037-phase-logic-answers-in-phase.html">บท 0037</a> ที่เอา NOT มาครอบขาที่ต้องการให้เป็น 0</p>
+  <div class="work">
+    <div class="step"><span class="lbl">N = 3</span> 3 = <code class="code">0011</code> → ~3 = <code class="code">1100</code> → NOT บิต <b>0x4, 0x8</b></div>
+    <div class="step"><span class="lbl">N = 10</span> 10 = <code class="code">1010</code> → ~10 = <code class="code">0101</code> → NOT บิต <b>0x1, 0x4</b></div>
+  </div>
+  <p class="meta">อ่านบิตจากซ้ายไปขวาเป็น 0x8 0x4 0x2 0x1 · ใช้ 4 บิตเพราะ qacc มี 4 qubit</p>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">③ ถ้าอยากวาดเส้นตั้งที่ <b>x = 5</b> แทน ขั้น <code class="code">qacc.not(~5)</code> จะวาง ⊕ บนบิตไหนของ qacc</div>
+    <button class="opt">บิต 0x2 กับบิต 0x8</button>
+    <button class="opt">บิต 0x1 กับบิต 0x4</button>
+    <button class="opt">บิต 0x4 กับบิต 0x8</button>
+    <button class="opt">บิต 0x1 กับบิต 0x2</button>
+    <div class="fb ok" data-for="ok">เป๊ะค่ะ 5 = 0101 → ~5 = 1010 → NOT บิต 0x2 กับ 0x8 · ตัวเลือกที่สองคือบิตที่<b>เป็น 1</b> ใน 5 ซึ่งกลับด้านกัน</div>
+    <div class="fb no" data-for="no">5 = <code class="code">0101</code> (0x4 + 0x1) · ~5 = <code class="code">1010</code> → NOT บิตที่ 5 <b>เป็น 0</b> คือ <b>0x2 กับ 0x8</b> · ถ้า NOT บิตที่เป็น 1 จะได้ "== 10" แทน</div>
+  </div>
+
+  <h3>2.3 Figure 11-10 ตามสไลด์</h3>
+  <p>นี่คือวงจรที่สไลด์ p25–27 แปะไว้ · 8 สาย = qx 2 + qy 2 + qacc 4 · กล่องเทาครอบแต่ละขั้น</p>
+  <div class="wide">
+    <div class="circuit" data-wires="8" data-names="qx,qx,qy,qy,qacc,qacc,qacc,qacc"
+         data-wire-labels="0x1,0x2,0x1,0x2,0x1,0x2,0x4,0x8"
+         data-groups="1-2:; 5-5:; 6-8:; 9-9:; 14-15:; 16-18:; 19-20:"
+         data-under="3-11:Horizontal line at y=3; 12-22:Vertical line at x=10"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1; H:2 + H:3; CNOT:2,4; CNOT:3,5; X:7; X:6,7; CZ:4,5,6,7; X:6,7; X:7; CNOT:2,4; CNOT:3,5; CNOT:0,4; CNOT:1,5; X:6; CNOT:6,7; X:4,6; CZ:4,5,6,7; X:4,6; CNOT:6,7; X:6; CNOT:0,4; CNOT:1,5"
+         data-cap="Figure 11-10 · Drawing the subpixels of one tile in superposition (วาดใหม่ตามสไลด์ p25 ทุกคอลัมน์)"></div>
+  </div>
+  <table class="cmp">
+    <thead><tr><th>ขั้น</th><th>ครึ่งซ้าย (เส้นนอน)</th><th>ครึ่งขวา (เส้นตั้ง)</th></tr></thead>
+    <tbody>
+      <tr><td data-label="ขั้น">① / ⑦ คัดลอก</td><td data-label="ครึ่งซ้าย">CNOT ● qy → ⊕ qacc 2 ตัว</td><td data-label="ครึ่งขวา">CNOT ● qx → ⊕ qacc 2 ตัว</td></tr>
+      <tr><td data-label="ขั้น">② / ⑥ บวก-ลบ offset</td><td data-label="ครึ่งซ้าย">⊕ ตัวเดียวบน 0x8</td><td data-label="ครึ่งขวา">⊕ บน 0x4 แล้ว ● 0x4 → ⊕ 0x8</td></tr>
+      <tr><td data-label="ขั้น">③–⑤ เช็คแล้ว flip</td><td data-label="ครึ่งซ้าย">⊕ 0x4, 0x8 · CZ 4 จุด · ⊕ ซ้ำ (== 3)</td><td data-label="ครึ่งขวา">⊕ 0x1, 0x4 · CZ 4 จุด · ⊕ ซ้ำ (== 10)</td></tr>
+    </tbody>
+  </table>
+  <p>บนสไลด์ยังมีลูกศรแดง 5 อันเหนือครึ่งซ้าย เขียนว่า <code class="code">qacc^=qy</code> · <code class="code">qacc+=ty*4</code> ·
+    <code class="code">flip if qacc==10</code> · <code class="code">qacc-=ty*4</code> · <code class="code">qacc^=qy</code>
+    และรูปขยาย tile ที่ <b>tx = 2, ty = 3</b> ซึ่งเขียวทั้งคอลัมน์ที่ 3</p>
+
+  <h3>2.4 หนูไล่ค่าแล้ว: สไลด์ขัดกันเอง 3 จุด</h3>
+  <div class="box warn">
+    <b>⚠️ จุดที่สไลด์ผิด (ตอบตามสไลด์ตอนสอบ แต่รู้ของจริงไว้)</b>
+    <ol>
+      <li>ป้าย <code class="code">flip if qacc==10</code> อยู่เหนือครึ่ง<b>เส้นนอน</b> · แต่ gate ข้างใต้ NOT 0x4, 0x8 = เช็ค <b>== 3</b> · 10 เป็นของครึ่งเส้นตั้ง</li>
+      <li>โค้ดตั้ง <code class="code">ty = 1</code> แต่รูปขยายกรอบ tile ที่ <code class="code">ty = 3</code></li>
+      <li>บล็อกบวก offset ในวงจร<b>สลับครึ่งกัน</b> (อธิบายข้างล่าง) → วงจรตามรูปเป๊ะๆ <b>ไม่ flip วงไหนเลย</b></li>
+    </ol>
+    <p class="meta">วิธีตรวจ: หนูจำลองทุก gate ของวงจรด้วย python กับ subpixel ทั้ง 16 วง (ทุก gate เป็นการสลับค่า + CZ จึงไล่ตรงๆ ได้)
+      และเทียบกับโค้ดที่ tile ต่างๆ · การวิเคราะห์ในหัวข้อนี้เป็นของหนูเอง สไลด์ไม่ได้พูดถึง</p>
+  </div>
+
+  <p><b>บล็อกบวกในวงจรบวกเท่าไรกันแน่</b> · ⊕ ตัวเดียวบน 0x8 = <b>+8</b> ตรงไปตรงมา ·
+    ส่วน "⊕ บน 0x4 แล้ว ● 0x4 → ⊕ 0x8" ลองไล่ดูนะคะ</p>
+  <div class="work">
+    <div class="step"><span class="lbl">qacc = 0</span> <code class="code">0000</code> → ⊕ 0x4 → <code class="code">0100</code> → 0x4 เป็น 1 จึง ⊕ 0x8 → <code class="code">1100</code> = <b>12</b></div>
+    <div class="step"><span class="lbl">qacc = 4</span> <code class="code">0100</code> → ⊕ 0x4 → <code class="code">0000</code> → 0x4 เป็น 0 ไม่ทำอะไร → <b>0</b></div>
+    <div class="step"><span class="lbl">สรุป</span> ทุกค่า v ได้ v − 4 · ใน 4 บิต (mod 16) ลบ 4 = <b>บวก 12</b> (overflow แบบ
+      <a href="midterm/0019-adding-two-quantum-integers-and-negative-numbers.html">บท 0019</a>)</div>
+  </div>
+  <p>ดังนั้นวงจรในรูปทำแบบนี้ค่ะ</p>
+  <ul>
+    <li>ครึ่งเส้นนอน: y จริง = qy + 8 → อยู่ในช่วง 8–11 → <b>ไม่มีทางเท่ากับ 3</b></li>
+    <li>ครึ่งเส้นตั้ง: x จริง = qx + 12 → อยู่ในช่วง 12–15 → <b>ไม่มีทางเท่ากับ 10</b></li>
+  </ul>
+  <p>ผลคือ tile ชมพูล้วน (= tile tx = 3, ty = 2) · แต่ถ้าเอาบล็อกบวกสองอัน<b>สลับครึ่งกัน</b> จะได้ +12 = 4·3 ให้เส้นนอน (ty = 3)
+    และ +8 = 4·2 ให้เส้นตั้ง (tx = 2) ตรงกับ tile ที่กรอบไว้พอดี · คนวาดรูปน่าจะเอา offset ของ tx กับ ty ไปใส่ผิดครึ่ง</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="8" data-names="qx,qx,qy,qy,qacc,qacc,qacc,qacc"
+         data-wire-labels="0x1,0x2,0x1,0x2,0x1,0x2,0x4,0x8"
+         data-groups="1-2:; 5-6:+12; 7-9:==3?; 10-11:−12; 16-16:+8; 17-19:==10?; 20-20:−8"
+         data-under="3-13:เส้นนอน y = 3 (ty = 3); 14-22:เส้นตั้ง x = 10 (tx = 2)"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1; H:2 + H:3; CNOT:2,4; CNOT:3,5; X:6; CNOT:6,7; X:6,7; CZ:4,5,6,7; X:6,7; CNOT:6,7; X:6; CNOT:2,4; CNOT:3,5; CNOT:0,4; CNOT:1,5; X:7; X:4,6; CZ:4,5,6,7; X:4,6; X:7; CNOT:0,4; CNOT:1,5"
+         data-cap="ฉบับที่หนูแก้: สลับบล็อกบวก/ลบ offset สองครึ่ง → วาด tile (tx = 2, ty = 3) ได้ตรงรูปขยาย (ไม่ใช่รูปจากสไลด์)"></div>
+  </div>
+
+  <div class="qcrow">
+    <div class="qcanvas" data-n="4" data-cell="30"
+         data-cap="วงจรตามสไลด์ → ชมพูล้วน"></div>
+    <div class="qcanvas" data-n="4" data-cell="30" data-flip="(y + 12 == 3) != (x + 8 == 10)"
+         data-cap="ฉบับแก้ (2, 3) = รูปขยายในสไลด์"></div>
+    <div class="qcanvas" data-n="4" data-cell="30" data-flip="(y + 4 == 3) != (x + 8 == 10)"
+         data-cap="โค้ด (tx = 2, ty = 1) ก็ได้รูปเดียวกัน"></div>
+  </div>
+  <p>จุดที่ 2 (ty = 1 กับ ty = 3) จึง<b>ไม่ทำให้ภาพเพี้ยน</b> เพราะ tile ty = 1, 2, 3 ของคอลัมน์ tx = 2 มีแต่เส้นตั้ง หน้าตาเหมือนกันทุกช่อง ·
+    ส่วนโค้ดเองถูกต้อง ถ้ารันโค้ดตามสไลด์จะได้ภาพขวาสุด</p>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">④ ถ้าจะวาด tile <code class="code">tx = 0, ty = 0</code> (มุมซ้ายบน) บล็อกบวก offset ทั้งสองครึ่งหน้าตาเป็นยังไง</div>
+    <button class="opt">⊕ บน 0x8 ทั้งสองครึ่ง เหมือนกันเลย</button>
+    <button class="opt">⊕ บน 0x4 ทั้งสองครึ่ง เหมือนกันเลย</button>
+    <button class="opt">ครึ่งเส้นนอนว่าง ครึ่งเส้นตั้งมี ⊕ 0x8</button>
+    <button class="opt">ว่างทั้งสองครึ่ง ไม่มี gate อะไรเลย</button>
+    <div class="fb ok" data-for="ok">ใช่ค่ะ บวก 4·0 = 0 จึงไม่มี gate · พิกัดจริง = พิกัดในช่องพอดี · tile นี้จึงมีแค่เส้นนอนที่แถวล่าง (qy = 3) ส่วนเส้นตั้งอยู่ไกลเกิน (qx ไปไม่ถึง 10)</div>
+    <div class="fb no" data-for="no">offset = 4·tx กับ 4·ty และทั้งคู่ = 0 → <b>ไม่ต้องบวกอะไรเลย</b> บล็อกจึงว่างทั้งสองครึ่ง · gate ในบล็อก offset เปลี่ยนตาม tile เพราะ tx, ty เป็นเลขธรรมดาที่รู้ตอนสร้างวงจร</div>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">⑤ วาด tile <code class="code">tx = 2, ty = 0</code> ด้วยวงจรที่ถูกต้อง จะได้วงเขียวกี่วง (จาก 16)</div>
+    <button class="opt">8 วง</button>
+    <button class="opt">6 วง</button>
+    <button class="opt">7 วง</button>
+    <button class="opt">4 วง</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ แถวล่าง 4 วง + คอลัมน์ qx = 2 อีก 4 วง · วง (2, 3) อยู่ในทั้งสองชุด (นับซ้ำ 1) และโดน flip สองรอบจนกลับเป็นชมพู (หักอีก 1) → 4 + 4 − 2 = <b>6</b></div>
+    <div class="fb no" data-for="no">tile นี้มีทั้งสองเส้น · แถวล่าง (qy = 3) 4 วง + คอลัมน์ qx = 2 อีก 4 วง แต่วง (2, 3) อยู่ในทั้งสองชุด โดน flip 2 รอบ = ชมพู · เหลือ 3 + 3 = <b>6 วง</b> (ดูที่ tile นี้ใน Figure 11-9 ด้านบน)</div>
+  </div>
+
+  <h3>2.5 ภาพทดสอบที่น่าสนใจกว่า (p28–29)</h3>
+  <p>เส้นนอน-เส้นตั้งง่ายเกินไปสำหรับทดสอบ supersampling · สไลด์ p28 จึงใช้ shader ที่ซับซ้อนกว่าวาด <b>วงแหวนซ้อนกัน</b>
+    ที่ยิ่งออกห่างจากมุมซ้ายบนแถบยิ่งบางและถี่ (รายละเอียดความถี่สูง ที่การ sample แบบเดิมทำพังง่าย) ·
+    วงแหวนพวกนี้ก็คือ<b>แถบโค้งจาก overflow</b> ที่เจอในบท 0042 นั่นเอง แต่คราวนี้ใช้โดยตั้งใจ</p>
+  <div class="qcrow">
+    <div class="qcanvas" data-n="128" data-cell="2" data-mode="pixel" data-axes="0"
+         data-flip="((x*x + y*y) >> 7) & 1"
+         data-cap="ภาพประกอบที่หนูทำเอง เลียนแบบลักษณะของ Figure 11-11 ด้วยบิตหนึ่งของ x² + y² (ไม่ใช่โค้ดจริงของหนังสือ)"></div>
+  </div>
+  <p>ดูขอบขวาล่างของภาพนะคะ แถบถี่จนตาเห็นเป็น<b>ลายวงกลมปลอมๆ</b> (moiré) ทั้งที่ไม่ได้วาดไว้ · Figure 11-11 ในสไลด์ก็มีลายแบบนี้ ·
+    นี่แหละคือ noise ที่ supersampling ต้องแก้</p>
+  <ul>
+    <li>ภาพเต็ม 256×256 แบ่งเป็น <b>4,096 tile</b> × <b>16 subpixel</b> ต่อ tile (p29)</li>
+    <li>1 tile → supersample เป็น 1 pixel ของภาพผลลัพธ์</li>
+    <li>เสริมจากหนู: 4,096 × 16 = 65,536 = 256 × 256 · และ 4,096 = 64 × 64 → ภาพผลลัพธ์ 64×64 pixel</li>
+    <li>source code เต็มอยู่ที่ <a href="https://oreilly-qc.github.io/?p=11-A">oreilly-qc.github.io/?p=11-A</a></li>
+  </ul>
+  <p>p29 ยอมรับตรงๆ ว่าต้องใช้ทางลัดและทริกเฉพาะทางเยอะ ไม่ต่างจากยุคแรกของ computer graphics ·
+    พอภาพพร้อมแล้ว คำถามต่อไปคือ <b>"นับยังไงว่าแต่ละ tile โดน flip กี่วง"</b> ทั้งที่ READ ได้ทีละวงแบบสุ่ม ·
+    นั่นคือ Quantum Sum Estimation ใน<a href="#next">บทหน้า</a></p>
+
+  <!-- ============================================================ -->
+  <h2>ทดสอบความจำ (ปิดหน้าจอส่วนบนก่อนตอบ)</h2>
+  <details class="recall"><summary>ตัวแปร 5 ตัวในวงจร tile: ตัวไหนเป็น qubit กี่ตัว ตัวไหนเป็นเลขธรรมดา และพิกัดจริงคำนวณยังไง</summary>
+    qx, qy = qubit อย่างละ 2 (ตำแหน่งในช่อง) · qacc = qubit 4 ตัว (accumulator) · tx, ty = digital (ช่องที่เท่าไร) ·
+    x จริง = qx + 4·tx · y จริง = qy + 4·ty</details>
+  <details class="recall"><summary>สูตรวาดเส้น 7 ขั้น (เส้นตั้ง x = 10)</summary>
+    <code class="code">qacc.cnot(qx)</code> → <code class="code">add(tx*4)</code> → <code class="code">not(~10)</code> →
+    <code class="code">cphase(180)</code> → <code class="code">not(~10)</code> → <code class="code">subtract(tx*4)</code> → <code class="code">cnot(qx)</code></details>
+  <details class="recall"><summary>วาดครึ่ง "flip ถ้า qacc == 10" ของ Figure 11-10 (3 คอลัมน์)</summary>
+    ⊕ บน qacc 0x1 และ 0x4 → จุดดำ 4 จุดต่อกันบน qacc ทั้ง 4 สาย → ⊕ บน 0x1 และ 0x4 ซ้ำ</details>
+  <details class="recall"><summary>Figure 11-10 ในสไลด์ผิดตรงไหน</summary>
+    ① ป้าย <code class="code">flip if qacc==10</code> อยู่ผิดครึ่ง (ครึ่งนั้นเช็ค 3) ② โค้ด ty = 1 แต่รูปกรอบ ty = 3 (ภาพออกมาเหมือนกัน)
+    ③ บล็อกบวก offset สลับครึ่ง: เส้นนอนได้ +8 เส้นตั้งได้ +12 (= −4) → วงจรตามรูปไม่ flip อะไรเลย</details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li>supersampling จำลองด้วยการแบ่งผ้าใบ 16×16 เป็น <b>16 tile</b> ขนาด 4×4 · แต่ละ tile ย่อเหลือ 1 pixel (p22)</li>
+    <li>วาดทีละ tile: <code class="code">qx</code>, <code class="code">qy</code> 2 qubit · <code class="code">qacc</code> 4 qubit ·
+      <code class="code">tx</code>, <code class="code">ty</code> เป็น digital · พิกัดจริง = qx + 4·tx (p23)</li>
+    <li>Figure 11-9: เส้นนอน y = 3 + เส้นตั้ง x = 10 · จุดตัดโดน flip สองรอบเป็นชมพู (p24)</li>
+    <li>วาดเส้น = คัดลอก → บวก offset → <code class="code">not(~N)</code> → <code class="code">cphase(180)</code> → ย้อนกลับ 3 ขั้น (p26–27)</li>
+    <li>Figure 11-10 มีจุดผิด 3 จุด · ฉบับที่ถูกคือสลับบล็อก offset สองครึ่ง (p25)</li>
+    <li>ภาพทดสอบจริง: วงแหวนความถี่สูง 256×256 = 4,096 tile × 16 subpixel (p28–29)</li>
+  </ul>
+
+  <div class="footer" id="next">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 11 <i>Quantum Supersampling</i> หัวข้อ
+      <i>Sampling Phase-Encoded Images</i> และ <i>A More Interesting Image</i> (Figure 11-9 ถึง 11-11) ·
+      ลองรันภาพวงแหวนได้ที่ <a href="https://oreilly-qc.github.io/?p=11-A">oreilly-qc.github.io/?p=11-A</a> ·
+      สไลด์ <code class="code">QuantumProg_Lec11.pdf</code> หน้า 22–29</p>
+    <p><b>บทก่อนหน้า</b>: <a href="0042-drawing-in-phase-dither-stripes-curves.html">0042 · วาดรูปลงใน phase</a> ·
+      <b>บทถัดไป</b>: <a href="0044-sum-estimation-counting-flips-aa-qft.html">0044 · นับว่า tile โดน flip กี่วง: AA + QFT</a></p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="0037-phase-logic-answers-in-phase.html">0037 · phase logic</a> ·
+      <a href="0038-magnitude-first-phase-last.html">0038 · magnitude ก่อน phase ทีหลัง</a> ·
+      <a href="midterm/0018-increment-decrement.html">0018 · increment / decrement</a> ·
+      <a href="midterm/0019-adding-two-quantum-integers-and-negative-numbers.html">0019 · บวกเลข + เลขติดลบ</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① ทำไม tx, ty ไม่ต้องเป็น qubit ทั้งที่ qx, qy เป็น
+      ② ทำไม "⊕ 0x4 แล้ว CNOT 0x4 → 0x8" ถึงเท่ากับบวก 12
+      ③ ทำไมต้องคืน qacc เป็น 0 ก่อนวาดเส้นที่สอง
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

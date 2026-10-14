@@ -13,6 +13,8 @@
         data-unit=" Hz"           หน่วยต่อท้ายป้าย peak (ไม่ใส่ = ไม่มี)
         data-half="1"             แรเงาครึ่งขวาของ spectrum = “ภาพสะท้อน”
         data-dots="0"             ซ่อนจุด sample (default แสดง)
+        data-ax="k,amplitude,QFT,ค่าที่ READ,ความแรง"   เปลี่ยนป้าย: แกน x/y ซ้าย, กล่องกลาง, แกน x/y ขวา
+                                  (ช่องว่าง = ใช้ค่าเดิม Time,Signal,DFT,Frequency,Strength · เพิ่มตอนบท 0044)
         data-lab="หัวข้อ" data-cap="คำบรรยาย"></div>
    ตรวจตัวเลข: window.waveMath("sin:8", 256) → { re, im, mag }  (mag = |DFT| ไม่ normalize)
    ============================================================ */
@@ -63,6 +65,7 @@
   }
   window.waveMath = samples;
 
+  var AX = ["Time", "Signal", "DFT", "Frequency", "Strength"];
   function frame(g, x0, yLab, xLab) {
     g.appendChild(el("rect", { x: x0, y: PAD, width: PW, height: PH, fill: "#fff", stroke: "#bdb6a8" }));
     txt(g, x0 + PW / 2, PAD + PH + 15, xLab, 10.5);
@@ -71,7 +74,7 @@
   }
 
   function timePanel(g, x0, d, n, dots) {
-    frame(g, x0, "Signal", "Time");
+    frame(g, x0, AX[1], AX[0]);
     var hasIm = d.im.some(function (v) { return Math.abs(v) > 1e-9; });
     var m = 0;
     d.re.concat(d.im).forEach(function (v) { m = Math.max(m, Math.abs(v)); });
@@ -101,7 +104,7 @@
   }
 
   function freqPanel(g, x0, d, n, marks, unit, half) {
-    frame(g, x0, "Strength", "Frequency");
+    frame(g, x0, AX[4], AX[3]);
     function X(j) { return x0 + 6 + (PW - 12) * j / (n - 1); }
     if (half) {
       g.appendChild(el("rect", { x: X(n / 2), y: PAD + 1, width: x0 + PW - 1 - X(n / 2), height: PH - 2, fill: "#f2eee6" }));
@@ -130,6 +133,8 @@
     var marks = (node.dataset.mark || "").split(",").filter(function (s) { return s.trim() !== ""; })
       .map(function (s) { return parseInt(s, 10); });
     var dots = node.dataset.dots !== "0";
+    var ax = (node.dataset.ax || "").split(",");
+    AX = ["Time", "Signal", "DFT", "Frequency", "Strength"].map(function (d, i) { return (ax[i] || "").trim() || d; });
     var W = show === "both" ? PAD + PW + GAP + PW + 8 : PAD + PW + 8;
     var svg = el("svg", { viewBox: "0 0 " + W + " " + (PAD + PH + 22), width: W, role: "img",
       "aria-label": node.dataset.cap ? node.dataset.cap.replace(/<[^>]+>/g, "") : "กราฟสัญญาณ" });
@@ -142,7 +147,7 @@
       var bx = PAD + PW + 6, cy = PAD + PH / 2;
       g.appendChild(el("path", { d: "M" + bx + "," + cy + " h12 m-5,-4 l5,4 l-5,4", fill: "none", stroke: "#7a746a" }));
       g.appendChild(el("rect", { x: bx + 14, y: cy - 14, width: 34, height: 28, rx: 3, fill: "#e8e5de", stroke: "#9b958a" }));
-      txt(g, bx + 31, cy + 4, "DFT", 11, "#1a1a1a", "middle", 800);
+      txt(g, bx + 31, cy + 4, AX[2], 11, "#1a1a1a", "middle", 800);
       g.appendChild(el("path", { d: "M" + (bx + 50) + "," + cy + " h14 m-5,-4 l5,4 l-5,4", fill: "none", stroke: "#7a746a" }));
     }
     if (show !== "time") freqPanel(g, show === "both" ? PAD + PW + GAP : PAD, d, n, marks,

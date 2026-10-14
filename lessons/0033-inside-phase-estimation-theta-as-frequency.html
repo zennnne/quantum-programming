@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0033 — ข้างใน phase estimation: เปลี่ยน θ เป็นความถี่</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 08 · บทที่ 0033 (บทปิดคาบ)</div>
+  <h1>ข้างใน phase estimation: เปลี่ยน θ เป็นความถี่</h1>
+  <p class="lead">สองบทที่แล้วเราใช้ <code class="code">phase_est()</code> เป็น<b>กล่องดำ</b>: ใส่ eigenstate กับ cont_u แล้วอ่านได้ 8 = 180° ·
+    บทนี้เราจะ<b>เปิดกล่อง</b>ดูว่าข้างในทำยังไง · ข่าวดีคือไม่มีของใหม่เลย
+    ทุกชิ้นเป็นของที่พี่เรียนมาแล้ว: <b>phase kickback</b> (บท <a href="midterm/0010-cphase-cz-phase-kickback.html">0010</a>),
+    <b>controlled operation</b> (บท <a href="midterm/0012-building-conditional-ops-remote-randomness.html">0012</a>)
+    และ <b>invQFT</b> (บท <a href="0030-inside-the-invqft-circuit.html">0030</a>) · แค่เอามาต่อกันให้ถูกที่ค่ะ</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 3 อย่าง
+    ① ใส่ U ตรงๆ กับ eigenstate ได้แค่ <b>global phase</b> → อ่านไม่ได้ · ต้องทำให้ θ กลายเป็น<b>ความถี่ของ register</b> ให้ invQFT อ่าน
+    ② สูตรคือ “<b>หมุน |k⟩ ด้วย kθ</b>” · ทำได้ด้วย <b>H ทุกสาย → controlled-U^(2ʲ) → phase kickback</b>
+    ③ วงจรเต็ม (Figure 8-12) = <b>H → cU, cU², cU⁴, … → invQFT → READ</b> · <b>รูปนี้น่าจะออกสอบที่สุดของคาบ</b>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · เป้าหมาย: ทำให้ θ กลายเป็น “ความถี่” (p33–38)</h2></div>
+
+  <h3>1.1 ไอเดียง่ายๆ ที่ใช้ไม่ได้ (p33–34 · Figure 8-7)</h3>
+  <p>เรามีทั้ง U และ eigenstate ของมันอยู่ในมือ · ไอเดียแรกที่ใครๆ ก็คิดคือ “<b>ก็เอา U ไปทำกับ eigenstate ตรงๆ เลยสิ</b>”</p>
+
+  <div class="circuit" data-wires="3" data-wire-labels="e,e,e"
+       data-ops="WRITE:0:1 + WRITE:1 + WRITE:2:1; _; BOX:0,2:U; _"
+       data-cap="Figure 8-7 “Simple suggestion for phase estimation” · กล่อง U คร่อมทั้ง register · <b>ไม่มี READ</b> (สไลด์วาด 2 สาย + ⋮ + สายสุดท้าย)"></div>
+  <div class="crow" data-n="3" data-labels="0,1,n" data-phase="0,180,0" data-lab="ก่อน: eigenstate"></div>
+  <div class="crow" data-n="3" data-labels="0,1,n" data-phase="-30,150,-30" data-lab="หลัง: eigenstate with global eigenphase"></div>
+  <p>ผลคือ<b>ทุกวงหมุนไปเท่ากันหมด</b> (ในสไลด์หมุนตามเข็มราว 30° ทุกวง) · ตามนิยามจากบท <a href="0031-eigenstate-and-eigenphase.html">0031</a>:
+    <b>U|ψ⟩ = e<sup>iθ</sup>|ψ⟩</b> → θ ถูกเก็บไว้จริง แต่อยู่ในรูป <b>global phase</b> ซึ่ง READ ไม่ได้ (p34)</p>
+  <div class="box aha"><b>ปมของทั้งคาบ</b>: ข้อมูลที่เราอยากได้ “ติดอยู่ในเฟส” อีกแล้ว ·
+    และเป็นเฟสแบบที่แย่ที่สุดด้วย คือ global phase ที่<b>ไม่มีวงไหนต่างจากวงอื่น</b> ให้จับได้เลย</div>
+
+  <h3>1.2 เครื่องมือที่อ่านเฟสได้: invQFT (p35)</h3>
+  <p>ย้อนไปบท <a href="0029-qft-fast-but-how-to-use-invqft.html">0029</a>–<a href="0030-inside-the-invqft-circuit.html">0030</a>:
+    invQFT อ่าน “<b>ความต่างเฟสที่ซ้ำเป็นคาบ</b>” (periodic phase differences) ออกมาเป็นตัวเลขที่ READ ได้ ·
+    เช่น register 3 qubit ที่เฟสหมุนครบ 2 รอบตลอด 8 วง → invQFT อ่านได้ <b>2</b></p>
+  <p>ดังนั้นโจทย์ใหม่ของเราคือ: <b>ทำยังไงให้ θ ไปเป็น “ความถี่” ของ relative phase ใน register</b> แล้วปล่อยให้ invQFT ทำที่เหลือ</p>
+
+  <h3>1.3 หน้าตาของเป้าหมาย (p36–37 · Figure 8-8)</h3>
+  <p>ถ้า θ = 90° = ¼ รอบ → อยากได้ register ที่เฟส<b>เดินทีละ 90°</b> · ถ้า θ = 180° → เดินทีละ 180°</p>
+  <div class="crow" data-n="8" data-phase="0,90,180,270,0,90,180,270" data-lab="θ = 90° → invQFT อ่านได้ 2" data-sub="หมุนครบ 2 รอบ"></div>
+  <div class="crow" data-n="8" data-phase="0,180,0,180,0,180,0,180" data-lab="θ = 180° → invQFT อ่านได้ 4" data-sub="หมุนครบ 4 รอบ"></div>
+  <div class="eq">Readout / 8 = θ / 360°  →  2/8 = 90/360 · 4/8 = 180/360</div>
+  <p>นี่คือ <b>Equation 8-1 (R = θ/360° × 2ᵐ)</b> จากบท <a href="0032-using-phase-est-read-8-means-180.html">0032</a> และกฎ n/2ᴺ × 360° ของบท 0030 ตัวเดียวกันเป๊ะ ·
+    ตอนนี้เราเห็นแล้วว่า<b>มันมาจากไหน</b>: ตัวเลขที่อ่านได้ = จำนวนรอบที่เฟสหมุนตลอด register</p>
+  <div class="box warn"><b>สไลด์พิมพ์ผิด (p37)</b>: เขียนว่า “frequency of 2/8 = <b>4/1</b>” · ที่ถูกคือ 2/8 = <b>1/4</b>
+    (ตรงกับประโยคก่อนหน้า 90/360 = 1/4) · ถ้าเจอข้อสอบลอกประโยคนี้มา ตอบตามสไลด์ได้ แต่รู้ไว้ว่าความหมายจริงคือ ¼ ค่ะ</div>
+
+  <h3>1.4 สูตรสร้างเป้าหมาย: หมุน |k⟩ ด้วย kθ (p37–38 · Figure 8-9)</h3>
+  <p>เริ่มจาก equal superposition (ทุกวงเท่ากัน เฟส 0°) แล้ว<b>หมุนวงที่ k ด้วย k × θ</b> · ลองกับ θ = 90°:</p>
+  <div class="crow" data-n="8" data-phase="0,0,0,0,0,0,0,0" data-lab="ก่อน: equal superposition"></div>
+  <div class="crow" data-n="8" data-phase="0,90,180,270,0,90,180,270" data-lab="หลัง: |k⟩ หมุน k × 90°"
+       data-sub="0°,90°,180°,270°,360°,90°,180°,270°"></div>
+  <div class="analogy">
+    <div class="cell"><b>บันไดวน</b><small>ทุกขั้นหมุนไปจากขั้นก่อนเท่ากัน · ขั้นที่ k หมุนรวม k เท่าของมุมต่อขั้น ·
+      นับว่าเดินจากล่างถึงบนแล้ววนกี่รอบ ก็รู้มุมต่อขั้น</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>register หลังหมุน |k⟩ ด้วย kθ</b><small>วงที่ k มีเฟส kθ · invQFT “นับจำนวนรอบ” ตลอด 2ᵐ วง ·
+      ได้จำนวนรอบ → ย้อนกลับเป็น θ</small></div>
+  </div>
+  <div class="box aha"><b>ประโยคสรุปของส่วนที่ 1 (p38)</b>: ถ้าเราหมุน state ที่ k ของ register ด้วย <b>k × eigenphase</b> ได้ ·
+    invQFT ก็อ่าน eigenphase ออกมาได้</div>
+  <div class="box warn"><b>ป้ายในสไลด์ไม่สม่ำเสมอ (p38)</b>: 4 × 90° เขียน <b>360°</b> (ไม่ลด) แต่ 5 × 90° เขียน 90° (ลด mod 360 แล้ว) ·
+    ไม่ผิด แค่เขียนคนละแบบ · 360° = 0° = เข็มชี้ขึ้นเหมือนกัน</div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">ลองเองก่อน: θ = 135° กับ register 3 qubit · หมุน |k⟩ ด้วย kθ แล้ว invQFT · <b>อ่านได้เท่าไร</b>?
+      (คำใบ้: คิดก่อนว่า |8⟩ ถ้ามีจะหมุนรวมกี่รอบ)</div>
+    <button class="opt">อ่านได้ 1</button>
+    <button class="opt">อ่านได้ 3</button>
+    <button class="opt">อ่านได้ 5</button>
+    <button class="opt">อ่านได้ 6</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · 8 วง × 135° = 1080° = <b>3 รอบ</b> → อ่านได้ 3 · เช็คด้วยสูตร 135/360 × 8 = 3 ✓
+      (เฟสจริงของแต่ละวง: 0, 135, 270, 45, 180, 315, 90, 225 — กระโดดไปมาแต่ระยะห่างเท่ากันทุกขั้น)</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · ลองนับรอบ: 8 ขั้น × 135° = 1080° = กี่รอบของ 360°? หรือใช้ R = θ/360° × 2ᵐ</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · วงจรที่ทำตามเป้า: cont_u + phase kickback (p39–48)</h2></div>
+
+  <h3>2.1 ทบทวน phase kickback ก่อน (บท 0010)</h3>
+  <p>qubit ควบคุมอยู่ใน |+⟩ · qubit เป้าหมายเป็น eigenstate ของ U (ที่นี่ใช้ |1⟩ ซึ่งเป็น eigenstate ของ PHASE(90°)) · แล้วทำ controlled-U:</p>
+  <div class="circuit" data-wires="2" data-wire-labels="0x1,0x2" data-names="ctrl,eig"
+       data-ops="WRITE:0 + WRITE:1:1; H:0; CTRL:0 + BOX:1,1:U"
+       data-cap="controlled-U ตัวเดียว · ● บน ctrl คุมกล่อง U บน eigenstate"></div>
+  <div class="crow" data-n="4" data-mag="0,0,0.5,0.5" data-phase="0,0,0,90" data-lab="หลัง controlled-U (θ = 90°)"
+       data-sub=",,ctrl = 0,ctrl = 1"></div>
+  <p>มีแค่วง |3⟩ (ctrl = 1) ที่ได้เฟส 90° · ภาพนี้<b>เล่าได้ 2 แบบ</b> และถูกทั้งคู่:</p>
+  <div class="twocol">
+    <div class="c"><b>มุมมอง A: เฟสอยู่ที่ eigenstate</b><br>“ถ้า ctrl = 1 eigenstate ได้ global phase θ” → ฟังดูไร้ประโยชน์</div>
+    <div class="c"><b>มุมมอง B: เฟส “เด้งกลับ” ไปที่ ctrl</b><br>“|1⟩ ของ ctrl ได้ <b>relative phase θ</b> เทียบกับ |0⟩” → <b>อ่านได้ถ้ามี invQFT</b></div>
+  </div>
+  <p class="src">circle notation มีภาพเดียว · “เฟสอยู่ที่ไหน” เป็นแค่การตีความ · phase estimation เลือกมุมมอง B ค่ะ</p>
+
+  <h3>2.2 หมุน k เท่า: ให้บิตที่ j คุม U^(2ʲ) (p39–40 · Figure 8-10)</h3>
+  <p>ทีนี้ขยายเป็น register <b>k</b> หลายบิต · บิตที่มีน้ำหนัก 2ʲ คุมกล่อง <b>U^(2ʲ)</b> (= ทำ U ซ้ำ 2ʲ ครั้ง) · ลองกับ k = 1001₂ = <b>9</b>:</p>
+  <div class="circuit" data-wires="7" data-wire-labels="0x1,0x2,0x4,0x8,e,e,e"
+       data-out="0-3:k = 9; 4-6:eigenstate"
+       data-ops="WRITE:0:1 + WRITE:1 + WRITE:2 + WRITE:3:1 + WRITE:4:1 + WRITE:5:1 + WRITE:6; CTRL:0 + BOX:4,6:U; CTRL:1 + BOX:4,6:U²; CTRL:2 + BOX:4,6:U⁴; CTRL:3 + BOX:4,6:U⁸"
+       data-cap="Figure 8-10 (ย่อเหลือ k 4 บิต) · write หัวสาย k = 1,0,0,1 (บน→ล่าง) = 9 · สไลด์ป้ายกล่องสุดท้ายว่า U^(2ⁿ) ดูกล่องเตือนใน 2.4"></div>
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> บิตที่เป็น 1: 0x1 กับ 0x8 → กล่องที่ทำงานจริงคือ <b>U¹</b> และ <b>U⁸</b> · U² กับ U⁴ ไม่ทำงาน</div>
+    <div class="step"><span class="lbl">②</span> รวม = U¹ · U⁸ = <b>U⁹</b> = ทำ U ทั้งหมด 9 ครั้ง</div>
+    <div class="step"><span class="lbl">③</span> ทุกครั้งที่ทำ U กับ eigenstate ได้ θ เพิ่ม → รวม <b>9θ</b> · ทั่วไป: <b>ทำ U ทั้งหมด k ครั้ง → หมุน kθ</b></div>
+  </div>
+  <p>นี่คือทริคเลขฐานสองเดิมจากบท <a href="midterm/0008-multi-qubit-registers.html">0008</a> · k ใดๆ เขียนเป็นผลรวมของ 2ʲ ได้เสมอ → ใช้กล่องแค่ m กล่องก็ทำ U ได้ทุกจำนวนครั้งตั้งแต่ 0 ถึง 2ᵐ − 1</p>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">ถ้า k = 6 (register 4 บิตเดิม) · <b>กล่องไหนบ้างที่ทำงาน</b> และหมุนรวมเท่าไร?</div>
+    <button class="opt">U² กับ U⁴ · หมุนรวม 6θ</button>
+    <button class="opt">U¹ กับ U⁴ · หมุนรวม 5θ</button>
+    <button class="opt">U¹ กับ U² · หมุนรวม 3θ</button>
+    <button class="opt">U² กับ U⁸ · หมุนรวม 10θ</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · 6 = 0110₂ = 2 + 4 → บิต 0x2 คุม U² และบิต 0x4 คุม U⁴ → U⁶ → 6θ</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · แตก 6 เป็นเลขฐานสองก่อน (6 = 4 + 2) แล้วดูว่าบิตไหนเป็น 1</div>
+  </div>
+
+  <h3>2.3 ทุก k พร้อมกัน: H ทุกสาย (p41 · Figure 8-11)</h3>
+  <p>วงจรเมื่อกี้ทำได้ทีละ k · แต่เป้าหมายของเราคือ<b>ทุก</b> |k⟩ ได้ kθ <b>พร้อมกัน</b> · ทางแก้คือท่าเดิมที่ใช้มาทั้งเทอม:
+    <b>HAD ทุกสาย</b>ของ register บน → ได้ uniform superposition ของทั้ง 2ᵐ ค่า</p>
+  <div class="circuit" data-wires="7" data-wire-labels="0x1,0x2,0x4,0x8,e,e,e"
+       data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4:1 + WRITE:5:1 + WRITE:6; H:0 + H:1 + H:2 + H:3; CTRL:0 + BOX:4,6:U; CTRL:1 + BOX:4,6:U²; CTRL:2 + BOX:4,6:U⁴; CTRL:3 + BOX:4,6:U⁸"
+       data-cap="Figure 8-11 “Conditionally rotating all states in a register at once” · register บน write 0 ทุกสาย แล้ว H"></div>
+  <p>สไลด์ p41 ยังเล่าด้วย<b>มุมมอง A</b>: “ถ้าบนเป็น |0⟩ eigenstate หมุน 0 · ถ้าบนเป็น |1⟩ หมุน θ · …” →
+    ดูเหมือนยังได้แค่ global phase ที่ไร้ประโยชน์ใน register <b>ล่าง</b></p>
+
+  <h3>2.4 มองแบบ kickback → ได้เป้าหมายพอดี → invQFT (p42–44 · Figure 8-12)</h3>
+  <p>สลับไป<b>มุมมอง B</b> (p42): เฟส kθ “เด้งกลับ” มาเป็น <b>relative phase ของ |k⟩ ใน register บน</b> ·
+    θ = 90° กับ 3 qubit → |0⟩ ได้ 0°, |1⟩ ได้ 90°, |2⟩ ได้ 180°, … = <b>Figure 8-9 ในส่วนที่ 1 เป๊ะ</b> · เหลือแค่ invQFT แล้ว READ</p>
+  <div class="circuit" data-wires="7" data-wire-labels="0x1,0x2,0x4,0x8,e,e,e"
+       data-out="0-3:eigenphase; 4-6:eigenstate (n qubits)"
+       data-groups="1-1:①; 2-5:② cont_u + kickback; 6-8:③ invQFT + READ"
+       data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4:1 + WRITE:5:1 + WRITE:6; H:0 + H:1 + H:2 + H:3; CTRL:0 + BOX:4,6:U; CTRL:1 + BOX:4,6:U²; CTRL:2 + BOX:4,6:U⁴; CTRL:3 + BOX:4,6:U^2ⁿ; BOX:0,3:invQFT:2; _; READ:0 + READ:1 + READ:2 + READ:3"
+       data-cap="<b>Figure 8-12 “Full circuit for implementing phase estimation”</b> (= Figure 8-6 p32 · ป้ายตามสไลด์) ·
+       ในสไลด์ READ แสดงผลตัวอย่าง 0, 1, 1, …, 0 (บน→ล่าง) · register ล่าง<b>ไม่ถูก READ</b>"></div>
+  <div class="box aha"><b>3 ข้อที่สไลด์ย้ำใต้รูป (p44)</b>
+    ① ต้องมี cont_u แบบ <b>conditional</b> เพราะทุก U^(2ʲ) ถูกคุมด้วย qubit ของ register บน
+    ② register ล่าง<b>ยังเป็น eigenstate เดิม</b>ตอนจบ (เฟสเด้งขึ้นไปข้างบนหมดแล้ว) — ตรงกับ Figure 8-4 ที่ qin ไม่เปลี่ยน
+    ③ <b>ขนาด register บนจำกัดความแม่น</b> เพราะ invQFT แยกได้แค่ 2ᵐ ความถี่ → ความละเอียด 360°/2ᵐ (บท 0032)</div>
+  <div class="box warn"><b>ป้ายกล่องสุดท้าย U^(2ⁿ) น่าจะผิด (p32, p39–44 · โผล่ 6 หน้า = จุดสอบ)</b> ·
+    n ในรูปคือจำนวน qubit ของ <b>eigenstate (register ล่าง)</b> · แต่เลขชี้กำลังต้องผูกกับ register <b>บน</b>:
+    บิตแรกคุม U = U^(2⁰) ดังนั้นถ้าบนมี m qubit กล่องสุดท้าย = <b>U^(2^(m−1))</b> (วงจร 4 สายบนนี้ = U⁸) ·
+    <b>ตอบตามสไลด์ (U^(2ⁿ)) ตอนสอบ</b> แต่รู้ของจริงไว้ค่ะ · อ่านเพิ่ม: บนจอสไลด์ใช้ n กับ register บนด้วย (p41 “2ⁿ ค่า”) — ตัวอักษรชนกัน ในบทเรียนนี้หนูใช้ m กับ register บนตลอด</div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">หลังรันวงจรเต็มจบ · <b>θ ถูกเก็บอยู่ในรูปไหน ก่อนที่ invQFT จะทำงาน</b>?</div>
+    <button class="opt">global phase ของ register ล่าง</button>
+    <button class="opt">ค่า 0/1 ของ register ล่างตรงๆ</button>
+    <button class="opt">relative phase ใน register บน</button>
+    <button class="opt">magnitude ของวงใน register บน</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · kickback ย้ายเฟสมาเป็น relative phase kθ ของ |k⟩ ข้างบน (magnitude ยังเท่ากันทุกวง) · invQFT แปลงความถี่นั้นเป็นตัวเลขที่ READ ได้</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · global phase อ่านไม่ได้ (ส่วนที่ 1.1) และ register ล่างยังเป็น eigenstate เดิม · ลองนึกถึงมุมมอง B ในข้อ 2.1</div>
+  </div>
+
+  <h3>2.5 กลับไปอ่านโค้ด: 3 บรรทัด = 3 ขั้น (p31–32)</h3>
+  <p>ตอนนี้โค้ดที่สไลด์บอกว่า “Pretty concise!” อ่านออกทุกบรรทัดแล้ว:</p>
+  <pre class="code-blk">function phase_est(q_in, q_out, cont_u) {
+    // ① HAD the output register
+    q_out.had();
+    // ② Apply conditional powers of u
+    for (var j = 0; j &lt; q_out.numBits; j++)
+        cont_u(q_out, q_in, 1 &lt;&lt; j);   // บิต j คุม U^(2ʲ)
+    // ③ Inverse QFT on output register
+    q_out.invQFT();
+}</pre>
+  <table class="cmp">
+    <thead><tr><th>บรรทัด</th><th>ในวงจร</th><th>ทำไปเพื่อ</th></tr></thead>
+    <tbody>
+      <tr><td data-label="บรรทัด"><code class="code">q_out.had()</code></td><td data-label="ในวงจร">คอลัมน์ H</td><td data-label="ทำไปเพื่อ">ทุก k พร้อมกัน (2.3)</td></tr>
+      <tr><td data-label="บรรทัด"><code class="code">cont_u(…, 1 &lt;&lt; j)</code></td><td data-label="ในวงจร">กล่อง U, U², U⁴, …</td><td data-label="ทำไปเพื่อ">|k⟩ ได้เฟส kθ ผ่าน kickback (2.2, 2.4)</td></tr>
+      <tr><td data-label="บรรทัด"><code class="code">q_out.invQFT()</code></td><td data-label="ในวงจร">กล่อง invQFT</td><td data-label="ทำไปเพื่อ">อ่านความถี่ → R = θ/360° × 2ᵐ (1.3)</td></tr>
+    </tbody>
+  </table>
+  <div class="box warn"><b>โค้ดในสไลด์จัดบรรทัดเพี้ยน 2 จุด (p31–32)</b>
+    (ก) <code class="code">q_out.had();</code> ไปต่อท้ายบรรทัด <code class="code">// HAD the output register</code> → ถ้ารันตาม JS จริงจะถูก comment ทิ้ง ·
+    (ข) <code class="code">q_out.invQFT();</code> ย่อหน้าเท่ากับตัวใน loop แต่ <code class="code">for</code> ไม่มีปีกกา → จริงๆ ทำ<b>ครั้งเดียวหลัง loop</b> ·
+    โค้ดข้างบนหนูจัดบรรทัดให้ถูกแล้ว · ถ้าข้อสอบถาม “ขั้นตอน” ตอบ 3 ขั้นตามนี้ได้เลยค่ะ</div>
+
+  <h3>2.6 ยกกำลัง cont_u ต้องเร็ว (p45)</h3>
+  <p>กล่อง U^(2ʲ) ถ้าทำแบบ<b>ซื่อๆ (naive)</b> = เรียก cont_u ซ้ำ 2ʲ ครั้ง · กล่องท้ายๆ จะโตเร็วมาก</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">register บน m = 4 · ทำทุกกล่องแบบซื่อๆ · <b>ต้องเรียก U รวมกี่ครั้ง</b>?</div>
+    <button class="opt">4 ครั้ง</button>
+    <button class="opt">8 ครั้ง</button>
+    <button class="opt">15 ครั้ง</button>
+    <button class="opt">16 ครั้ง</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ · 1 + 2 + 4 + 8 = 15 = 2⁴ − 1 · ถ้า m = 20 จะเป็นล้านครั้ง → <b>exponential</b> ในขณะที่ตัว phase estimation เองแค่ O(m²)</div>
+    <div class="fb no" data-for="no">ยังไม่ใช่ค่ะ · กล่อง U, U², U⁴, U⁸ เรียก U กี่ครั้งต่อกล่อง? บวกกันดูค่ะ</div>
+  </div>
+  <p>ทางแก้ของสไลด์: ส่ง subroutine ที่<b>ทำ “กำลัง n” ของ U ได้เร็วในตัว</b> (<code class="code">cont_u(n)</code>) ไม่ใช่วนเรียกซ้ำ ·
+    นี่คือเหตุผลเดียวกับ “O(m²) จะหายถ้า cont_u แพง” ในบท <a href="0032-using-phase-est-read-8-means-180.html">0032</a></p>
+  <p class="src">เกร็ด (ไม่ออกสอบคาบนี้): Shor's algorithm (Ch 12) ใช้ phase estimation กับ U = “คูณ mod N” ซึ่งยกกำลัง 2ʲ ได้เร็วด้วยการยกกำลังสองซ้ำ (modular exponentiation) — เลยไม่ติดปัญหานี้</p>
+
+  <h3>2.7 สรุปคาบ Lec 08 (p46–47)</h3>
+  <div class="box aha"><b>phase estimation = 3 วัตถุดิบที่เรียนมาแล้ว</b> (p46):
+    ① <b>phase kickback</b> ② <b>controlled unitary</b> (cont_u) ③ <b>invQFT</b> ·
+    เส้นทางของ θ: <b>global phase</b> (อ่านไม่ได้) → kickback → <b>relative phase</b> ใน register บน → invQFT → <b>ตัวเลขที่ READ ได้</b></div>
+  <p>บทถัดไปของหนังสือ (p47) เปลี่ยนจาก “QPU ทำงานยังไง” เป็น “<b>เอา QPU ไปทำอะไร</b>”:
+    Ch 9 data structure · Ch 10 quantum search · Ch 11 computer graphics · Ch 12 <b>Shor's factoring</b> · Ch 13 machine learning · (p48 = Q&amp;A)</p>
+
+  <details class="recall"><summary>ทดสอบความจำก่อนปิดบท (พยายามตอบเองก่อนเปิด)</summary>
+    <ol>
+      <li>ทำไมแค่ทำ U กับ eigenstate ถึงไม่พอ? → <b>ได้แค่ global phase · READ ไม่ได้</b></li>
+      <li>register แบบไหนที่ invQFT อ่าน θ ได้? → <b>|k⟩ มีเฟส kθ (θ เป็นความถี่)</b></li>
+      <li>บิตที่มีน้ำหนัก 2ʲ คุมกล่องอะไร? → <b>U^(2ʲ)</b> · รวมแล้วเป็น U^k</li>
+      <li>วาดวงจรเต็มจากความจำ (ลำดับคอลัมน์)? → <b>write 0 → H ทุกสาย → cU, cU², cU⁴, … → invQFT → READ บน</b></li>
+      <li>ป้ายกล่องสุดท้ายในสไลด์ vs ของจริง? → <b>สไลด์ U^(2ⁿ) · จริง U^(2^(m−1))</b></li>
+      <li>register ล่างตอนจบเป็นอะไร? → <b>eigenstate เดิม</b></li>
+      <li>3 วัตถุดิบของ phase estimation? → <b>kickback · controlled-U · invQFT</b></li>
+    </ol>
+  </details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li>U บน eigenstate = global phase อ่านไม่ได้ → ต้องย้าย θ ไปเป็น<b>ความถี่</b>ของ register บน</li>
+    <li>เป้าหมาย: <b>|k⟩ ได้เฟส kθ</b> → invQFT อ่านได้ R = θ/360° × 2ᵐ (Figure 8-8, 8-9)</li>
+    <li>บิต 2ʲ คุม <b>U^(2ʲ)</b> → รวม U^k · H ทุกสาย → ทุก k พร้อมกัน · kickback → เฟสไปอยู่ที่ |k⟩ ข้างบน</li>
+    <li>วงจรเต็ม: <b>H → controlled-U^(2ʲ) → invQFT → READ</b> · register ล่างยังเป็น eigenstate เดิม · สไลด์ป้าย U^(2ⁿ)</li>
+    <li>ยกกำลังแบบซื่อๆ = 2ᵐ − 1 ครั้ง → ต้องมี cont_u ที่ทำกำลังได้เร็ว</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 8 หัวข้อ <i>Inside the QPU</i>,
+      <i>The Intuition</i> และ <i>Operation by Operation</i> (Figure 8-6 ถึง 8-12) ·
+      รันโค้ดเองได้ที่ <a href="https://oreilly-qc.github.io?p=8-1">QCEngine: Example 8-1</a> — เปิด circle notation ดู register บนหลัง cont_u ก่อน invQFT จะเห็นเฟสเดินทีละ θ ·
+      สไลด์ <code class="code">QuantumProg_Lec08.pdf</code> หน้า 31–48</p>
+    <p><b>บทก่อนหน้า</b>: <a href="0032-using-phase-est-read-8-means-180.html">0032 · ใช้ phase_est() จริง</a> ·
+      <b>บทถัดไป</b>: Lec 09 (ยังไม่ได้สร้าง)</p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="midterm/0008-multi-qubit-registers.html">0008 · ค่าบิต 2ⁱ</a> ·
+      <a href="midterm/0010-cphase-cz-phase-kickback.html">0010 · phase kickback</a> ·
+      <a href="midterm/0012-building-conditional-ops-remote-randomness.html">0012 · conditional operation</a> ·
+      <a href="0030-inside-the-invqft-circuit.html">0030 · กฎ invQFT</a> ·
+      <a href="0031-eigenstate-and-eigenphase.html">0031 · eigenstate</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① เฟสอยู่ที่ eigenstate หรือที่ register บนกันแน่ (มุมมอง A/B)
+      ② ทำไมบิตที่ j ต้องคุม U^(2ʲ) ไม่ใช่ U เฉยๆ
+      ③ ทำไม register บนใหญ่ขึ้นถึงแม่นขึ้น
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

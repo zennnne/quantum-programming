@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0041 — QSS: ไม่ได้เร็วขึ้น แต่ noise คนละแบบ + ผ้าใบเปล่า</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+<script defer src="../assets/canvas.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 11 · บทที่ 0041 (บทแรกของ Lec 11)</div>
+  <h1>QSS: ไม่ได้เร็วขึ้น แต่ noise คนละแบบ + ผ้าใบเปล่า</h1>
+  <p class="lead">Lec 11 ไม่มี primitive ใหม่เลยสักตัว · ทั้งคาบคือการเอาของเก่า 3 อย่าง
+    (quantum arithmetic · amplitude amplification · QFT) มาประกอบเป็นงานจริงด้าน computer graphics ชื่อ
+    <b>Quantum Supersampling (QSS)</b> · บทนี้ตั้งโจทย์ก่อนว่า supersampling คืออะไรและ QSS ให้อะไร
+    แล้วเริ่มก้าวแรกของคำตอบ คือ<b>เอาภาพเข้าไปอยู่ใน QPU</b> ด้วยการวาดลง phase</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 4 อย่าง
+    ① <b>supersampling</b> = สุ่มหลายจุดต่อ pixel แล้วเก็บ<b>แค่ค่าเฉลี่ย</b>
+    ② QSS <b>ไม่ได้เร็วขึ้น</b> สิ่งที่ได้คือ <b>ลักษณะของ noise</b> ที่ต่างไป
+    ③ <b>phase encoding</b>: pixel ขาว/ดำ = phase 0° / 180° · HAD ทุก qubit ของ qx, qy = <b>ผ้าใบเปล่า</b>
+    ④ PHASE(180) ตัวเดียวระบายได้ 128 pixel แต่ <b>READ ออกมาดูไม่ได้</b> (ปมที่บท 0044 จะมาแก้)
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · โจทย์: supersampling คืออะไร และ QSS ให้อะไร (p1–9)</h2></div>
+
+  <h3>1.1 QIP: เอา QPU มาช่วยงานภาพ</h3>
+  <p><span class="term">Quantum Image Processing (QIP)</span> (การประมวลผลภาพเชิงควอนตัม) คือการใช้ QPU
+    เพิ่มความสามารถด้าน image processing · สไลด์บอกตรงๆ ว่าสาขานี้<b>ยังอยู่ในช่วงเริ่มต้นมาก</b> (p2)
+    รูปประกอบหน้า p2 เป็นแค่ภาพแนวคิด (ภาพ → แปลงเป็น quantum state → QPU ประมวลผล → แปลงกลับเป็นภาพ) ไม่ใช่เนื้อหาหลัก ·
+    คาบนี้เลือกดู QIP <b>ตัวอย่างเดียว</b>คือ QSS (p3)</p>
+
+  <h3>1.2 ปัญหาตั้งต้น: 1 pixel ต้องแทนของหลายอย่าง</h3>
+  <p>เริ่มจากวิธีสร้างภาพแบบ <span class="term">ray tracing</span> (การตามรอยรังสี) · สำหรับ pixel แต่ละช่องของภาพ
+    โปรแกรมจะยิง "ray" (เส้นตรงทางคณิตศาสตร์) จาก<b>กล้อง ผ่าน pixel นั้น ไปยัง scene</b> ·
+    ray ไปชนวัตถุอะไร สีของวัตถุนั้นก็กลายเป็นสีของ pixel (แบบง่ายสุด ไม่คิดเงาสะท้อนหรือความโปร่งใส) (p6–7)</p>
+  <p>ยิง ray เดียวต่อ pixel ก็ได้ภาพที่ "ถูก" แต่มีปัญหา 2 ข้อ (p8)</p>
+  <ul>
+    <li>ของที่อยู่ไกล (เช่นต้นไม้ใน Figure 11-2) <b>ขอบและรายละเอียดเล็กๆ หายไป</b></li>
+    <li>พอกล้องหรือวัตถุขยับ จะเกิด <b>noise pattern กวนตา</b> บนของที่ลายถี่ๆ อย่างใบไม้หรือรั้วไม้ระแนง</li>
+  </ul>
+  <p>ทำไมถึงเป็นแบบนั้น ลองดู pixel ช่องเดียวที่ขยายออกมาเป็น 4×4 ช่องย่อย ช่องย่อยพวกนี้เรียกว่า
+    <span class="term">subpixel</span> (จุดย่อยใน pixel) · สมมติขอบของวัตถุสีดำพาดผ่าน pixel นี้พอดี</p>
+
+  <div class="qcrow">
+    <div class="qcanvas" data-n="4" data-cell="30" data-mode="pixel" data-axes="0" data-flip="y > x"
+         data-lab="ของจริงใน 1 pixel" data-cap="ดำ 6 · ขาว 10 จาก 16 subpixel"></div>
+    <div class="qcanvas" data-n="1" data-cell="120" data-mode="gray" data-axes="0" data-gray="1"
+         data-lab="ยิง ray เดียว" data-cap="ได้ขาวล้วน (หรือดำล้วน)"></div>
+    <div class="qcanvas" data-n="1" data-cell="120" data-mode="gray" data-axes="0" data-gray="0.625"
+         data-lab="เฉลี่ยจากหลาย ray" data-cap="เทา: ขาว 10/16 = 62.5%"></div>
+  </div>
+  <p class="meta">ภาพนี้คาโฮะวาดเองเพื่ออธิบาย · ในสไลด์ใช้ Figure 11-2 (pixel 1 ช่องขยายเป็น subpixel แล้วมี ray พุ่งไปชนต้นไม้)</p>
+
+  <p>ray เดียวจะตกที่ช่องขาวหรือช่องดำช่องใดช่องหนึ่ง pixel นั้นเลยออกมา<b>ขาวล้วนหรือดำล้วน</b>
+    ทั้งที่ของจริงควรเป็นเทา 62.5% · ขยับกล้องนิดเดียว ray ไปตกอีกช่อง สีก็กระโดด นั่นคือที่มาของ noise pattern</p>
+
+  <div class="box aha">
+    <b>วิธีแก้ = supersampling</b> (p9): ยิง<b>หลาย ray ต่อ pixel</b> (ปกติหลักร้อยถึงหลักพัน) โดยเปลี่ยนทิศทีละนิด
+    แล้ว<b>เก็บเฉพาะสีเฉลี่ย ที่เหลือทิ้งหมด</b> · เรียกอีกชื่อว่า <span class="term">Monte Carlo sampling</span>
+    (การสุ่มตัวอย่างแบบมอนติคาร์โล) · ยิ่ง sample มาก noise ในภาพสุดท้ายยิ่งลด
+  </div>
+
+  <div class="analogy">
+    <div class="cell"><b>ชิมแกงทั้งหม้อ</b><small>ตักหลายช้อนจากหลายจุดในหม้อ แล้วสรุปเป็นคำเดียวว่า "เค็มประมาณนี้" ไม่มีใครจดรสของแต่ละช้อนไว้</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>supersampling</b><small>สุ่มหลายจุดใน 1 pixel แล้วสรุปเป็นสีเดียว ผลของแต่ละ ray ถูกคำนวณแต่ไม่ถูกเก็บ</small></div>
+  </div>
+
+  <p>นิยามในสไลด์ (p3) พูดเรื่องเดียวกันจากอีกมุม: supersampling = เทคนิคที่ภาพซึ่งคอมพิวเตอร์สร้างไว้ที่
+    <b>ความละเอียดสูง</b> ถูกลดลงเป็น<b>ความละเอียดต่ำกว่า</b> ด้วยการเลือก sample pixel ·
+    ภาพความละเอียดสูงก็คือชั้น subpixel ส่วนภาพความละเอียดต่ำคือภาพสุดท้ายที่เราเห็น</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">① pixel หนึ่งถูกยิง 8 ray · ชนของสีขาว 6 ray ชนของสีดำ 2 ray · supersampling เก็บอะไรไว้เป็นค่าของ pixel นี้</div>
+    <button class="opt">เก็บผลของ ray ครบทั้ง 8 ค่าไว้</button>
+    <button class="opt">เก็บสีของ ray ตัวแรก คือสีขาว</button>
+    <button class="opt">เก็บค่าเฉลี่ยค่าเดียว คือขาว 75%</button>
+    <button class="opt">เก็บสีที่ชนบ่อยสุด คือขาว 100%</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ 6/8 = 75% · คำนวณ 8 ครั้งแต่เก็บเลขเดียว จำประโยคนี้ไว้ เพราะมันคือเหตุผลที่คนคิดจะเอา QPU มาทำ</div>
+    <div class="fb no" data-for="no">supersampling เก็บ<b>เฉพาะค่าเฉลี่ย</b> (6 จาก 8 = ขาว 75%) ผลรายตัวของ ray ถูกทิ้งหมด (p9)</div>
+  </div>
+
+  <h3>1.3 ทำไมงานนี้ถึงน่าจะเหมาะกับ QPU</h3>
+  <p>สไลด์ p9 สังเกตว่า supersampling เป็นงานที่ <b>คำนวณขนานกันเยอะมาก</b> (ผลของ ray จำนวนมาก)
+    แต่สุดท้าย<b>ต้องการแค่ผลรวม ไม่ต้องการผลแต่ละตัว</b> · ฟังคุ้นไหมคะ นี่คือรูปร่างเดียวกับงานที่ QPU ถนัดมาตลอดทั้งเทอม:
+    คำนวณทุกค่าพร้อมกันใน superposition แล้วดึงคำตอบ<b>สรุป</b>ออกมาแค่ค่าเดียว
+    (เหมือน <a href="0027-qft-hidden-frequency.html">QFT ดึงความถี่</a> ออกมาจากทั้ง register)</p>
+  <p>ข้อจำกัด: ray-tracing engine เต็มรูปแบบบน QPU ต้องใช้ qubit มากกว่าที่มีในปัจจุบันมาก ·
+    คาบนี้เลย<b>ไม่ทำ ray tracing</b> แต่ให้ QPU วาดภาพความละเอียดสูงด้วยวิธีที่ง่ายกว่า
+    เพื่อศึกษาเฉพาะขั้นสุดท้าย คือขั้น<b>ลดความละเอียด</b> (p9)</p>
+
+  <h3>1.4 ผลลัพธ์ล่วงหน้า: QSS ไม่ได้เร็วขึ้น</h3>
+  <p>QSS ถูกคิดขึ้นเพื่อ<b>เร่งความเร็ว</b> supersampling และตามเกณฑ์นั้นมัน<b>ล้มเหลว</b> (p4) ·
+    แต่พอวิเคราะห์ตัวเลขกลับเจอของน่าสนใจ: error เฉลี่ยต่อ pixel พอๆ กับวิธีเดิม
+    แต่ <span class="term">character of noise</span> (ลักษณะของ noise) ต่างกันมาก</p>
+
+  <table class="cmp">
+    <thead><tr><th>Figure 11-1</th><th>Mean pixel error</th><th>Error-free pixels</th><th>ลักษณะ noise</th></tr></thead>
+    <tbody>
+      <tr><td data-label="ภาพ">Ideal sampling reference</td><td data-label="Mean pixel error">ไม่มีตัวเลข</td><td data-label="Error-free pixels">ไม่มีตัวเลข</td><td data-label="ลักษณะ noise">เรียบสนิท</td></tr>
+      <tr><td data-label="ภาพ">Conventional Monte Carlo</td><td data-label="Mean pixel error">2%</td><td data-label="Error-free pixels">34%</td><td data-label="ลักษณะ noise"><b>ทุก pixel</b> เพี้ยนนิดหน่อย (เป็นเม็ดหยาบทั่วภาพ)</td></tr>
+      <tr><td data-label="ภาพ">Quantum Supersampling</td><td data-label="Mean pixel error">1%</td><td data-label="Error-free pixels">41%</td><td data-label="ลักษณะ noise"><b>บาง pixel</b> เพี้ยนหนัก (จุดดำ/จุดขาว) ที่เหลือ<b>เป๊ะ</b></td></tr>
+    </tbody>
+  </table>
+  <p><span class="term">mean pixel error</span> = ค่าเฉลี่ยว่า pixel เพี้ยนจากภาพอุดมคติเท่าไร ·
+    <span class="term">error-free pixel</span> = pixel ที่ตรงกับภาพอุดมคติพอดี</p>
+
+  <div class="qcrow">
+    <div class="qcanvas" data-n="14" data-cell="11" data-mode="gray" data-axes="0" data-gray="0.5"
+         data-lab="อุดมคติ" data-cap="เทา 50% ทุกช่อง"></div>
+    <div class="qcanvas" data-n="14" data-cell="11" data-mode="gray" data-axes="0" data-gray="0.5 + (rnd(x,y) - 0.5) * 0.3"
+         data-lab="แบบ Monte Carlo" data-cap="เพี้ยนนิดๆ ทุกช่อง"></div>
+    <div class="qcanvas" data-n="14" data-cell="11" data-mode="gray" data-axes="0" data-gray="rnd(x,y) < 0.05 ? (rnd(y,x) < 0.5 ? 0 : 1) : 0.5"
+         data-lab="แบบ QSS" data-cap="เพี้ยนหนักไม่กี่ช่อง ที่เหลือเป๊ะ"></div>
+  </div>
+  <p class="meta">ภาพจำลองที่คาโฮะสร้างเองให้เห็น "ลักษณะ" ของ noise 2 แบบ ไม่ใช่รูปจากสไลด์และไม่ใช่ผลรัน QSS จริง</p>
+
+  <div class="box aha">
+    <b>ทำไม noise แบบ QSS ถึงดีกว่า</b> (p5): สมมติได้ภาพมา 1 ภาพ มีเวลา <b>15 นาที</b>ลบ noise ด้วยมือ ·
+    ภาพจาก QSS ทำได้ค่อนข้างง่าย (จิ้มแก้ทีละจุด มีไม่กี่จุด) · ภาพแบบเดิม<b>แทบเป็นไปไม่ได้</b> เพราะต้องแก้ทุก pixel
+  </div>
+
+  <p>QSS ประกอบจาก primitive 3 ตัวที่เรียนมาแล้วทั้งหมด (p5):
+    <b>quantum arithmetic</b> (<a href="midterm/0017-quantum-arithmetic-must-be-rethought.html">Lec 05</a>) ·
+    <b>amplitude amplification</b> (<a href="0023-flip-and-mirror.html">Lec 06</a>) ·
+    <b>QFT</b> (<a href="0027-qft-hidden-frequency.html">Lec 07</a>)</p>
+
+  <div class="box warn">
+    <b>จุดที่สไลด์เขียนไม่ตรง</b> (ตอบตามสไลด์ตอนสอบ แต่รู้ของจริงไว้):
+    p4 ข้อความบอกว่า error "about the same" แต่ตัวเลขในรูปคือ 2% กับ 1% (สไลด์ถือว่าระดับเดียวกัน จุดที่เน้นคือลักษณะ noise) ·
+    p5 อ้าง amplitude amplification ว่ามาจาก "Chapter 6" ปนกับ "lecture 5 / lecture 7" ในประโยคเดียวกัน
+    (เลขบทของหนังสือหลุดมา ในวิชานี้ AA = Lec 06) · เลขรูปกระโดดจาก Figure 11-2 ไป 11-4 ไม่มี 11-3
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">② ข้อไหนสรุปผลของ QSS เทียบกับ Monte Carlo ได้ตรงกับสไลด์ที่สุด</div>
+    <button class="opt">ไม่เร็วขึ้น แต่ noise รวมเป็นจุดๆ</button>
+    <button class="opt">เร็วขึ้นมาก และ noise หายหมดเลย</button>
+    <button class="opt">เร็วขึ้นมาก แต่ noise เยอะกว่าเดิม</button>
+    <button class="opt">ไม่เร็วขึ้น และ noise เหมือนเดิมเป๊ะ</button>
+    <div class="fb ok" data-for="ok">ใช่ค่ะ ข้อได้เปรียบของ QSS อยู่ที่ <b>noise ไปกระจุกอยู่ไม่กี่ pixel</b> ส่วน pixel ที่ถูกเป๊ะมีมากขึ้น (34% → 41%) ไม่ใช่เรื่องความเร็ว</div>
+    <div class="fb no" data-for="no">QSS <b>ล้มเหลวเรื่อง speedup</b> (p4) · สิ่งที่ได้แทนคือลักษณะ noise ที่ต่างไป: บาง pixel เพี้ยนหนัก ที่เหลือเป๊ะ</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · ก้าวแรก: เอาภาพเข้า QPU ด้วยการวาดลง phase (p10–14)</h2></div>
+
+  <h3>2.1 phase encoding: ให้ phase เป็นสีของ pixel</h3>
+  <p>จะ supersample ด้วย QPU ได้ ต้องมีวิธี<b>แทนภาพใน register</b> ก่อน · มีหลายวิธี (สไลด์สรุปวิธีอื่นไว้ท้ายคาบ)
+    วิธีที่คาบนี้ใช้คือ <span class="term">phase encoding</span> (การเข้ารหัสด้วย phase):
+    <b>ค่าของ pixel ถูกแทนด้วย phase ของ superposition</b> (p10)</p>
+  <div class="twocol">
+    <div class="c"><b>phase 0°</b> ขีดชี้ขึ้น · สไลด์ระบายวงเป็นสีชมพู · หมายถึง pixel ที่<strong>ไม่ถูกระบาย</strong></div>
+    <div class="c"><b>phase 180°</b> ขีดชี้ลง · สไลด์ระบายวงเป็นสีเขียว · หมายถึง pixel ที่<strong>ถูกระบาย</strong> (ถูก flip)</div>
+  </div>
+  <p>ทำไมต้องเป็น phase · สไลด์ให้เหตุผลข้อเดียว: เพราะมันทำให้ข้อมูลภาพ<b>เข้ากันได้กับ amplitude amplification</b> ·
+    ย้อนไป <a href="0023-flip-and-mirror.html">บท 0023</a>: ขั้น <code class="code">flip</code> ของ AA คือการกลับ phase ของค่าที่เราสนใจเป็น 180°
+    ดังนั้น "pixel ที่ถูกระบาย" กับ "ค่าที่ถูก flip" คือของสิ่งเดียวกัน โปรแกรมวาดรูปของเราจะเสียบเข้าไปเป็น flip ของ AA ได้ตรงๆ (ใช้จริงในบท 0044)</p>
+
+  <h3>2.2 quantum pixel shader กับผ้าใบเปล่า</h3>
+  <p><span class="term">pixel shader</span> คือโปรแกรม (ปกติรันบน GPU) ที่<b>รับตำแหน่ง x, y แล้วให้สีออกมา</b> ·
+    ในคาบนี้สีมีแค่ดำหรือขาว · เราจะสร้าง quantum pixel shader โดยเริ่มจาก register 4 qubit สองตัว (p11)</p>
+  <ul>
+    <li><code class="code">qx</code> = ตำแหน่งแนวนอน 0–15 · <code class="code">qy</code> = ตำแหน่งแนวตั้ง 0–15</li>
+    <li>HAD ทุก qubit → superposition ของทุกค่า (x, y) = 16 × 16 = <b>256 ตำแหน่งพร้อมกัน</b></li>
+  </ul>
+  <p>state นี้คือ <span class="term">blank canvas</span> (ผ้าใบเปล่า): มีครบทุก pixel ขนาดเท่ากันหมด phase 0° หมด ยังไม่มีใครถูกระบาย</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="8" data-names="qx,qx,qx,qx,qy,qy,qy,qy"
+         data-wire-labels="0x1,0x2,0x4,0x8,0x1,0x2,0x4,0x8" data-groups="0-2:"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1 + H:2 + H:3; H:4 + H:5 + H:6 + H:7"></div>
+    <div class="cap">Figure 11-4 (ซีกวงจร) · A blank quantum canvas · HAD ของ qx กับ qy อยู่คนละคอลัมน์</div>
+  </div>
+
+  <div class="qcanvas" data-cap="Figure 11-4 (ซีก circle notation) · 256 วง · คอลัมน์ = qx · แถว = qy · เลขของวง = qx + 16·qy"></div>
+
+  <p>วิธีอ่านผ้าใบ: เลื่อนขวา = qx เพิ่ม · เลื่อนลง = qy เพิ่ม (qy = 0 อยู่<b>บนสุด</b>) ·
+    สไลด์พิมพ์เลขใต้วงเป็น qx + 16·qy เช่นวงที่ qx = 10, qy = 3 คือ |58⟩ เพราะ qy อยู่ 4 บิตบนของ register รวม 8 qubit</p>
+
+  <h3>2.3 วาดครั้งแรก: ระบายครึ่งขวา</h3>
+  <p>โจทย์: <b>"if qx ≥ 8 then invert phase"</b> · ดูเหมือนต้องเปรียบเทียบตัวเลข แต่จริงๆ ใช้ qubit ตัวเดียวพอ</p>
+  <div class="box mathref">
+    <b>ทวน binary</b>: qx มี 4 บิต น้ำหนัก 8, 4, 2, 1 · เลข 0–7 เขียนได้เป็น 0000 ถึง 0111 (บิต 0x8 เป็น 0 ทุกตัว) ·
+    เลข 8–15 เขียนได้เป็น 1000 ถึง 1111 (บิต 0x8 เป็น 1 ทุกตัว) → <b>qx ≥ 8 ก็คือ "บิต 0x8 ของ qx เป็น 1"</b>
+  </div>
+  <p>และ PHASE(180) บน qubit ตัวหนึ่ง กลับ phase ของ<b>ทุกค่าที่ qubit นั้นเป็น 1</b>
+    (เรื่องเดิมจาก <a href="midterm/0008-multi-qubit-registers.html">บท 0008</a>) → PHASE(180) ที่ qubit 0x8 ของ qx ตัวเดียวจบ (p12)</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="8" data-names="qx,qx,qx,qx,qy,qy,qy,qy"
+         data-wire-labels="0x1,0x2,0x4,0x8,0x1,0x2,0x4,0x8" data-groups="0-2:; 3-3::180°"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6 + WRITE:7; H:0 + H:1 + H:2 + H:3; H:4 + H:5 + H:6 + H:7; P:3"></div>
+    <div class="cap">Figure 11-5 (ซีกวงจร) · Phase-flipping half of the image · กล่องขวาไม่มีชื่อ มีแต่ป้าย 180° · φ อยู่บนสาย qx 0x8 สายเดียว</div>
+  </div>
+
+  <pre class="code-blk">// Set up and clear the canvas
+qc.reset(8);
+var qx = qint.new(4, 'qx');
+var qy = qint.new(4, 'qy');
+qc.write(0);
+qx.hadamard();
+qy.hadamard();
+
+// Invert if qx &gt;= 8
+qc.phase(180, qx.bits(0x8));</pre>
+
+  <div class="qcanvas" data-flip="x >= 8" data-cap="Figure 11-5 (ซีก circle notation) · qx = 8–15 กลายเป็น phase 180° (เขียว ชี้ลง) ทุกแถว เพราะเงื่อนไขไม่ขึ้นกับ qy"></div>
+
+  <p>คราวนี้ลองทายก่อน แล้วค่อยไปกดดูของจริงในผ้าใบข้างล่าง</p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">③ อยากระบาย<b>ครึ่งล่าง</b>ของผ้าใบแทน ต้องเปลี่ยนบรรทัดสุดท้ายเป็นอะไร</div>
+    <button class="opt"><code>qc.phase(180, qx.bits(0x1));</code></button>
+    <button class="opt"><code>qc.phase(180, qy.bits(0x8));</code></button>
+    <button class="opt"><code>qc.phase(180, qy.bits(0x1));</code></button>
+    <button class="opt"><code>qc.phase(180, qx.bits(0x4));</code></button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ ครึ่งล่าง = qy ≥ 8 = บิต 0x8 ของ qy เป็น 1 (qy = 0 อยู่บนสุด ค่ามากอยู่ล่าง)</div>
+    <div class="fb no" data-for="no">ครึ่งล่างคือแถว qy = 8–15 ซึ่งเป็นกลุ่มที่บิต 0x8 ของ <b>qy</b> เป็น 1 → <code class="code">qy.bits(0x8)</code></div>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">④ ถ้าใช้ <code class="code">qc.phase(180, qx.bits(0x1))</code> ผ้าใบจะออกมาเป็นลายอะไร (คิดก่อนว่า qx ค่าไหนบ้างที่บิต 0x1 เป็น 1)</div>
+    <button class="opt">ลายทางตั้ง เขียวที่คอลัมน์เลขคี่</button>
+    <button class="opt">ลายทางนอน เขียวที่แถวเลขคี่ทุกแถว</button>
+    <button class="opt">ลายทางตั้ง เขียวที่คอลัมน์เลขคู่</button>
+    <button class="opt">เขียวแค่คอลัมน์เดียว คือ qx = 1</button>
+    <div class="fb ok" data-for="ok">ใช่ค่ะ บิต 0x1 เป็น 1 เมื่อ qx เป็นเลขคี่ (1, 3, 5, …, 15) → 8 คอลัมน์ × 16 แถว = 128 pixel เหมือนเดิม แค่เรียงเป็นลายทาง</div>
+    <div class="fb no" data-for="no">บิต 0x1 คือบิตหลักหน่วย เป็น 1 เมื่อ qx เป็น<b>เลขคี่</b> → เขียวที่คอลัมน์ 1, 3, 5, …, 15 เป็นลายทางตั้ง</div>
+  </div>
+
+  <div class="quiz" data-answer="3">
+    <div class="q">⑤ (เสริม · สไลด์ช่วงนี้ไม่ได้ถาม) ถ้าสั่ง PHASE(180) <b>สองตัว</b> ที่ qx 0x8 และ qy 0x8 ผ้าใบจะเป็นยังไง</div>
+    <button class="opt">เขียวที่มุมขวาล่างเพียงมุมเดียว</button>
+    <button class="opt">เขียวสามมุม ยกเว้นมุมซ้ายบน</button>
+    <button class="opt">เขียวทั้งผ้าใบ ครบ 256 pixel</button>
+    <button class="opt">เขียวที่มุมขวาบนกับมุมซ้ายล่าง</button>
+    <div class="fb ok" data-for="ok">เก่งมากค่ะ มุมขวาล่างโดนกลับ 2 รอบ (180° + 180° = 360° = 0°) เลย<b>กลับมาเป็นชมพู</b> · ผลรวมคือ XOR ไม่ใช่ OR หรือ AND</div>
+    <div class="fb no" data-for="no">มุมขวาล่าง (qx ≥ 8 และ qy ≥ 8) โดน PHASE(180) สองรอบ = หมุน 360° กลับมาที่เดิม → เหลือเขียวแค่มุมขวาบนกับซ้ายล่าง (เป็น XOR)</div>
+  </div>
+
+  <p><b>ลองเองเลยค่ะ</b>: กดปุ่มเพื่อใส่ / ถอด PHASE(180) บน qubit แต่ละตัว ตรวจคำตอบข้อ ③ ④ ⑤ แล้วลองหาลายหมากรุกดู</p>
+  <div class="qcanvas" data-toggle="1" data-cap="ผ้าใบทดลอง · ทุกปุ่ม = PHASE(180) บน qubit ตัวนั้น 1 คำสั่ง"></div>
+
+  <div class="box aha">
+    <b>ข้อสังเกตจากการเล่น</b>: PHASE(180) บน qubit เดี่ยวๆ กี่ตัวก็ตาม ระบายได้ครั้งละ<b>ครึ่งผ้าใบพอดี (128 pixel)</b> หรือไม่ก็ไม่ระบายเลย ·
+    จะระบายเฉพาะมุมเดียว (เงื่อนไขแบบ AND) ต้องใช้ gate ที่มี control อย่าง CZ ซึ่งคือเรื่องของบทถัดไป
+  </div>
+
+  <h3>2.4 ข่าวดีและข้อแม้: วาดได้ แต่อ่านไม่ได้</h3>
+  <div class="twocol">
+    <div class="c"><b>ข่าวดี</b> ใช้ <strong>QPU instruction ตัวเดียว</strong>ระบายได้ 128 pixel · บน GPU ต้องรัน pixel shader <strong>128 ครั้ง</strong> (p14)</div>
+    <div class="c"><b>ข้อแม้ (the catch)</b> ถ้า READ ผลลัพธ์ จะได้แค่<strong>ค่าสุ่มของ qx และ qy</strong> ภาพที่วาดไว้อ่านออกมาไม่ได้ (p14)</div>
+  </div>
+
+  <div class="qcanvas" data-flip="x >= 8" data-read="1" data-cap="ผ้าใบที่ระบายครึ่งขวาแล้ว · ลองกด READ หลายๆ รอบ"></div>
+
+  <div class="box mathref">
+    <b>ทวน: ทำไม READ ไม่เห็น phase</b> (<a href="midterm/0003-amplitude-and-phase.html">บท 0003</a>) ·
+    โอกาสที่ READ ได้ค่าไหน = <b>ขนาดของวง</b>ของค่านั้น (magnitude ยกกำลังสอง) phase ไม่อยู่ในสูตรเลย ·
+    ผ้าใบเรามี 256 วงขนาดเท่ากัน amplitude = +1/16 (ชมพู) หรือ −1/16 (เขียว) ·
+    ยกกำลังสองแล้วได้ <b>1/256 เท่ากันทุกวง</b> ไม่ว่าจะระบายไว้ลายไหน
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">⑥ หลังระบายครึ่งขวาแล้ว READ ทันที โอกาสที่จะได้ qx ≥ 8 (ตกในครึ่งที่ระบาย) เป็นเท่าไร</div>
+    <button class="opt">100% เพราะครึ่งขวาถูกระบาย</button>
+    <button class="opt">0% เพราะ phase 180° หักล้าง</button>
+    <button class="opt">50% เท่ากับตอนผ้าใบยังเปล่า</button>
+    <button class="opt">75% เพราะครึ่งขวาเด่นกว่า</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ 128 วง × 1/256 = 50% เท่ากับก่อนระบายเป๊ะ · READ ตรงๆ จึงแยกผ้าใบที่ระบายแล้วกับผ้าใบเปล่าไม่ออกเลย</div>
+    <div class="fb no" data-for="no">ทุกวงยังมีโอกาส 1/256 เท่าเดิม (phase ไม่เปลี่ยนขนาด) → ครึ่งขวา 128 วง = 128/256 = <b>50%</b> เท่ากับตอนผ้าใบเปล่า</div>
+  </div>
+
+  <div class="box why">
+    <b>ปมที่ค้างไว้</b>: ภาพอยู่ใน phase ครบทุก pixel แต่เรามองไม่เห็น · โชคดีที่ supersampling <b>ไม่ได้ต้องการภาพทุก pixel</b> อยู่แล้ว
+    ต้องการแค่<b>ผลรวม</b> (ระบายไปกี่ subpixel) · และเรามีเครื่องมือเปลี่ยน "ความต่างของ phase" ให้เป็น "ความต่างของขนาด" อยู่แล้ว คือ mirror ของ AA ·
+    บท 0044 จะเอา AA + QFT มา<b>นับจำนวนที่ถูก flip</b> โดยไม่ต้องอ่านทีละ pixel
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>ทดสอบความจำ (ปิดหน้าจอส่วนบนก่อนตอบ)</h2>
+  <details class="recall"><summary>supersampling แก้ปัญหาอะไร และเก็บอะไรไว้</summary>
+    แก้ปัญหายิง 1 ray ต่อ pixel แล้วขอบ/รายละเอียดเล็กหาย + เกิด noise pattern ตอนขยับ · ยิงหลาย ray ต่อ pixel แล้วเก็บ<b>แค่ค่าเฉลี่ย</b> (= Monte Carlo sampling)</details>
+  <details class="recall"><summary>QSS ชนะ Monte Carlo ตรงไหน และไม่ชนะตรงไหน</summary>
+    ไม่ชนะเรื่องความเร็ว · ชนะที่ลักษณะ noise: บาง pixel เพี้ยนหนักเป็นจุดดำ/ขาว ที่เหลือเป๊ะ (Figure 11-1: 2% / 34% เทียบ 1% / 41%) → ลบด้วยมือง่ายกว่า</details>
+  <details class="recall"><summary>วาดวงจรผ้าใบเปล่า และวงจรระบายครึ่งขวา</summary>
+    8 สาย (qx 0x1–0x8 อยู่บน · qy 0x1–0x8 อยู่ล่าง) write 0 ทุกสาย → H ของ qx 4 ตัว → H ของ qy 4 ตัว (คอลัมน์ถัดไป) ·
+    ระบายครึ่งขวา = เพิ่มกล่องป้าย 180° ที่มี φ บนสาย <b>qx 0x8</b> สายเดียว</details>
+  <details class="recall"><summary>ทำไม PHASE(180) ตัวเดียวถึงระบายได้ 128 pixel แต่ READ แล้วไม่เห็นภาพ</summary>
+    PHASE(180) กลับ phase ของทุกค่าที่ qubit นั้นเป็น 1 ซึ่งมีครึ่งหนึ่งของ 256 ค่า · READ ขึ้นกับขนาดวงอย่างเดียว ทุกวงยังเป็น 1/256 จึงได้แค่ qx, qy สุ่ม</details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li><b>QIP</b> = ใช้ QPU กับงานภาพ ยังอยู่ช่วงเริ่มต้น · คาบนี้ดูตัวอย่างเดียวคือ <b>QSS</b> (p2–3)</li>
+    <li><b>supersampling / Monte Carlo sampling</b> = หลาย sample ต่อ pixel เก็บแค่ค่าเฉลี่ย · งานขนานที่ต้องการแค่ผลรวม จึงน่าจะเหมาะกับ QPU (p6–9)</li>
+    <li>QSS <b>ไม่ได้เร็วขึ้น</b> แต่เปลี่ยน<b>ลักษณะ noise</b> เป็นจุดเพี้ยนหนักไม่กี่จุด · ใช้ arithmetic + AA + QFT (p4–5)</li>
+    <li><b>phase encoding</b>: ค่า pixel อยู่ใน phase (0° / 180°) เพื่อให้เข้ากับ AA · HAD ทั้ง qx, qy = <b>blank canvas</b> 16×16 (p10–11)</li>
+    <li><code class="code">qc.phase(180, qx.bits(0x8))</code> = ระบายครึ่งขวา 128 pixel ในคำสั่งเดียว แต่ <b>READ ได้แค่ค่าสุ่ม</b> (p12–14)</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 11 <i>Quantum Supersampling</i> หัวข้อ
+      <i>What Can a QPU Do for Computer Graphics?</i> / <i>Conventional Supersampling</i> / <i>Hands-on: Computing Phase-Encoded Images</i>
+      (Figure 11-1 ถึง 11-5) · ลองรันโค้ดได้ที่ <a href="https://oreilly-qc.github.io/">oreilly-qc.github.io</a> (ตัวอย่างของบทที่ 11) ·
+      สไลด์ <code class="code">QuantumProg_Lec11.pdf</code> หน้า 1–14</p>
+    <p><b>บทก่อนหน้า</b>: <a href="0040-sat-recipe-and-3sat.html">0040 · สูตร 9 ขั้น → 3-SAT</a> ·
+      <b>บทถัดไป</b>: <a href="0042-drawing-in-phase-dither-stripes-curves.html">0042 · วาดรูปลงใน phase: ลายจุด ลายทาง เส้นโค้ง</a></p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="midterm/0003-amplitude-and-phase.html">0003 · amplitude กับ phase</a> ·
+      <a href="midterm/0008-multi-qubit-registers.html">0008 · register หลาย qubit</a> ·
+      <a href="0023-flip-and-mirror.html">0023 · flip กับ mirror</a> ·
+      <a href="0037-phase-logic-answers-in-phase.html">0037 · phase logic</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① ถ้า QSS ไม่เร็วขึ้น แล้วจะเรียนไปทำไม
+      ② ทำไม PHASE(180) สองตัวถึงออกมาเป็น XOR
+      ③ วาดแล้วอ่านไม่ได้ แบบนี้ภาพ "อยู่" ใน QPU จริงไหม
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

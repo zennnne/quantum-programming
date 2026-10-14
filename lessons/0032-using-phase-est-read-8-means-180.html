@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0032 — ใช้ phase_est() จริง: อ่าน 8 แปลว่า 180°</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+<script defer src="../assets/bars.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 08 · บทที่ 0032</div>
+  <h1>ใช้ <code class="code">phase_est()</code> จริง: อ่าน 8 แปลว่า 180°</h1>
+  <p class="lead">บท <a href="0031-eigenstate-and-eigenphase.html">0031</a> เราเห็นกล่องดำ Figure 8-3 แล้ว:
+    ใส่ <b>eigenstate</b> ลง qin ส่ง <b>cont_u</b> เข้าไป แล้ว READ คำตอบจาก qout ·
+    บทนี้เราจะ<b>เปิดใช้มันจริง</b>กับ HAD ทีละบรรทัด แล้วตอบคำถามที่ทิ้งไว้: ทำไมอ่านได้ <b>8</b> แต่หมายถึง <b>180°</b> ·
+    จากนั้นค่อยดู “ตัวหนังสือเล็ก” (fine print) ว่าเครื่องมือนี้มีข้อจำกัดอะไรบ้างค่ะ</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 3 อย่าง
+    ① <code class="code">phase_est(qin, qout, cont_u)</code> รับ 3 อย่าง · cont_u ต้องเป็น <b>controlled-U</b> ที่เราเขียนเอง
+    ② qout คืน θ เป็น<b>เศษส่วนของ 360°</b>: <b>R = θ/360° × 2ᵐ</b> (Equation 8-1 · เรื่องสอบ)
+    ③ ถ้า θ ไม่ลงช่องพอดี → ได้ <b>superposition รอบค่าที่ใกล้สุด</b> (โอกาสถูก &gt; 40%) · ต้นทุน O(m²) · ใส่ superposition ของ eigenstate ได้
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · ใช้ phase_est() หา eigenphase ของ HAD (p12–22)</h2></div>
+
+  <h3>1.1 input 3 ตัว (p12–15)</h3>
+  <table class="cmp">
+    <thead><tr><th>argument</th><th>คืออะไร</th></tr></thead>
+    <tbody>
+      <tr><td data-label="argument"><code class="code">qin</code></td><td data-label="คืออะไร">register <b>n qubit</b> ที่เตรียมไว้เป็น <b>eigenstate uⱼ</b> ที่เราอยากรู้ eigenphase (p13)</td></tr>
+      <tr><td data-label="argument"><code class="code">qout</code></td><td data-label="คืออะไร">register <b>m qubit</b> เริ่มเป็น <b>0 ทั้งหมด</b> · primitive จะเขียน<b>เลขฐานสองของ θⱼ</b> ลงที่นี่ · <b>m ยิ่งใหญ่ ยิ่งละเอียด</b> (p14)</td></tr>
+      <tr><td data-label="argument"><code class="code">cont_u</code></td><td data-label="คืออะไร">function ที่ทำ <b>controlled version</b> ของ U (U แบบมีเงื่อนไข) · ไม่ใช่ U เปล่าๆ (p15)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box warn">
+    <b>สไลด์สะกดไม่ตรงกันเอง (p12–15, p18)</b><br>
+    ① หัวข้อตัวใหญ่เขียน <code class="code">count_u</code> แต่ signature กับโค้ดใช้ <code class="code">cont_u</code> (= controlled-U) → ชื่อที่ถูกคือ <b>cont_u</b><br>
+    ② p15 บอกรูปแบบ <code class="code">count_u(in, out)</code> = <b>2 argument</b> แต่โค้ดจริง (p18) คือ
+    <code class="code">cont_u(qcontrol, qtarget, control_count)</code> = <b>3 argument</b><br>
+    → ตอบสอบตามสไลด์ถ้าถามตรงๆ แต่รู้ไว้ว่าของที่รันได้จริงมี 3 ตัวนะคะ
+  </div>
+
+  <h3>1.2 โค้ดตัวอย่าง: หา eigenphase ของ HAD (Example 8-1 · p17–18)</h3>
+  <p>จากบท 0031: HAD มี eigenstate ตัวหนึ่งที่ <b>eigenphase = 180°</b> (Table 8-1) · ลองดูว่า <code class="code">phase_est()</code> หาเจอไหม:</p>
+<pre class="code-blk">var m = 4;                          // ขนาด qout → กำหนดความละเอียดของคำตอบ
+var n = 1;                          // ขนาด qin → พอใส่ eigenstate ของ HAD
+qc.reset(m + n);
+var qout = qint.new(m, 'output');
+var qin  = qint.new(n, 'input');
+qout.write(0);                      // qout = |0000⟩
+qin.write(0);
+qin.roty(-135);                     // → eigenstate ของ HAD ที่ eigenphase 180°
+                                    //   (ถ้าอยากได้ตัว 0° ใช้ qin.roty(45))
+function cont_u(qcontrol, qtarget, control_count) {
+    // HAD ทำซ้ำจำนวนคู่ = ไม่ทำอะไร → สนใจแค่ว่าคี่ไหม
+    if (control_count &amp; 1)
+        qtarget.chadamard(null, ~0, qcontrol.bits(control_count));
+}
+phase_est(qin, qout, cont_u);
+qout.read();</pre>
+
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> <b>ทำไมส่ง controlled-HAD ไม่ส่ง HAD ตรงๆ?</b> (p19)
+      กลไกข้างใน phase estimation <b>ต้องใช้ controlled-U</b> (บท 0033 จะเปิดดูว่าทำไม) · การสร้าง controlled version
+      ของ operation ใดๆ <b>ไม่ใช่เรื่องง่าย</b> → <code class="code">phase_est()</code> เลยโยนหน้าที่นี้ให้ผู้ใช้เขียนเอง ·
+      HAD โชคดีที่ QCEngine มี <code class="code">chadamard()</code> (controlled-HAD) ให้ใช้เลย</div>
+    <div class="step"><span class="lbl">②</span> <b><code class="code">control_count</code> คือ “ให้ทำ U กี่ครั้ง”</b> ·
+      ในโค้ดข้างใน (p31) primitive เรียก <code class="code">cont_u(q_out, q_in, 1 &lt;&lt; j)</code> = 1, 2, 4, 8 ครั้ง
+      สำหรับ qout แต่ละสาย · ค่าเดียวกันนี้ยังใช้เลือก<b>สายควบคุม</b>ผ่าน <code class="code">qcontrol.bits(control_count)</code></div>
+    <div class="step"><span class="lbl">③</span> <b>ทำไมเช็คแค่ <code class="code">control_count &amp; 1</code>?</b>
+      HAD·HAD = ไม่ทำอะไร (บท <a href="midterm/0005-hadamard.html">0005</a>) → ทำ 2, 4, 8 ครั้งก็เท่ากับไม่ทำ ·
+      ทำจริงเฉพาะตอนจำนวนครั้ง<b>เป็นคี่</b> (บิตสุดท้าย = 1) · นี่คือตัวอย่างของ “ทำ U<sup>k</sup> ให้เร็ว” ที่บท 0033 จะพูดถึง</div>
+  </div>
+  <p class="meta">สไลด์ไม่ได้อธิบาย argument <code class="code">null, ~0</code> ของ <code class="code">chadamard</code> → ไม่ต้องจำค่ะ
+    จำแค่ว่า “ทำ HAD บน qtarget โดยมีบิตใน qcontrol เป็นตัวควบคุม”</p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">① ถ้าอยากได้คำตอบ θ ที่<b>ละเอียดขึ้น</b> ต้องแก้ตัวแปรไหนในโค้ด?</div>
+    <button class="opt">เพิ่ม n · ขนาดของ register qin</button>
+    <button class="opt">เพิ่ม m · ขนาดของ register qout</button>
+    <button class="opt">เพิ่มมุมใน qin.roty ให้มากขึ้น</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! คำตอบถูกเขียนลง qout → qout มีกี่ qubit ก็แบ่งรอบ 360° ได้ละเอียดเท่านั้น (p14) · n แค่ต้องพอใส่ eigenstate</div>
+    <div class="fb no" data-for="no">คำตอบ θ ถูกเขียนลง register ไหนคะ? register นั้นแหละที่ต้องใหญ่ขึ้น</div>
+  </div>
+
+  <h3>1.3 ผลลัพธ์: Figure 8-4 (p20) — เรื่องสอบ</h3>
+  <div>
+    <div class="crow" data-n="8" data-r="13" data-lab="qout ก่อน |0⟩–|7⟩" data-mag="1,0,0,0,0,0,0,0"></div>
+    <div class="crow" data-n="8" data-r="13" data-lab="qout ก่อน |8⟩–|15⟩" data-labels="8,9,10,11,12,13,14,15" data-mag="0,0,0,0,0,0,0,0"></div>
+    <div class="circuit" data-wires="5" data-names="qout,qout,qout,qout,qin"
+         data-wire-labels="0x1,0x2,0x4,0x8,0x1" data-out="0-3:8"
+         data-ops="_; BOX:0,4:Phase estimation:3; _; _; _; READ:0 + READ:1 + READ:2 + READ:3"></div>
+    <div class="subin"><span class="arw"></span><span class="bx">cont_u</span><span class="note">(controlled-HAD)</span></div>
+    <div class="crow" data-n="8" data-r="13" data-lab="qout หลัง |0⟩–|7⟩" data-mag="0,0,0,0,0,0,0,0"></div>
+    <div class="crow" data-n="8" data-r="13" data-lab="qout หลัง |8⟩–|15⟩" data-labels="8,9,10,11,12,13,14,15" data-mag="1,0,0,0,0,0,0,0"></div>
+  </div>
+  <div class="twocol">
+    <div class="c"><b>qin ก่อน</b>
+      <div class="crow" data-n="2" data-r="20" data-mag="0.1464,0.8536" data-phase="180,0" data-sub="14.64%,85.35%"></div></div>
+    <div class="c"><b>qin หลัง (เหมือนเดิมเป๊ะ)</b>
+      <div class="crow" data-n="2" data-r="20" data-mag="0.1464,0.8536" data-phase="180,0" data-sub="14.64%,85.35%"></div></div>
+  </div>
+  <ul>
+    <li><b>qin ไม่เปลี่ยน</b> — ก็แน่ล่ะ มันเป็น eigenstate ของ HAD (U ใส่ได้แค่ global phase)</li>
+    <li><b>qout</b> เริ่มที่ |0⟩ → จบที่ <b>|8⟩ 100%</b> · ดูที่ detector: 3 สายบนอ่านได้ 0 (ฟ้า) สายล่างสุดของ qout (0x8) อ่านได้ 1 (เหลือง) → <b>8</b></li>
+    <li>สไลด์เองก็อุทาน: <i>“We were expecting 180° and we got 8!”</i></li>
+  </ul>
+  <p class="meta">สังเกตเล็กๆ: โค้ด <code class="code">roty(-135)</code> ให้ ≈ 0.383|0⟩ − 0.924|1⟩ แต่รูปวาด −0.383|0⟩ + 0.924|1⟩
+    (เข็มลบอยู่ที่วง |0⟩) · สองแบบนี้ต่างกันแค่คูณ −1 ทั้ง state = <b>global phase 180°</b> → นับเป็น state เดียวกันค่ะ
+    (คาโฮะคำนวณเช็คด้วย numpy · ทั้งคู่โดน HAD แล้วกลับเครื่องหมายทั้งก้อนเหมือนกัน)</p>
+
+  <h3>1.4 ทำไม 8 = 180°: เศษส่วนของรอบ (p21–22)</h3>
+  <p>ข้างใน phase estimation ไม่ได้เก็บ “องศา” แต่เก็บ <b>θ เป็นเศษส่วนของ 360°</b> แล้วเขียนลง qout เป็น
+    <b>เศษส่วนเดียวกันของขนาด register</b> (2ᵐ ค่า) · 180° = <b>ครึ่งรอบ</b> · qout 4 qubit มี 2⁴ = 16 ค่า → ครึ่งหนึ่ง = <b>8</b></p>
+
+  <div class="analogy">
+    <div class="cell"><b>หน้าปัดนาฬิกา 16 ขีด</b><small>เข็มชี้ขีดที่ 8 = ครึ่งรอบ · ไม่มีใครพิมพ์ “180°” บนหน้าปัด เราต้องแปลงเอง</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>qout m qubit</b><small>มี 2ᵐ ขีดรอบวง · ค่าที่อ่านได้ R = ขีดที่เข็ม θ ชี้</small></div>
+  </div>
+
+  <div class="eq">R = <span class="frac"><span class="num">θⱼ</span><span class="den">360°</span></span> × 2ᵐ
+    &nbsp;&nbsp;⇔&nbsp;&nbsp; θⱼ = R × <span class="frac"><span class="num">360°</span><span class="den">2ᵐ</span></span></div>
+  <p class="meta" style="text-align:center">Equation 8-1 · R = ค่าที่อ่านจาก qout · m = จำนวน qubit ของ qout</p>
+
+  <div class="work">
+    <div class="step"><span class="lbl">HAD</span> 180/360 × 2⁴ = ½ × 16 = <b>8</b> ✓ (p22)</div>
+    <div class="step"><span class="lbl">สไลด์</span> 90° กับ qout 3 qubit: 90/360 × 2³ = ¼ × 8 = <b>2</b> ✓ (p21)</div>
+  </div>
+
+  <div class="box aha">
+    <b>นี่คือกฎเดิมจากบท <a href="0030-inside-the-invqft-circuit.html">0030</a> แค่กลับข้าง!</b>
+    ตอนนั้น invQFT อ่านวงที่หมุนวงละ θ = n/2ᴺ × 360° ออกมาเป็น |n⟩ · ตอนนี้ θ = R × 360°/2ᵐ <b>สูตรเดียวกันเป๊ะ</b>
+    (n ↔ R, N ↔ m) → เป็นเบาะแสว่าข้างใน phase estimation มี invQFT ซ่อนอยู่ (บท 0033 จะเปิดดู)
+  </div>
+
+  <div class="box warn">
+    <b>ตัวยกหายในสไลด์ (p21–22)</b> — เขียน “the <b>23</b> = 8 possible values” และ “<b>24</b> = 16 values”
+    → ที่ถูกคือ <b>2³</b> = 8 และ <b>2⁴</b> = 16 (แบบเดียวกับ Lec 07) · อย่าลอก “23” ไปตอบนะคะ
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">② eigenphase = <b>270°</b> ใช้ qout <b>4 qubit</b> — READ qout จะได้เลขอะไร? (คิดเองก่อนกด)</div>
+    <button class="opt">อ่านได้ 3</button>
+    <button class="opt">อ่านได้ 6</button>
+    <button class="opt">อ่านได้ 12</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! 270/360 = ¾ ของรอบ · ¾ × 16 = 12</div>
+    <div class="fb no" data-for="no">270° เป็นกี่ส่วนของรอบ? แล้วเอาไปคูณกับ 2⁴ = 16 ค่ะ</div>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">③ qout มี <b>5 qubit</b> อ่านได้ <b>10</b> — eigenphase คือกี่องศา?</div>
+    <button class="opt">112.5°</button>
+    <button class="opt">100.0°</button>
+    <button class="opt">225.0°</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! 2⁵ = 32 ขีด · 10/32 × 360° = 112.5°</div>
+    <div class="fb no" data-for="no">ใช้สูตรกลับด้าน θ = R × 360°/2ᵐ · ระวัง 2⁵ = 32 ไม่ใช่ 16 นะคะ</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · fine print: ข้อจำกัดของ phase estimation (p23–30)</h2></div>
+
+  <h3>2.1 ความละเอียด (precision) ขึ้นกับขนาด qout (p23–24)</h3>
+  <p>HAD โชคดี: 180° ลงขีดพอดี · แต่โดยทั่วไป qout m qubit แสดงมุมได้<b>เป๊ะเฉพาะพหุคูณของ 360°/2ᵐ</b> ·
+    เช่น qout 3 qubit แบ่งรอบเป็น 8 ขีด ขีดละ <b>45°</b>:</p>
+  <table class="cmp">
+    <thead><tr><th>Binary</th><th>000</th><th>001</th><th>010</th><th>011</th><th>100</th><th>101</th><th>110</th><th>111</th></tr></thead>
+    <tbody>
+      <tr><td data-label="Binary"><b>เศษส่วนของ register</b></td><td data-label="000">0</td><td data-label="001">1/8</td><td data-label="010">1/4</td><td data-label="011">3/8</td><td data-label="100">1/2</td><td data-label="101">5/8</td><td data-label="110">3/4</td><td data-label="111">7/8</td></tr>
+      <tr><td data-label="Binary"><b>มุม (°)</b></td><td data-label="000">0</td><td data-label="001">45</td><td data-label="010">90</td><td data-label="011">135</td><td data-label="100">180</td><td data-label="101">225</td><td data-label="110">270</td><td data-label="111">315</td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.2 มุมไม่ลงขีด → superposition รอบค่าที่ใกล้สุด (p25–26)</h3>
+  <p>ลองหา eigenphase <b>150°</b> ด้วย qout 3 qubit: 150/360 × 8 = <b>3.33</b> → ไม่ใช่จำนวนเต็ม อยู่ระหว่าง 011 (135°) กับ 100 (180°) ·
+    ผลคือ qout <b>ไม่ได้</b>เป็นค่าเดียว แต่เป็น <b>superposition ที่กระจุกรอบค่าใกล้สุด</b> (Figure 8-5):</p>
+
+  <div class="crow" data-n="8" data-r="22" data-lab="qout หลัง (θ = 150°, m = 3)"
+       data-mag="0.013,0.019,0.047,0.687,0.174,0.032,0.016,0.012"
+       data-phase="15,-7.5,-30,-52.5,105,82.5,60,37.5"></div>
+  <div class="bars" data-labels="000,001,010,011,100,101,110,111"
+       data-vals="1.3,1.9,4.7,68.8,17.5,3.2,1.6,1.2" data-max="80"
+       data-hl="3:ok:135° · ใกล้สุด; 4:on:180°"
+       data-cap="ความน่าจะเป็น (%) ตอน READ · คาโฮะคำนวณด้วย numpy — magnitude ตรงกับวงในสไลด์"></div>
+  <ul>
+    <li>READ แล้วได้ <b>3 (= 135°)</b> บ่อยสุด ≈ 69% · ได้ <b>4 (= 180°)</b> ≈ 17.5% · ค่าอื่นๆ ที่เหลือรวมกัน ≈ 14%</li>
+    <li>เราได้ “ค่าประมาณที่ดีที่สุดในความละเอียดนั้น” <b>แค่ด้วยความน่าจะเป็นระดับหนึ่ง</b> ไม่ใช่ทุกครั้ง (p26)</li>
+    <li>เฟสของแต่ละวง (เข็ม) <b>ไม่ต้องจำ</b> — สิ่งที่ต้องจำคือ<b>ขนาดวงกระจุกที่ 3 กับ 4</b></li>
+  </ul>
+  <div class="box mathref">
+    <b>เคยเห็นแล้วในบท <a href="0028-dft-mirror-peaks.html">0028</a></b>: ความถี่ที่<b>ไม่ลงช่องพอดี</b> (เช่น 8.4) ทำให้ peak ใน spectrum
+    <b>บาน</b>ไปช่องข้างๆ · ตรงนี้คืออาการเดียวกัน เพราะ qout ถูกอ่านด้วย invQFT ที่ “ฟังความถี่” ได้แค่เป็นช่องๆ
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">④ eigenphase = <b>60°</b> · ต้องใช้ qout กี่ qubit ถึงจะอ่านได้<b>เป๊ะ 100%</b>?</div>
+    <button class="opt">ใช้ 3 qubit ก็พอดีแล้ว</button>
+    <button class="opt">ต้องใช้ 6 qubit ถึงพอดี</button>
+    <button class="opt">ไม่มีจำนวนไหนพอดีเลย</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! 60° = 1/6 ของรอบ · ต้องหา 2ᵐ ที่ 1/6 × 2ᵐ เป็นจำนวนเต็ม → 2ᵐ ต้องหารด้วย 3 ลงตัว ซึ่งไม่มีวันเกิด · เพิ่ม m ได้แค่ “ใกล้ขึ้น” + โอกาสถูกสูงขึ้น</div>
+    <div class="fb no" data-for="no">ลองแทนสูตร R = 60/360 × 2ᵐ = 2ᵐ/6 ดูค่ะ · มี m ไหนที่ทำให้ 2ᵐ หาร 6 ลงตัวไหม?</div>
+  </div>
+
+  <h3>2.3 โอกาสถูก และสูตรเลือก m (p27)</h3>
+  <p>โอกาสได้<b>ค่าประมาณที่ดีที่สุด</b> <b>มากกว่าราว 40% เสมอ</b> (150° ข้างบนได้ 69%) และเพิ่มได้ด้วยการเพิ่มขนาด qout ·
+    ถ้าอยากได้ eigenphase แม่น <b>p บิต</b> และยอมให้พลาดได้ไม่เกินความน่าจะเป็น <b>ε (epsilon)</b> ให้ใช้:</p>
+  <div class="eq">m = p + ⌈ log( 2 + <span class="frac"><span class="num">1</span><span class="den">ε</span></span> ) ⌉</div>
+  <p class="meta" style="text-align:center">⌈ ⌉ = ceiling (ปัดขึ้นเป็นจำนวนเต็ม) · log ฐาน 2 (นับเป็น “กี่บิต”)</p>
+  <div class="work">
+    <div class="step"><span class="lbl">ตัวอย่าง</span> อยากได้ p = 3 บิต ยอมพลาด ε = 0.1 (10%):
+      log₂(2 + 10) = log₂ 12 ≈ 3.58 → ปัดขึ้น = 4 → <b>m = 3 + 4 = 7</b> · แปลว่าต้องจ่าย qubit เกินมา 4 ตัวเพื่อความมั่นใจ</div>
+  </div>
+  <div class="box warn">
+    <b>สูตรในสไลด์ต่างจากตำรามาตรฐานนิดหน่อย</b> — Nielsen &amp; Chuang ใช้ <b>log₂(2 + 1/(2ε))</b> (มี 2 ที่ตัวส่วน) ·
+    ตัวอย่างข้างบนตามตำราจะได้ m = 3 + ⌈log₂ 7⌉ = <b>6</b> แทน 7 · สไลด์ก็ไม่ได้บอกฐานของ log ·
+    → <b>ตอบสอบตามสไลด์</b> (1/ε) แต่รู้ไว้ว่าตำราคมกว่านิดนึงค่ะ
+  </div>
+
+  <h3>2.4 ต้นทุน: O(m²) และ cont_u ต้องเร็ว (p28)</h3>
+  <div class="twocol">
+    <div class="c"><b>ตัว primitive เอง</b>ใช้ operation ราว <b>O(m²)</b> (m = ขนาด qout) · อยากละเอียดขึ้น = จ่ายมากขึ้นแบบกำลังสอง</div>
+    <div class="c"><b>ข้อจำกัดใหญ่สุด: cont_u</b>ต้อง<b>สมมติว่ามี</b> controlled-U ที่ทำได้เร็ว เพราะถูกเรียกหลายครั้ง ·
+      ถ้า cont_u แพงกว่า <b>O(m²)</b> ข้อได้เปรียบของ phase estimation จะถูก “กัดกร่อน” (eroded)</div>
+  </div>
+  <p class="meta">HAD ง่ายเพราะ HAD<sup>k</sup> ขึ้นกับแค่ว่า k คี่หรือคู่ · operation ส่วนใหญ่ไม่โชคดีขนาดนั้น (บท 0033 · และเป็นหัวใจของ Shor ใน Lec 12)</p>
+
+  <h3>2.5 ใช้จริง: ใส่ superposition ของ eigenstate (p29–30)</h3>
+  <p>ฟังดูประดิษฐ์ (contrived) ไหมคะ — ถ้ารู้ eigenstate อยู่แล้ว ทำไมจะไม่รู้ eigenphase? (สไลด์ถามเองเลย) · คำตอบ:</p>
+  <div class="box aha">
+    ใส่ <b>superposition ของ eigenstate</b> → ได้ <b>superposition ของ eigenphase</b> ที่คู่กัน ·
+    magnitude ของแต่ละ eigenphase ใน qout = <b>magnitude ของ eigenstate ตัวนั้นใน qin เป๊ะๆ</b> (p29)<br>
+    และ <b>state ใดๆ</b> มองเป็น superposition ของ eigenstate ของ operation <b>ใดๆ</b> ได้เสมอ →
+    ใส่ |x⟩ อะไรก็ได้ แล้ว primitive จะบอกว่า eigenphase ไหนบ้างที่ <b>characterize (กำหนดลักษณะ)</b> การกระทำของ U ต่อ |x⟩ ·
+    ใช้ทำงาน linear algebra (พีชคณิตเชิงเส้น) แบบ <b>parallelize (ทำขนาน)</b> บน QPU ได้ — แต่ก็มี fine print เสมอ (p30)
+  </div>
+
+  <div class="work">
+    <div class="step"><span class="lbl">ลองกับ HAD</span> (คาโฮะคำนวณเอง ไม่อยู่ในสไลด์) ·
+      |0⟩ ไม่ใช่ eigenstate ของ HAD · แต่ |0⟩ = 0.924 × (eigenstate 0°) + 0.383 × (eigenstate 180°)
+      — ลองบวกดู: 0.924·(0.924|0⟩+0.383|1⟩) + 0.383·(0.383|0⟩−0.924|1⟩) = 1·|0⟩ + 0·|1⟩ ✓</div>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">⑤ รัน Example 8-1 (m = 4) แต่เปลี่ยน qin เป็น <b>|0⟩ เฉยๆ</b> — READ qout จะได้อะไร?</div>
+    <button class="opt">ได้ 8 ทุกครั้งเหมือนเดิม</button>
+    <button class="opt">ได้ 0 ราว 85% · 8 ราว 15%</button>
+    <button class="opt">ได้ 0 ถึง 15 สุ่มเท่าๆ กัน</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ! |0⟩ = 0.924·(eigenstate 0°) + 0.383·(eigenstate 180°) → eigenphase 0° (อ่านได้ 0) ด้วยโอกาส 0.924² ≈ 85% และ 180° (อ่านได้ 8) ด้วยโอกาส 0.383² ≈ 15%</div>
+    <div class="fb no" data-for="no">ดูกล่องสีเขียว: magnitude ของแต่ละ eigenphase = magnitude ของ eigenstate ตัวนั้นใน qin · แล้ว |0⟩ แตกเป็น eigenstate ไหนบ้าง อย่างละเท่าไร?</div>
+  </div>
+
+  <details class="recall">
+    <summary>ทดสอบความจำ (ปิดหน้าจอแล้วตอบเองก่อนเปิด)</summary>
+    <ol>
+      <li>input 3 ตัวของ <code class="code">phase_est</code>? → <b>qin = eigenstate (n) · qout = m qubit เริ่ม 0 · cont_u = controlled-U</b></li>
+      <li>ทำไม cont_u ต้องเป็น controlled? → <b>กลไกข้างในต้องใช้ · สร้าง controlled-U ไม่ง่าย เลยให้ผู้ใช้เขียน</b></li>
+      <li>ทำไม cont_u ของ HAD เช็คแค่ <code class="code">control_count &amp; 1</code>? → <b>HAD จำนวนคู่ครั้ง = ไม่ทำอะไร</b></li>
+      <li>Example 8-1 อ่านได้เท่าไร แปลว่าอะไร? → <b>8 · 8/16 ของรอบ = 180°</b></li>
+      <li>Equation 8-1? → <b>R = θ/360° × 2ᵐ</b></li>
+      <li>θ ไม่ลงขีด เกิดอะไร? → <b>superposition รอบค่าใกล้สุด · โอกาสได้ค่าดีสุด &gt; 40%</b></li>
+      <li>สูตรเลือก m (ตามสไลด์)? → <b>m = p + ⌈log(2 + 1/ε)⌉</b></li>
+      <li>complexity + ข้อจำกัดใหญ่สุด? → <b>O(m²) · ต้องมี cont_u ที่เร็ว</b></li>
+    </ol>
+  </details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li><code class="code">phase_est(qin, qout, cont_u)</code>: qin = eigenstate · qout = m qubit เริ่ม 0 · cont_u = <b>controlled-U</b> ที่ผู้ใช้เขียน</li>
+    <li>HAD + eigenstate 180° + m = 4 → qin ไม่เปลี่ยน · qout อ่านได้ <b>8</b> = ครึ่งรอบ = 180°</li>
+    <li><b>R = θ/360° × 2ᵐ</b> — กฎเดียวกับ invQFT ในบท 0030</li>
+    <li>ความละเอียด = 360°/2ᵐ · มุมไม่ลงขีด → superposition รอบค่าใกล้สุด (&gt; 40%) · เลือก m ด้วย p และ ε</li>
+    <li>ต้นทุน O(m²) · cont_u ต้องเร็ว · ใส่ superposition ของ eigenstate → ได้ superposition ของ eigenphase</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 8 หัวข้อ <i>How to Use Phase Estimation</i>,
+      <i>The Fine Print</i> และ <i>Phase Estimation in Practice</i> (Example 8-1, Figure 8-4, 8-5, Equation 8-1) ·
+      รันโค้ดเองได้ที่ <a href="https://oreilly-qc.github.io?p=8-1">QCEngine: Example 8-1</a> และ
+      <a href="https://oreilly-qc.github.io?p=8-2">Example 8-2 (150°)</a> — ลองเปลี่ยน m แล้วดูวงกระจุกแคบลง ·
+      สไลด์ <code class="code">QuantumProg_Lec08.pdf</code> หน้า 12–30</p>
+    <p><b>บทก่อนหน้า</b>: <a href="0031-eigenstate-and-eigenphase.html">0031 · eigenstate และ eigenphase</a> ·
+      <b>บทถัดไป</b>: <a href="0033-inside-phase-estimation-theta-as-frequency.html">0033 · ข้างใน phase estimation: เปลี่ยน θ เป็นความถี่</a></p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="midterm/0005-hadamard.html">0005 · HAD</a> ·
+      <a href="0028-dft-mirror-peaks.html">0028 · peak บานเมื่อความถี่ไม่ลงช่อง</a> ·
+      <a href="0030-inside-the-invqft-circuit.html">0030 · กฎ θ = n/2ᴺ × 360°</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① ทำไม 8 ถึงแปลว่า 180° (ลองนึกหน้าปัด 16 ขีด) ② ทำไม 150° ไม่ได้คำตอบเดียว
+      ③ “state ใดๆ = superposition ของ eigenstate” หมายถึงอะไรในทางปฏิบัติ
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -83,6 +83,40 @@ table.cmp td b { color:var(--ink); }
 .wave .lab { font-size:.82rem; font-weight:800; color:var(--accent); margin-bottom:.3rem; }
 .wave .cap { font-size:.85rem; color:var(--ink-soft); margin-top:.35rem; }
 
+/* ---------- ผ้าใบควอนตัม n×n (คู่กับ canvas.js · เพิ่มตอนบท 0041) ---------- */
+.qcanvas { margin:1rem 0; text-align:center; }
+.qcanvas svg { display:block; margin:0 auto; max-width:100%; height:auto; }
+.qcanvas .lab { font-size:.82rem; font-weight:800; color:var(--accent); margin-bottom:.3rem; }
+.qcanvas .cap { font-size:.85rem; color:var(--ink-soft); margin-top:.35rem; }
+.qcanvas .ctl { display:flex; gap:.5rem 1rem; justify-content:center; flex-wrap:wrap; margin:.2rem 0 .6rem; }
+.qcanvas .ctl .grp { display:inline-flex; gap:.3rem; align-items:center; }
+.qcanvas .ctl .grp b { font-size:.82rem; color:var(--accent); margin-right:.15rem; }
+.qcanvas button.tg { font:inherit; font-size:.82rem; font-weight:700; color:var(--ink); background:#fff;
+  border:1.5px solid #b9bec8; border-radius:8px; padding:.3rem .6rem; min-height:2.2rem; cursor:pointer; }
+.qcanvas button.tg:hover { border-color:var(--accent); }
+.qcanvas button.tg.on { background:#17603a; border-color:#17603a; color:#fff; }
+.qcanvas button.tg.go { background:var(--accent); border-color:var(--accent); color:#fff; }
+.qcanvas .info { margin-top:.5rem; font-size:.85rem; color:var(--ink-soft); }
+.qcanvas .info code { display:block; font-family:Consolas,"Courier New",monospace; font-size:.8rem;
+  color:var(--ink); background:#f2f4f8; border-radius:8px; padding:.4rem .6rem; margin:0 auto .3rem;
+  max-width:26rem; text-align:left; }
+.qcanvas .info span { display:block; }
+.qcrow { display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; margin:1rem 0; }
+.qcrow .qcanvas { margin:0; }
+
+/* ---------- QSS lookup table (คู่กับ lut.js · บท 0045) ---------- */
+.lut { margin:1rem 0; text-align:center; }
+.lut svg { display:block; margin:0 auto; max-width:100%; height:auto; }
+.lut .lab { font-size:.82rem; font-weight:800; color:var(--accent); margin-bottom:.3rem; }
+.lut .cap { font-size:.85rem; color:var(--ink-soft); margin-top:.35rem; }
+.lut .info { margin-top:.5rem; font-size:.85rem; color:var(--ink-soft); }
+.lut .info code { display:block; font-family:Consolas,"Courier New",monospace; font-size:.85rem;
+  color:var(--ink); background:#f2f4f8; border-radius:8px; padding:.4rem .6rem; margin:0 auto .3rem;
+  max-width:26rem; }
+.lut .info span { display:block; }
+.qcrow .lut { margin:0; align-self:flex-end; }
+.qcrow .lut .cap { font-size:.78rem; }
+
 /* ---------- วงจร (คู่กับ circuit.js) ---------- */
 .circuit { text-align:center; margin:1.1rem 0; }
 .circuit svg { display:block; margin:0 auto; max-width:100%; height:auto; }
@@ -114,6 +148,16 @@ pre.code-blk { background:#f2f4f8; border:1px solid #d5dbe6; border-radius:10px;
 .twocol .c b { display:block; color:var(--accent); margin-bottom:.25rem; }
 @media (max-width:34rem){ .twocol { grid-template-columns:1fr; } }
 
+/* ---- กล่อง subroutine ที่ส่งเข้า primitive (เช่น cont_u ใต้กล่อง Phase estimation) — เพิ่มตอนบท 0031 ----
+   วางต่อท้าย .circuit ทันที: ลูกศรชี้ขึ้นเข้ากล่องข้างบน + กล่องเทา + คำอธิบายเล็ก */
+.subin { text-align:center; margin:-.4rem 0 1.1rem; }
+.subin .arw { display:block; width:2px; height:1.6rem; margin:0 auto; background:var(--ink); position:relative; }
+.subin .arw::before { content:""; position:absolute; top:-6px; left:-5px;
+  border:6px solid transparent; border-top:0; border-bottom:8px solid var(--ink); }
+.subin .bx { display:inline-block; background:#e4e4e4; border:1.5px solid var(--ink); border-radius:6px;
+  padding:.35rem .9rem; font:700 .9rem ui-monospace, Consolas, monospace; color:var(--ink); }
+.subin .note { display:block; font-size:.82rem; font-style:italic; color:var(--ink-soft); margin-top:.3rem; }
+
 @media print {
-  .work, .box, .quiz, .circuit-syms .sy, .circuit, .crow, .mplot, .wave { break-inside: avoid; }
+  .work, .box, .quiz, .circuit-syms .sy, .circuit, .crow, .mplot, .wave, .subin { break-inside: avoid; }
 }

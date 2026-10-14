@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0037 — phase logic: เก็บคำตอบไว้ใน phase</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 10 · บทที่ 0037 (บทเปิด Lec 10)</div>
+  <h1>phase logic: เก็บคำตอบไว้ใน phase</h1>
+  <p class="lead">ตอนเรียน AA (บท <a href="0023-flip-and-mirror.html">0023</a>–<a href="0026-inside-the-mirror.html">0026</a>) เราใช้วงจร <b>flip</b> ที่พลิก phase ของ<b>ค่าที่รู้อยู่แล้ว</b>
+    ซึ่งเป็นแค่ตัวแทนชั่วคราว เพราะถ้าเรารู้คำตอบอยู่แล้วก็ไม่ต้องค้นหา ·
+    คาบนี้จะเติมชิ้นที่ยังขาดไป คือ <b>flip ที่สร้างจากเงื่อนไขทางตรรกะ</b> เช่น "พลิกทุกค่าที่ทำให้ a OR b เป็นจริง" ·
+    เครื่องมือที่ใช้ทำเรื่องนี้เรียกว่า <b>phase logic (ลอจิกบนเฟส)</b></p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 4 อย่าง
+    ① <b>Quantum Search (QS)</b> = AA + flip ที่สร้างจาก logic
+    ② phase logic <b>รับ input เป็นค่าในรีจิสเตอร์</b> แต่<b>เก็บ output ไว้ใน phase</b> โดยพลิก phase ของทุกค่าที่ทำให้เงื่อนไขเป็นจริง
+    ③ อ่านผลด้วย circle notation (Figure 10-1)
+    ④ สร้าง phase logic 6 แบบจาก gate จริง (Figure 10-2) ·
+    ข้อ ④ <b>ออกสอบสัญลักษณ์วงจร</b> และหนูเพิ่มวงจรทั้ง 6 ลงชีตแล้ว
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · phase logic ทำอะไร: มองผ่านวงกลม (p1–10)</h2></div>
+
+  <h3>1.1 Quantum Search = AA + flip ที่มาจาก logic</h3>
+  <p>ทวนนิดนึง: AA เปลี่ยน<b>ความต่างของ phase</b> ให้กลายเป็น<b>ความต่างของ magnitude</b> ซึ่ง READ แล้วเห็นได้ (p2) ·
+    แต่ AA ต้องมีคนส่ง subroutine <b>flip</b> มาให้ก่อน ว่าจะ mark ค่าไหน ·
+    <b>Quantum Search (QS, การค้นหาเชิงควอนตัม)</b> คือเทคนิค<b>สร้าง flip นั้นขึ้นมาจาก boolean logic</b> ดังนั้น QS จึงเป็นแค่
+    "การนำ AA ไปใช้" โดยใส่ subroutine ที่ <b>mark คำตอบไว้ใน phase</b> (p3)</p>
+
+  <div class="eq">QS = flip ที่สร้างจาก logic (phase logic) + mirror · วนซ้ำ N<sub>AA</sub> รอบ</div>
+
+  <p>ตัวอย่างที่ชัดที่สุดคือ<b>ค้นหาในฐานข้อมูล</b>: ให้ฟังก์ชันคืน 1 เฉพาะเมื่อ input เป็นตัวที่ตามหา ·
+    การใช้งานต้นแบบนี้ชื่อ <b>Grover's search algorithm</b> ซึ่งใช้ query เพียง <b>O(√N)</b> ครั้ง ขณะที่วิธีคลาสสิกต้องใช้ <b>O(N)</b> (p3) ·
+    ข้อจำกัดคือ Grover สมมติว่าเป็น <b>unstructured database (ฐานข้อมูลไม่มีโครงสร้าง)</b> ซึ่งในชีวิตจริงเจอไม่บ่อย ·
+    แต่ QS ยังใช้เป็น subroutine เร่งงานอื่นได้อีกมาก ตั้งแต่ AI ไปจนถึง software verification (p4)</p>
+
+  <div class="box warn">
+    <b>⚠️ สไลด์ p3 พิมพ์ตก</b>: บนสไลด์เขียนว่า "using only <i>O N</i> database queries" โดยไม่มี √ และไม่มีวงเล็บ (หนูซูมดูแล้ว) ·
+    ของจริงคือ <b>O(√N)</b> ถ้าเป็น O(N) ก็จะไม่เร็วกว่าคลาสสิกเลย · <b>ถ้าข้อสอบถามความเร็วของ Grover ให้ตอบ O(√N)</b>
+  </div>
+
+  <h3>1.2 นิยาม: input อยู่ในค่า output อยู่ใน phase</h3>
+  <p>logic ที่เรียนใน Lec 05 (บท <a href="midterm/0022-toffoli-is-quantum-nand.html">0022</a>) ทำงานกับ superposition ได้ก็จริง
+    แต่ทั้ง input และ output เป็น<b>ค่าในรีจิสเตอร์</b> (เช่น |2⟩, |5⟩) โดยมักเขียนผลลงใน scratch qubit ·
+    เราจะเรียก logic แบบนี้ว่า <b>magnitude logic</b> เพื่อแยกจากแบบใหม่ (p5)</p>
+
+  <div class="box aha">
+    <b>นิยาม (p5–6)</b>: วงจร phase logic แทน logic operation หนึ่งตัว (AND, OR, …) โดย
+    <b>พลิก phase ของทุกค่าในรีจิสเตอร์ที่ operation นั้นให้ผลเป็น 1</b> ·
+    input ที่ทำให้ได้ 1 เรียกว่า input ที่ <b>satisfy (ทำให้เป็นจริง)</b> operation นั้น → พูดสั้นๆ ได้ว่า
+    <b>phase logic พลิก phase ของทุกค่าที่ satisfy</b>
+  </div>
+
+  <div class="analogy">
+    <div class="cell"><b>phase logic</b><small>เอาปากกาหมึกล่องหนไปขีดทุกบรรทัดที่ตรงเงื่อนไขในรายชื่อ ·
+      ขีดได้ทีเดียวหลายบรรทัด แต่ถ้ามองด้วยตาเปล่า (READ) จะไม่เห็นรอยขีดเลย</small></div>
+    <div class="arrow">≈</div>
+    <div class="cell"><b>AA (mirror)</b><small>คือไฟ UV ที่ทำให้รอยหมึกล่องหนเรืองแสงขึ้นมา ·
+      phase logic ทำหน้าที่ mark ส่วน AA ทำให้เห็นสิ่งที่ mark ไว้ ต้องใช้คู่กัน</small></div>
+  </div>
+
+  <p><b>ทำไมต้องเป็น superposition?</b> ถ้ารีจิสเตอร์มีอยู่<b>ค่าเดียว</b> การพลิก phase ของค่านั้นก็เท่ากับคูณทั้งรีจิสเตอร์ด้วย −1
+    ซึ่งเป็นแค่ <b>global phase</b> ที่ไม่มีผลต่ออะไรเลย · แต่ถ้าเป็น superposition การพลิกบางวงจะสร้าง <b>relative phase (เฟสสัมพัทธ์)</b>
+    ซึ่ง AA ดึงออกมาได้ (p6)</p>
+
+  <h3>1.3 phase logic ตัวแรกที่เรารู้จักมานานแล้ว: PHASE(180)</h3>
+  <p>ลองดู PHASE(180°) บน qubit เดียว: มันพลิก phase <b>เฉพาะ |1⟩</b> ซึ่งก็คือ "พลิกเมื่อค่าของ qubit เป็น 1" ·
+    ตรงกับนิยามพอดี เราจึงมอง PHASE(180) ว่าเป็น phase logic ที่<b>เขียนค่าตรรกะของ qubit ลงใน phase ของตัวเอง</b> (p7)</p>
+
+  <p class="src">หมายเหตุ: สไลด์ p7 ขึ้นต้นว่า "When acting on a single qubit, <i>it</i> simply writes…" โดยไม่บอกว่า "it" คืออะไร และไม่ได้เขียน 180 ไว้ (ตัดมาจากหนังสือ) ·
+    หนูอนุมานจากประโยคถัดไปว่าหมายถึง PHASE ที่มุม 180°</p>
+
+  <table class="cmp">
+    <thead><tr><th>แบบ</th><th>ทำอะไร (p7)</th></tr></thead>
+    <tbody>
+      <tr><td data-label="แบบ"><b>Conventional binary logic</b></td><td data-label="ทำอะไร">input 1 ค่า → output 1 ค่า</td></tr>
+      <tr><td data-label="แบบ"><b>Quantum magnitude logic</b></td><td data-label="ทำอะไร"><i>superposition</i> ของ input → <i>superposition</i> ของ output (output เป็นค่าใน qubit)</td></tr>
+      <tr><td data-label="แบบ"><b>Quantum phase logic</b></td><td data-label="ทำอะไร">พลิก phase ของทุก input ที่ให้ output = 1 · ใช้ได้ทั้งกับ superposition และค่าเดียว</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.4 Figure 10-1: ดูผลด้วย circle notation</h3>
+  <p>รีจิสเตอร์ 2 qubit (a = 0x1, b = 0x2) เริ่มจาก uniform superposition (4 วง ขนาดเท่ากัน phase 0° ทุกวง) ·
+    หลังผ่าน phase logic วงที่ satisfy จะถูกพลิกเป็น 180° ส่วน magnitude ไม่เปลี่ยนเลย (p8) · เทียบเลขวงกับบิตก่อน:</p>
+
+  <table class="cmp">
+    <thead><tr><th>วง</th><th>b a</th><th>a</th><th>b</th></tr></thead>
+    <tbody>
+      <tr><td data-label="วง">|0⟩</td><td data-label="b a">00</td><td data-label="a">0</td><td data-label="b">0</td></tr>
+      <tr><td data-label="วง">|1⟩</td><td data-label="b a">01</td><td data-label="a">1</td><td data-label="b">0</td></tr>
+      <tr><td data-label="วง">|2⟩</td><td data-label="b a">10</td><td data-label="a">0</td><td data-label="b">1</td></tr>
+      <tr><td data-label="วง">|3⟩</td><td data-label="b a">11</td><td data-label="a">1</td><td data-label="b">1</td></tr>
+    </tbody>
+  </table>
+
+  <div class="crow" data-n="4" data-lab="ก่อน (ทุกแถว)" data-phase="0,0,0,0"></div>
+  <div class="crow" data-n="4" data-lab="phase OR" data-phase="0,180,180,180" data-hl="1,2,3"></div>
+  <div class="crow" data-n="4" data-lab="phase NOR" data-phase="180,0,0,0" data-hl="0"></div>
+  <div class="crow" data-n="4" data-lab="phase XOR" data-phase="0,180,180,0" data-hl="1,2"></div>
+  <div class="crow" data-n="4" data-lab="phase AND" data-phase="0,0,0,180" data-hl="3"></div>
+  <p class="src">Figure 10-1 (p8) · วงที่ไฮไลต์ = ถูกพลิกเป็น 180° · หนูจงใจเว้น <b>phase NAND</b> ไว้ให้พี่ลองหาเองในข้อถัดไป</p>
+
+  <p>สังเกตว่า<b>วงที่ถูกพลิกก็คือแถวที่ได้ 1 ในตารางความจริง</b>ของ gate นั้นนั่นเอง · เช่น XOR ให้ 1 เมื่อ input เป็น 01 หรือ 10 → พลิก |1⟩ กับ |2⟩ (p9)</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">① ไม่ต้องเลื่อนขึ้นไปดู: <b>phase NAND</b> บน uniform superposition 2 qubit จะพลิกวงไหนบ้าง</div>
+    <button class="opt">|1⟩ |2⟩ |3⟩</button>
+    <button class="opt">|0⟩ |1⟩ |3⟩</button>
+    <button class="opt">|0⟩ |1⟩ |2⟩</button>
+    <button class="opt">|0⟩ |2⟩ |3⟩</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ NAND ให้ 1 ทุกกรณียกเว้น 11 → พลิกทุกวงยกเว้น |3⟩ · ตรงข้ามกับ phase AND ที่พลิกแค่ |3⟩ พอดี (Figure 10-1)</div>
+    <div class="fb no" data-for="no">ลองเขียนตารางความจริงของ NAND ดูนะคะ: 00→1, 01→1, 10→1, 11→0 · วงที่พลิกคือแถวที่ได้ 1</div>
+  </div>
+
+  <h3>1.5 ข้อเสียกับข้อดี</h3>
+  <div class="twocol">
+    <div class="c"><b>ข้อเสีย</b>ผลถูกซ่อนไว้ใน phase ซึ่ง <strong>READ ไม่ได้</strong> · ถ้า READ ตอนนี้จะได้ |0⟩–|3⟩ อย่างละ 25% เหมือนไม่ได้ทำอะไรเลย (p9–10)</div>
+    <div class="c"><b>ข้อดี</b><strong>mark คำตอบได้หลายตัวพร้อมกันในรีจิสเตอร์เดียว</strong> · เอาไปใช้เป็น <strong>flip ของ AA</strong> ได้ทันที แล้ว AA จะทำให้ผล READ ได้ (p10)</div>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">② รีจิสเตอร์ 2 qubit มีค่า <b>|3⟩ ค่าเดียว</b> (ไม่ใช่ superposition) แล้วผ่าน phase AND · เกิดอะไรขึ้น</div>
+    <button class="opt">|3⟩ ถูกพลิก ได้ข้อมูลไว้ใช้ AA ต่อ</button>
+    <button class="opt">|3⟩ ถูกพลิก แต่เป็นแค่ global phase</button>
+    <button class="opt">|3⟩ ไม่ถูกพลิก เพราะไม่ใช่ superposition</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ gate ทำงานตามปกติ (ใช้ได้กับค่าเดียวด้วย ตาม p7) แต่พอมีวงเดียว −1 ก็คูณทั้งรีจิสเตอร์ = global phase จึงไม่มีอะไรให้ AA ขยาย (p6)</div>
+    <div class="fb no" data-for="no">phase logic ทำงานได้ทั้งกับค่าเดียวและ superposition (p7) · ประเด็นคือพลิกวงเดียวที่มีอยู่แล้วจะต่างจากอะไร? ไม่มีวงอื่นให้เทียบเลย</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · phase logic สร้างยังไง: มองผ่านวงจร (p11–13)</h2></div>
+
+  <p>ส่วนที่ 1 ดูว่า phase logic<b>ทำอะไร</b> ส่วนนี้จะดูว่า<b>สร้างจาก gate พื้นฐานยังไง</b> (Figure 10-2) ·
+    ชิ้นส่วนที่ใช้มีแค่ 3 ตัวที่รู้จักกันอยู่แล้ว:</p>
+  <ul>
+    <li><b>PHASE(180) บน a</b> → พลิกเมื่อ a = 1 · เขียนเป็นตัวคูณได้ (−1)<sup>a</sup></li>
+    <li><b>CZ ระหว่าง a กับ b</b> → พลิกเมื่อ a = 1 และ b = 1 (บท <a href="midterm/0010-cphase-cz-phase-kickback.html">0010</a>) → (−1)<sup>ab</sup> · CZ คือ <b>phase AND</b> อยู่แล้ว</li>
+    <li><b>X (NOT)</b> → สลับ 0 กับ 1 เอาไว้ "กลับเงื่อนไข" ก่อนพลิก แล้วสลับคืนหลังพลิก</li>
+  </ul>
+
+  <div class="box mathref">
+    <b>ทวนคณิต: นับจำนวนครั้งที่โดนพลิก</b> · พลิก 180° หนึ่งครั้ง = คูณ −1 ·
+    ถ้าวงหนึ่งโดนพลิก<b>คี่ครั้ง</b> ผลรวมคือ −1 (ถูกพลิก) · ถ้าโดน<b>คู่ครั้ง</b> ผลรวมคือ +1 (เหมือนไม่โดนเลย) ·
+    เทคนิคนี้ใช้ตรวจวงจรทุกตัวในส่วนนี้ได้
+  </div>
+
+  <h3>2.1 phase AND กับ phase NOT</h3>
+  <div class="twocol">
+    <div class="c">
+      <div class="circuit" data-wires="2" data-names="a,b" data-groups="0-0:phase AND" data-ops="CZ:0,1"></div>
+      <p><b>phase AND</b>CZ เฉยๆ · พลิกเฉพาะ |3⟩ (a = b = 1)</p>
+    </div>
+    <div class="c">
+      <div class="circuit" data-wires="1" data-names="a" data-groups="0-2:phase NOT" data-ops="X:0; P:0:180; X:0"></div>
+      <p><b>phase NOT</b>X → PHASE(180) → X · X สลับ |0⟩ ไปอยู่ตำแหน่ง |1⟩ แล้ว PHASE พลิก จากนั้น X สลับกลับ → สรุปคือ<strong>พลิก |0⟩</strong> (ค่าที่ NOT a = 1)</p>
+    </div>
+  </div>
+
+  <h3>2.2 phase OR: ลองนับเอง</h3>
+  <div class="circuit" data-wires="2" data-names="a,b" data-groups="0-2:phase OR" data-ops="P:0:180; CZ:0,1; P:1:180"
+       data-cap="phase OR · φ ตัวแรกอยู่สาย a ก่อน CZ ส่วน φ ตัวที่สองอยู่สาย b หลัง CZ (p11)"></div>
+
+  <p>ตัวคูณรวมคือ (−1)<sup>a</sup> · (−1)<sup>ab</sup> · (−1)<sup>b</sup> · ลองนับดูทีละวงว่าแต่ละวงโดนพลิกกี่ครั้ง ก่อนกดเฉลย:</p>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">③ ในวงจร phase OR วง <b>|3⟩</b> (a = 1, b = 1) โดนพลิกทั้งหมดกี่ครั้ง แล้วผลออกมาเป็นยังไง</div>
+    <button class="opt">1 ครั้ง → ถูกพลิก</button>
+    <button class="opt">2 ครั้ง → ไม่ถูกพลิก</button>
+    <button class="opt">3 ครั้ง → ถูกพลิก</button>
+    <button class="opt">0 ครั้ง → ไม่ถูกพลิก</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ φ บน a + CZ + φ บน b = 3 ครั้ง (คี่) → −1 · ถ้าไม่มี CZ จะได้ 2 ครั้ง (คู่) แล้ว |3⟩ จะกลับมาเป็น + ซึ่งผิด · <b>CZ จึงทำหน้าที่แก้ให้ |3⟩</b></div>
+    <div class="fb no" data-for="no">ไล่ทีละ gate: φ บน a (a=1 ✓) · CZ (a=b=1 ✓) · φ บน b (b=1 ✓) · ได้กี่ครั้ง แล้วเป็นเลขคู่หรือคี่?</div>
+  </div>
+
+  <div class="work">
+    <div class="step"><span class="lbl">|0⟩</span> a=0, b=0 → 0 ครั้ง → <b>+</b></div>
+    <div class="step"><span class="lbl">|1⟩</span> a=1, b=0 → φ(a) 1 ครั้ง → <b>−</b></div>
+    <div class="step"><span class="lbl">|2⟩</span> a=0, b=1 → φ(b) 1 ครั้ง → <b>−</b></div>
+    <div class="step"><span class="lbl">|3⟩</span> a=1, b=1 → 3 ครั้ง → <b>−</b> · ตรงกับ Figure 10-1 แถว OR (|1⟩ |2⟩ |3⟩) ✓</div>
+  </div>
+
+  <h3>2.3 phase NOR และ phase NAND: เอา X ไปครอบ</h3>
+  <p>ทั้งสองตัวใช้ <b>De Morgan</b> ที่เรียนใน Lec 05: ใส่ X ทั้งสองสายก่อนเพื่อกลับ input แล้วใส่ X อีกครั้งเพื่อคืนค่า</p>
+  <ul>
+    <li><b>NOR</b> = NOT(a OR b) = (NOT a) AND (NOT b) → X ทั้งสองสาย + <b>phase AND</b> + X คืน · 00 ถูกแปลงเป็น 11 ชั่วคราวแล้ว CZ พลิก → <b>พลิก |0⟩</b></li>
+    <li><b>NAND</b> = NOT(a AND b) = (NOT a) OR (NOT b) → X ทั้งสองสาย + <b>phase OR</b> + X คืน → <b>พลิก |0⟩ |1⟩ |2⟩</b></li>
+  </ul>
+  <div class="twocol">
+    <div class="c"><div class="circuit" data-wires="2" data-names="a,b" data-groups="0-2:phase NOR" data-ops="X:0 + X:1; CZ:0,1; X:0 + X:1"></div></div>
+    <div class="c"><div class="circuit" data-wires="2" data-names="a,b" data-groups="0-4:phase NAND" data-ops="X:0 + X:1; P:0:180; CZ:0,1; P:1:180; X:0 + X:1"></div></div>
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">④ ลองออกแบบเอง: อยากได้ phase logic ของ <b>a AND (NOT b)</b> (พลิกเฉพาะ |1⟩ คือ a = 1, b = 0) ต้องใช้วงจรไหน</div>
+    <button class="opt">X บน a · CZ · X บน a</button>
+    <button class="opt">X บน b · CZ · X บน b</button>
+    <button class="opt">φ บน a · CZ · φ บน b</button>
+    <button class="opt">X ทั้งคู่ · CZ · X ทั้งคู่</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ กลับเฉพาะ b ทำให้ |1⟩ (a=1, b=0) กลายเป็น 11 ชั่วคราว → CZ พลิก → X คืน · เป็นแบบเดียวกับ NOR แต่ครอบ X แค่สายที่มี NOT</div>
+    <div class="fb no" data-for="no">หลักคือ "กลับเฉพาะสายที่มี NOT แล้วใช้ phase AND" · ค่าที่อยากให้ถูกพลิกคือ a=1, b=0 ต้องกลับสายไหนถึงจะกลายเป็น 11?</div>
+  </div>
+
+  <h3>2.4 phase XOR: ใช้ scratch qubit ที่อยู่ใน |−⟩ + phase kickback</h3>
+  <p>phase XOR ต่างจากตัวอื่นตรงที่ใช้ <b>scratch qubit</b> เพิ่ม 1 ตัว ซึ่งใน phase logic <b>ต้องเตรียมให้อยู่ใน |−⟩ เสมอ</b> (p11) ·
+    สไลด์เขียนว่า "initialized<sup>3</sup>" เลข 3 เป็นเชิงอรรถจากหนังสือ ไม่ได้มีความหมายอะไร</p>
+
+  <div class="wide">
+    <div class="circuit" data-wires="3" data-names="a,b,scratch" data-groups="3-4:phase XOR"
+         data-ops="WRITE:2; X:2; H:2; CNOT:0,2; CNOT:1,2; H:2; X:2"
+         data-cap="phase XOR (p11) · กล่องเทาครอบเฉพาะ CNOT 2 ตัว ส่วนที่อยู่นอกกล่องคือการเตรียมและคืนค่า scratch"></div>
+  </div>
+
+  <div class="work">
+    <div class="step"><span class="lbl">เตรียม</span> WRITE 0 → X → H : |0⟩ → |1⟩ → <b>|−⟩</b></div>
+    <div class="step"><span class="lbl">kickback</span> |−⟩ เมื่อโดน NOT จะกลายเป็น −|−⟩ คือ<b>ตัวมันเองหน้าตาเดิม แต่มี −1 ติดออกมา</b> · −1 นั้นไปเกาะกับค่าของ input ที่เป็นตัวควบคุม (บท <a href="midterm/0010-cphase-cz-phase-kickback.html">0010</a>)</div>
+    <div class="step"><span class="lbl">นับ</span> CNOT จาก a พลิกเมื่อ a = 1 · CNOT จาก b พลิกเมื่อ b = 1 → (−1)<sup>a+b</sup> · พลิกคี่ครั้งเมื่อ a ≠ b พอดี = <b>XOR</b> → |1⟩ |2⟩ ✓</div>
+    <div class="step"><span class="lbl">คืน</span> H → X : |−⟩ → |1⟩ → |0⟩ · scratch กลับเป็น 0 เหมือนตอนเริ่ม</div>
+  </div>
+
+  <div class="box aha">
+    <b>ประโยคสำคัญ (p12)</b>: scratch qubit <b>ไม่ entangle</b> กับรีจิสเตอร์ input เพราะใช้ <b>phase kickback</b> ·
+    ตลอดเวลา scratch ยังเป็น |−⟩ หน้าตาเดิม มีแค่ −1 ที่ถูกส่งไปให้ input → <b>จึงไม่ต้อง uncompute ทั้ง phase-logic gate</b>
+    (ต่างจาก magnitude logic ในบท <a href="midterm/0021b-uncomputing.html">0021b</a> ที่ scratch เก็บผลไว้เป็นค่าจริงจึงต้อง uncompute)
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">⑤ H กับ X สองตัวท้ายบน scratch ของ phase XOR ทำหน้าที่อะไร</div>
+    <button class="opt">คืน scratch จาก |−⟩ กลับเป็น |0⟩</button>
+    <button class="opt">uncompute ผล XOR ที่ entangle ไว้</button>
+    <button class="opt">เปลี่ยนผลใน phase ให้ READ ได้</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ แค่ย้อนขั้นเตรียม (X → H) กลับทาง · ไม่ใช่การ uncompute เพราะ scratch ไม่ได้ entangle อะไรเลย และผลก็ยังอยู่ใน phase ต้องใช้ AA ถึงจะ READ ได้</div>
+    <div class="fb no" data-for="no">ลองดูว่า scratch อยู่ใน state อะไรหลัง CNOT ตัวที่สอง (ยังเป็น |−⟩) แล้ว H → X ทำให้ |−⟩ กลายเป็นอะไร</div>
+  </div>
+
+  <div class="box warn">
+    <b>⚠️ อย่าให้ชื่อหลอก (p13)</b>: <i>input</i> ของ phase logic เข้ารหัสอยู่ใน<b>ค่าของรีจิสเตอร์</b> (เช่น |2⟩, |5⟩) ·
+    มีแค่ <i>output</i> เท่านั้นที่อยู่ใน <b>relative phase</b> · phase logic <b>ไม่ได้รับ phase เป็น input</b> ·
+    ข้อนี้คือเหตุผลที่เราต่อ phase logic สองตัวเข้าหากันตรงๆ ไม่ได้ ซึ่งจะเป็นเรื่องของบทหน้า
+  </div>
+
+  <div class="box mathref">
+    <b>เกร็ดที่หนูเติมเอง (ไม่ได้มาจากสไลด์ และไม่ออกสอบ)</b>: ถ้าใช้ PHASE(180) บน a แล้วตามด้วย PHASE(180) บน b ก็จะได้ (−1)<sup>a+b</sup>
+    ซึ่งเป็น phase XOR เหมือนกัน (หนูเช็กด้วย numpy แล้ว) · หนังสือน่าจะเลือกใช้ scratch + kickback เพื่อปูเทคนิคนี้ไว้ก่อน
+    เพราะในปริศนาบท 0039 จะใช้ kickback แบบเดียวกันนี้ · <b>เวลาสอบให้วาดตาม Figure 10-2 (แบบมี scratch)</b>
+  </div>
+
+  <!-- ============================================================ -->
+  <details class="recall">
+    <summary>ทดสอบความจำ (ลองตอบในใจก่อนเปิดเฉลย)</summary>
+    <ol>
+      <li>QS คืออะไร · Grover เร็วแค่ไหน · ข้อจำกัดคืออะไร? → AA + flip ที่สร้างจาก logic · O(√N) เทียบกับคลาสสิก O(N) (สไลด์พิมพ์ √ ตก) · ต้องเป็น unstructured database</li>
+      <li>นิยาม phase logic ในประโยคเดียว? → พลิก phase ของทุกค่าในรีจิสเตอร์ที่ satisfy operation (ให้ผล 1)</li>
+      <li>ทำไมต้องใช้กับ superposition ถึงจะมีประโยชน์? → ถ้ามีค่าเดียว การพลิกเป็นแค่ global phase</li>
+      <li>phase logic ตัวแรกคืออะไร? → PHASE(180) บน qubit เดียว (พลิก |1⟩)</li>
+      <li>OR / NOR / XOR / AND / NAND พลิกวงไหน? → 123 / 0 / 12 / 3 / 012</li>
+      <li>วาด phase OR · NAND? → φ(a) · CZ · φ(b) · NAND = ครอบ phase OR ด้วย X ทั้งสองสาย</li>
+      <li>phase XOR ต้องใช้อะไรเพิ่ม และทำไมไม่ต้อง uncompute? → scratch ที่เตรียมเป็น |−⟩ (WRITE 0 → X → H) · ใช้ kickback จึงไม่ entangle</li>
+      <li>input กับ output ของ phase logic อยู่ที่ไหน? → input อยู่ในค่าของรีจิสเตอร์ · output อยู่ใน relative phase</li>
+    </ol>
+  </details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li><b>QS</b> = AA + flip ที่สร้างจาก logic · Grover ใช้ query <b>O(√N)</b> (สไลด์พิมพ์ √ ตก) · ต้องเป็น unstructured database (p2–4)</li>
+    <li><b>phase logic</b> พลิก phase ของทุกค่าที่ <b>satisfy</b> · ถ้ามีค่าเดียวจะเป็นแค่ global phase · PHASE(180) คือ phase logic ตัวแรก (p5–7)</li>
+    <li>logic มี 3 แบบ: conventional · magnitude · phase (ตาราง p7)</li>
+    <li><b>Figure 10-1</b>: วงที่ถูกพลิก = แถวที่ได้ 1 ในตารางความจริง · READ ไม่ได้ แต่ mark ได้หลายคำตอบพร้อมกัน เอาไปเป็น flip ของ AA ได้ (p8–10)</li>
+    <li><b>Figure 10-2</b>: AND = CZ · NOT = X φ X · OR = φ(a) CZ φ(b) · NOR/NAND = ครอบ AND/OR ด้วย X · XOR = scratch |−⟩ + CNOT 2 ตัว (kickback) (p11)</li>
+    <li>scratch <b>ไม่ entangle</b> จึงไม่ต้อง uncompute · input อยู่ในค่า ส่วน output อยู่ใน phase (p12–13)</li>
+  </ul>
+
+  <div class="footer">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 10 <i>Quantum Search</i> หัวข้อ <i>Phase Logic</i> (Figure 10-1, 10-2) ·
+      ถ้าอยากรู้ที่มาของ O(√N) อ่านบทคัดย่อของงานต้นฉบับ <a href="https://arxiv.org/abs/quant-ph/9605043">Grover (1996)</a> (ไม่บังคับ) ·
+      สไลด์ <code class="code">QuantumProg_Lec10.pdf</code> หน้า 1–13</p>
+    <p><b>บทก่อนหน้า</b>: <a href="0036-matrix-encoding-quantum-simulation.html">0036 · เก็บ matrix: quantum simulation</a> ·
+      <b>บทถัดไป</b>: <a href="0038-magnitude-first-phase-last.html">0038 · ต่อ logic ยาวๆ: magnitude ก่อน phase ทีหลัง</a></p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="0023-flip-and-mirror.html">0023 · flip และ mirror</a> ·
+      <a href="midterm/0010-cphase-cz-phase-kickback.html">0010 · CZ และ phase kickback</a> ·
+      <a href="midterm/0022-toffoli-is-quantum-nand.html">0022 · Toffoli คือ NAND ควอนตัม</a> ·
+      <a href="../reference/circuit-cheatsheet.html">ชีตสัญลักษณ์วงจร</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① ทำไมพลิกค่าเดียวถึงไร้ประโยชน์ แต่พลิกใน superposition ถึงมีประโยชน์
+      ② CZ ใน phase OR ใส่ไว้ทำไม
+      ③ kickback ส่ง −1 จาก scratch ไปที่ input ได้ยังไงโดยที่ scratch ไม่เปลี่ยน
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บท 0045 — QSS lookup table: แปลค่า READ เป็นความสว่าง</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<script defer src="../assets/quiz.js"></script>
+<script defer src="../assets/circles.js"></script>
+<script defer src="../assets/circuit.js"></script>
+<script defer src="../assets/lut.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Quantum Programming · Lec 11 · บทที่ 0045 (บทสุดท้ายของคาบ)</div>
+  <h1>QSS lookup table: แปลค่า READ เป็นความสว่าง</h1>
+  <p class="lead">บท 0044 จบที่ว่า QSS รัน AA + QFT แล้ว READ counter ออกมาได้ตัวเลขตัวหนึ่ง ·
+    แต่ตัวเลขนั้น<b>ยังไม่ใช่</b>จำนวน subpixel ขาวตรงๆ · บทนี้คือชิ้นสุดท้ายของจิ๊กซอว์:
+    <b>ตารางที่แปลค่า READ กลับเป็นความสว่าง</b> แล้วดูว่าตารางเดียวกันนี้ยังเอาไปทำอะไรต่อได้อีก</p>
+
+  <div class="box why">
+    <b>ทำไมต้องเรียนบทนี้</b>: จับหลัก 4 อย่าง
+    ① <b>QSS lookup table (ตารางเทียบค่า)</b>: แถว = ค่า READ · คอลัมน์ = จำนวน subpixel ขาว · สว่าง = น่าจะเป็น
+    ② ตารางนี้<b>ไม่ขึ้นกับภาพ</b> สร้างครั้งเดียวใช้ซ้ำ และเป็น <b>fingerprint (ลายนิ้วมือ)</b> ของขนาด tile + counter
+    ③ แถวไหนสว่างช่องเดียว = มั่นใจ · แถวไหนกระจาย = ไม่มั่นใจ → ได้ <b>confidence map (แผนที่ความมั่นใจ)</b>
+    ④ อยากได้สี → ใช้ <b>bitplanes (ระนาบบิต)</b> render ภาพขาวดำทีละ channel แล้วรวม
+  </div>
+
+  <div class="box aha">
+    <b>ของเก่าที่จะกลับมาใช้</b>:
+    DFT ของคลื่นจริงได้ <b>peak คู่สะท้อน</b> และถ้าความถี่ไม่ลงช่องพอดีจะ<b>รั่ว</b>ไปช่องข้างๆ
+    (<a href="0028-dft-mirror-peaks.html">บท 0028</a>) ·
+    tile โดน flip M ตัว → AA แกว่งเร็วช้าตาม M → QFT อ่านความถี่ (<a href="0044-sum-estimation-counting-flips-aa-qft.html">บท 0044</a>)
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 1 · ตารางคืออะไร อ่านยังไง สร้างยังไง (p41–47)</h2></div>
+
+  <h2>ทำไมต้องมีตาราง (p41)</h2>
+  <p>สไลด์บอกว่าเลขที่ READ ได้ <b>"เกี่ยวข้องกับ แต่ไม่เท่ากับ"</b> จำนวน subpixel ขาวใน tile · เหตุผลมี 2 ชั้นที่เราเห็นแล้วในบท 0044:</p>
+  <ol>
+    <li>ความถี่ของการแกว่งส่วนใหญ่<b>ไม่ลงช่องพอดี</b> → QFT ให้ peak ที่เบลอ กระจายไปหลายช่อง → READ ได้ค่าสุ่ม</li>
+    <li>เลขช่องที่ออกมาถูก<b>สลับลำดับ</b>อีกชั้นในโค้ดจริงของ QCEngine → ค่า READ ไม่เรียงตามจำนวน subpixel</li>
+  </ol>
+  <p>ทางแก้ที่สไลด์ใช้คือไม่ต้องหาสูตรกลับ แต่<b>ทำตารางไว้ล่วงหน้า</b>เลยว่า "ถ้าขาว M ตัว จะ READ ได้อะไรด้วยโอกาสเท่าไร"
+    แล้วเปิดตารางย้อนกลับ · คล้ายตารางแปลงหน่วยที่แปะข้างตู้เย็น: ไม่ต้องคิดสูตรทุกครั้ง แค่เปิดดู</p>
+
+  <h2>Figure 11-14: หน้าตาของตาราง (p42–43)</h2>
+  <p>ตัวอย่างของสไลด์ใช้ <b>tile 4×4 (16 subpixel)</b> + <b>counter 4 qubit</b> · อ่านแบบนี้:</p>
+  <ul>
+    <li><b>แถว</b> (แนวตั้ง) = ค่าที่ READ ได้ · counter 4 qubit → 2⁴ = <b>16 แถว</b> (0–15)</li>
+    <li><b>คอลัมน์</b> (แนวนอน) = จำนวน subpixel ขาวที่เป็นไปได้ · 0 ถึง 16 → <b>17 คอลัมน์</b> (0 = ดำ · 8 = เทา · 16 = ขาว)</li>
+    <li><b>ความสว่างของช่อง</b> = ความน่าจะเป็น · ยิ่งสว่าง ยิ่งน่าจะ · พื้นดำ = แทบเป็นไปไม่ได้</li>
+  </ul>
+
+  <div class="lut" data-sub="16" data-cnt="4" data-cw="22" data-ch="19" data-hl="10" data-pick="1"
+       data-lab="Figure 11-14 (คำนวณใหม่) · tile 4×4 · counter 4 qubit"
+       data-cap="หนูไม่ได้ก๊อปรูป แต่จำลอง QSS จริงแล้ววาด → ได้ตรงกับรูปในสไลด์ทุกแถว · คลิกแถวไหนก็ได้ = สมมติว่า READ ได้ค่านั้น"></div>
+
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> ตัวอย่างในสไลด์ (p43): READ ได้ <b>10</b> → ไปดูแถว 10</div>
+    <div class="step"><span class="lbl">②</span> ช่องสว่างสุดอยู่คอลัมน์ <b>5</b> → เดาว่า tile นี้มี subpixel ขาว <b>5 ตัว</b></div>
+    <div class="step"><span class="lbl">③</span> แต่ <b>4 กับ 6</b> ก็ยังสว่างพอควร และ <b>3 กับ 7</b> จางๆ → เป็นไปได้เหมือนกัน</div>
+    <div class="step"><span class="lbl">④</span> นี่คือที่มาของ error: ค่า READ ค่าเดียว<b>ชี้จำนวน subpixel ได้ไม่เด็ดขาดเสมอไป</b></div>
+  </div>
+
+  <h2>ลายของตารางบอกอะไร (คาโฮะอธิบายเสริม · สไลด์ไม่ได้พูด)</h2>
+  <p>ลองสังเกตตารางด้านบนดี มีของแปลกอยู่ 2 อย่าง และทั้งคู่อธิบายได้ด้วยเรื่อง DFT ที่เรียนไปแล้ว:</p>
+  <div class="twocol">
+    <div class="c"><b>แถวมาเป็นคู่หน้าตาเหมือนกัน</b><br>
+      (2,3) (5,6) (4,7) (10,13) (11,12) (9,14) (8,15) · เพราะคลื่นจริงหนึ่งลูกให้ <b>peak คู่สะท้อน</b>เสมอ
+      (เหมือน 8 กับ 248 ใน <a href="0028-dft-mirror-peaks.html">บท 0028</a>) · พอโดนสลับลำดับช่อง peak คู่นั้นก็ไปตกแถวเลขคู่กันพอดี</div>
+    <div class="c"><b>คอลัมน์ 0 กับ 16 คมช่องเดียว</b><br>
+      ขาว 16 ตัว = ไม่แกว่งเลย (ความถี่ 0) · ขาว 0 ตัว = กลับเครื่องหมายทุกรอบ (ความถี่ครึ่งหนึ่งพอดี) ·
+      ทั้งสองค่า<b>ลงช่องพอดี</b> จึงไม่รั่ว · ค่าอื่นลงระหว่างช่อง จึงรั่วเป็นแถบ 3–5 ช่อง</div>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <div class="q">ลองอ่านจากตารางเอง (ยังไม่ต้องคลิก): ถ้า READ ได้ <b>4</b> ควรตอบว่า tile นี้มี subpixel ขาวกี่ตัว</div>
+    <button class="opt">4 ตัว เพราะค่า READ = จำนวนตรงๆ</button>
+    <button class="opt">8 ตัว เพราะแถวนี้สว่างกลางตาราง</button>
+    <button class="opt">14 ตัว เพราะช่องสว่างสุดของแถวนี้</button>
+    <div class="fb ok" data-for="ok">ใช่ค่ะ แถว 4 สว่างสุดที่ 14 · รองลงมา 13 · จางที่ 12 กับ 15 ·
+      สังเกตว่า READ 4 กลับแปลว่า<b>เกือบขาวทั้ง tile</b> — นี่แหละ "เกี่ยวแต่ไม่เท่า" (คลิกแถว 4 ในตารางเพื่อดูเปอร์เซ็นต์ได้)</div>
+    <div class="fb no" data-for="no">ลองใหม่นะคะ ค่า READ <b>ไม่ใช่</b>จำนวน subpixel ·
+      ต้องไล่แถว 4 ไปทางขวาจนเจอช่องที่สว่างที่สุด แล้วอ่านเลขคอลัมน์ใต้ช่องนั้น</div>
+  </div>
+
+  <h2>สร้างตารางยังไง: Example 11-5 (p44–45)</h2>
+  <p>จุดสำคัญที่สุด: <b>ตารางไม่ขึ้นกับภาพ</b> (พูดให้ตรงคือ ไม่ขึ้นกับ quantum pixel shader) · เพราะ QSS นับแค่ว่า
+    <b>มีขาวกี่ตัว</b> ไม่สนว่าขาวตัว<b>ไหน</b> · ดังนั้นแค่จำลองว่า "flip M ตัวใดก็ได้" ทีละ M ก็ได้ตารางครบ ·
+    <b>สร้างครั้งเดียว reuse ได้</b>กับทุกงาน QSS ที่ tile กับ counter ขนาดเท่ากัน (p41, p44)</p>
+
+<pre class="code-blk">// Building a QSS lookup table                       ← สไลด์พิมพ์ # (JS ต้องเป็น //)
+function create_table_column(color, qxy, qcount) {   // เรียก 1 ครั้ง = สร้าง 1 คอลัมน์
+    var true_count = color;                          // คอลัมน์นี้ = ขาว color ตัว
+    // Put everything into superposition
+    qc.write(0);
+    qcount.hadamard();                               // counter = ทุกจำนวนรอบพร้อมกัน
+    qxy.hadamard();                                  // ผ้าใบเปล่าของ tile
+    for (var i = 0; i &lt; num_counter_bits; ++i) {
+        var reps = 1 &lt;&lt; i;                           // bit i ของ counter = 2ⁱ รอบ
+        var condition = qcount.bits(reps);
+        var mask_with_condition = qxy.bits().or(condition);
+        for (var j = 0; j &lt; reps; ++j) {             // ← สไลด์พิมพ์ติดกัน "for(varj=0;…"
+            flip_n_terms(qxy, true_count, condition);         // แทน shader: flip M ตัวไหนก็ได้
+            grover_iteration(qxy.bits(), mask_with_condition); // mirror
+        }
+    }
+    invQFT(qcount);
+    // Construct the lookup table
+    for (var i = 0; i &lt; (1 &lt;&lt; num_counter_bits); ++i)
+        qss_lookup_table[color][i] = qcount.peekProbability(i);  // แอบดูโอกาสของทุกค่า READ
+}</pre>
+  <p>โครงเหมือน <code class="code">qss_tile()</code> ในบท 0044 ทุกอย่าง <b>ต่างแค่ตัวเดียว</b>: ที่ตรงเรียก pixel shader วาดรูป
+    ถูกแทนด้วย <code class="code">flip_n_terms(qxy, true_count, …)</code> ที่ flip แค่ "M ตัวไหนก็ได้" ·
+    และตอนจบไม่ READ แต่ใช้ <code class="code">peekProbability</code> แอบดูความน่าจะเป็นของทุกค่า
+    (ทำได้เพราะรันบน simulator — คาโฮะเสริม)</p>
+
+  <div class="box warn">
+    <b>สไลด์พิมพ์ผิดในโค้ด (p44–45)</b>: บรรทัดแรกใช้ <code class="code">#</code> เป็น comment (JavaScript ต้องเป็น <code class="code">//</code>) ·
+    <code class="code">for(varj=0;j&lt;reps;++j)</code> พิมพ์ติดกัน · หนูแก้ให้รันได้แล้วในกล่องด้านบน
+  </div>
+
+  <h2>ตารางเป็น "ลายนิ้วมือ" ของอัลกอริทึม (p45–47)</h2>
+  <p>หน้าตาของตารางบอกทันทีว่า QSS ที่ตั้งค่าแบบนี้<b>เก่งแค่ไหน</b> · สไลด์จึงเรียกมันว่า <b>fingerprint</b> ·
+    มีปุ่มปรับ 2 ตัว และแต่ละตัวยืดตารางคนละทิศ:</p>
+
+  <div class="qcrow">
+    <div class="lut" data-sub="4" data-cnt="4" data-cw="10" data-ch="6" data-axes="0" data-cap="4 subpixel · 5 คอลัมน์"></div>
+    <div class="lut" data-sub="16" data-cnt="4" data-cw="6" data-ch="6" data-axes="0" data-cap="16 subpixel · 17 คอลัมน์"></div>
+    <div class="lut" data-sub="64" data-cnt="4" data-cw="3.2" data-ch="6" data-axes="0" data-cap="64 subpixel · 65 คอลัมน์"></div>
+  </div>
+  <p class="meta" style="text-align:center">Figure 11-15 (คำนวณใหม่): counter 4 qubit เท่ากัน (16 แถว) · <b>เพิ่ม subpixel = เพิ่มคอลัมน์</b></p>
+
+  <div class="qcrow">
+    <div class="lut" data-sub="16" data-cnt="1" data-cw="5" data-ch="6" data-axes="0" data-cap="1 bit · 2 แถว"></div>
+    <div class="lut" data-sub="16" data-cnt="2" data-cw="5" data-ch="6" data-axes="0" data-cap="2 bit · 4 แถว"></div>
+    <div class="lut" data-sub="16" data-cnt="3" data-cw="5" data-ch="6" data-axes="0" data-cap="3 bit · 8 แถว"></div>
+    <div class="lut" data-sub="16" data-cnt="4" data-cw="5" data-ch="6" data-axes="0" data-cap="4 bit · 16 แถว"></div>
+    <div class="lut" data-sub="16" data-cnt="5" data-cw="5" data-ch="6" data-axes="0" data-cap="5 bit · 32 แถว"></div>
+  </div>
+  <p class="meta" style="text-align:center">Figure 11-16 (คำนวณใหม่): tile 4×4 เท่ากัน (17 คอลัมน์) · <b>เพิ่ม counter = เพิ่มแถว</b></p>
+
+  <div class="eq">คอลัมน์ = จำนวน subpixel + 1 &nbsp;&nbsp;·&nbsp;&nbsp; แถว = 2<sup>จำนวน counter qubit</sup></div>
+
+  <p>อ่านลายนิ้วมือยังไง: จุดสว่างยิ่ง<b>แคบและแยกกัน</b> = ค่า READ ค่าหนึ่งชี้จำนวน subpixel ได้เจาะจง (ดี) ·
+    จุดสว่างยิ่ง<b>ยืดเป็นแถบยาว</b> = ค่า READ ค่าหนึ่งครอบคลุมหลายจำนวน (กำกวม) ·
+    ดูจากรูป: tile ใหญ่ขึ้นแต่ counter เท่าเดิม → <b>แถบยืด</b> · counter มากขึ้น → <b>จุดคมขึ้น</b>
+    (สอดคล้องกับ trade-off ในบท 0044: counter มาก = ภาพดี แต่รันโค้ดวาดรูปมากขึ้น)</p>
+
+  <div class="box warn">
+    <b>สไลด์ขัดกันเอง (p47)</b>: หัวรูป Figure 11-16 เขียน "4x4 tile, <b>16</b> columns" แต่ Figure 11-15 ในหน้าเดียวกันเขียน
+    "4x4 tile, <b>17</b> columns" · ที่ถูกคือ <b>17</b> เพราะขาวได้ 0–16 = 17 ค่า ·
+    ถ้าข้อสอบถาม ให้ตอบ 17 พร้อมเหตุผลนี้ได้เลย (ผิดมาจากรูปต้นฉบับในหนังสือ)
+  </div>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">ลองคำนวณเอง: QSS ที่ใช้ tile <b>8×8</b> กับ counter <b>5 qubit</b> จะได้ lookup table ขนาดเท่าไร</div>
+    <button class="opt">64 แถว × 32 คอลัมน์</button>
+    <button class="opt">32 แถว × 65 คอลัมน์</button>
+    <button class="opt">32 แถว × 64 คอลัมน์</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ แถว = 2⁵ = 32 (ค่า READ ที่เป็นไปได้) · คอลัมน์ = 64 + 1 = 65 (ขาวได้ 0 ถึง 64)</div>
+    <div class="fb no" data-for="no">เกือบแล้วค่ะ แถวมาจาก<b>counter</b> (2⁵ = 32) · คอลัมน์มาจาก<b>subpixel</b> และต้อง <b>+1</b>
+      เพราะนับขาว 0 ตัวด้วย → 65</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <div class="part"><h2>ส่วนที่ 2 · เอาตารางไปใช้ต่อ: ความมั่นใจ → สี → สรุปคาบ (p48–55)</h2></div>
+
+  <h2>confidence map: ตารางเดียวกันบอกได้ว่ามั่นใจแค่ไหน (p48–49)</h2>
+  <p>ไอเดียตรงไปตรงมามาก: พอได้ค่า READ ของ pixel หนึ่ง ก็ไปเปิดแถวนั้น ·
+    ถ้าแถวนั้น<b>สว่างช่องเดียว</b> → คำตอบมีทางเดียว <b>มั่นใจมาก</b> ·
+    ถ้าแถวนั้น<b>สว่างกระจายหลายช่อง</b> → อาจเป็นได้หลายค่า <b>มั่นใจน้อย</b> ·
+    สไลด์ยกตัวอย่าง: READ <b>0 หรือ 1</b> มั่นใจมาก · READ <b>2, 3 หรือ 4</b> มั่นใจน้อยลงมาก (p48)</p>
+
+  <div class="lut" data-sub="16" data-cnt="4" data-cw="20" data-ch="18" data-conf="1" data-hl="2" data-pick="1"
+       data-lab="ตาราง Figure 11-14 + แถบ “มั่นใจ” ทางขวา"
+       data-cap="แถบขวา: ยิ่งขาว ยิ่งมั่นใจ · ตัวเลขเปอร์เซ็นต์คาโฮะคำนวณเอง (สมมติว่าก่อนวัดทุกจำนวนมีโอกาสเท่ากัน) — สไลด์ไม่มีตัวเลขนี้"></div>
+
+  <table class="cmp">
+    <thead><tr><th>ค่า READ</th><th>เดาว่าขาว</th><th>มั่นใจราว (คาโฮะคำนวณ)</th></tr></thead>
+    <tbody>
+      <tr><td data-label="ค่า READ">0 / 1</td><td data-label="เดาว่าขาว">16 / 0</td><td data-label="มั่นใจ">90%</td></tr>
+      <tr><td data-label="ค่า READ">8, 9, 14, 15</td><td data-label="เดาว่าขาว">15 หรือ 1</td><td data-label="มั่นใจ">80%</td></tr>
+      <tr><td data-label="ค่า READ">4–7</td><td data-label="เดาว่าขาว">14 หรือ 2</td><td data-label="มั่นใจ">43%</td></tr>
+      <tr><td data-label="ค่า READ">10–13</td><td data-label="เดาว่าขาว">5 หรือ 11</td><td data-label="มั่นใจ">36%</td></tr>
+      <tr><td data-label="ค่า READ">2 / 3</td><td data-label="เดาว่าขาว">8</td><td data-label="มั่นใจ">33% (ต่ำสุด)</td></tr>
+    </tbody>
+  </table>
+
+  <p>ทำแบบนี้กับ<b>ทุก pixel</b> ของภาพ → ได้ภาพที่สองเรียกว่า <b>confidence map</b> ที่ชี้ว่าตรงไหนน่าจะมี error ·
+    <b>Figure 11-17</b> (p49) วางคู่กัน: ซ้ายคือภาพวงแหวนที่ QSS render (คมที่มุมบนซ้าย ยิ่งห่างยิ่งถี่จนเป็น noise เทา) ·
+    ขวาคือ confidence map ซึ่ง<b>สว่างตรงมุมบนซ้าย</b> (ตรงที่ภาพคม) และ<b>มืดเกือบทั้งภาพที่เหลือ</b> ·
+    caption: <i>brighter pixels denote areas where the result is more likely correct</i> → <b>สว่าง = น่าจะถูก · มืด = น่าจะผิด</b></p>
+
+  <div class="quiz" data-answer="0">
+    <div class="q">ทำไมพื้นที่สีเทากลางๆ ของภาพถึงมืดใน confidence map (ลองโยงกับตาราง)</div>
+    <button class="opt">pixel เทาให้ READ แถว 2/3 ที่สว่างกระจายหลายช่อง</button>
+    <button class="opt">pixel เทาไม่มีวัน READ ได้เพราะ phase หักล้างกันหมด</button>
+    <button class="opt">pixel เทาให้ READ แถว 0/1 ที่สว่างแค่ช่องเดียวเสมอ</button>
+    <div class="fb ok" data-for="ok">ใช่ค่ะ ขาวราว 8 จาก 16 → READ 2 หรือ 3 · แถวนั้นสว่างตั้งแต่ 6 ถึง 10 ·
+      เดาได้แค่ราว 33% → มืดใน confidence map · ส่วนบริเวณที่ขาวล้วน/ดำล้วนได้ READ 0/1 ที่คมช่องเดียว → สว่าง</div>
+    <div class="fb no" data-for="no">ลองย้อนไปดูตารางค่ะ ขาวราว 8 ตัว → คอลัมน์ 8 สว่างที่แถวไหน ·
+      แล้วแถวนั้นสว่างกี่ช่อง · ยิ่งหลายช่อง ยิ่งไม่มั่นใจ</div>
+  </div>
+
+  <h2>เพิ่มสีด้วย bitplanes (p50–52)</h2>
+  <p>ภาพทั้งหมดที่ผ่านมาเป็น <b>one-bit monochrome (ขาวดำ 1 บิตต่อ pixel)</b>: flip = ขาว · ไม่ flip = ดำ · ถ้าอยากได้สีมีสองทาง:</p>
+  <div class="twocol">
+    <div class="c"><b>❌ ยัดหลายระดับลง phase/amplitude ตรงๆ</b><br>
+      ใช้ไม่ได้ เพราะ Quantum Sum Estimation <b>นับว่าถูก flip หรือไม่</b> (ใช่/ไม่ใช่) ·
+      ถ้า phase มีหลายระดับ กลไกนับจะพังทันที (p50)</div>
+    <div class="c"><b>✅ bitplanes</b> (ยืมจากการ์ดจอยุคแรก)<br>
+      ให้ pixel shader render ภาพขาวดำ<b>หลายภาพแยกกัน</b> แต่ละภาพ = 1 บิตของภาพสุดท้าย ·
+      แต่ละภาพยังเป็น flip/ไม่ flip เหมือนเดิม QSS จึงใช้ได้ (p50)</div>
+  </div>
+
+  <p>ตัวอย่างของสไลด์ (p51): แยกเป็น 3 ภาพ <b>R · G · B</b> → supersample <b>แต่ละภาพแยกกัน</b> → รวมกลับเป็นภาพสี</p>
+  <div class="work">
+    <div class="step"><span class="lbl">①</span> ถ้าไม่ supersample: แต่ละ channel เปิด/ปิดได้อย่างเดียว → 2 × 2 × 2 = <b>8 สี</b> (รวมดำและขาว):
+      <span style="display:inline-block;width:1em;height:1em;background:#000;border:1px solid #888;vertical-align:middle"></span>
+      <span style="display:inline-block;width:1em;height:1em;background:#f00;vertical-align:middle"></span>
+      <span style="display:inline-block;width:1em;height:1em;background:#0c0;vertical-align:middle"></span>
+      <span style="display:inline-block;width:1em;height:1em;background:#00f;vertical-align:middle"></span>
+      <span style="display:inline-block;width:1em;height:1em;background:#ff0;vertical-align:middle"></span>
+      <span style="display:inline-block;width:1em;height:1em;background:#f0f;vertical-align:middle"></span>
+      <span style="display:inline-block;width:1em;height:1em;background:#0ff;vertical-align:middle"></span>
+      <span style="display:inline-block;width:1em;height:1em;background:#fff;border:1px solid #888;vertical-align:middle"></span></div>
+    <div class="step"><span class="lbl">②</span> พอ supersample: แต่ละ channel ได้<b>หลายระดับเทา</b> (ผสม subpixel ใน tile) → รวมแล้วเทียบเท่า <b>12-bit-per-pixel</b></div>
+  </div>
+  <p class="meta">💡 สไลด์ไม่ได้บอกว่าเลข 12 มาจากไหน · คาโฮะเดาว่า = 3 channel × 4 บิต (tile 4×4 ให้ราว 16 ระดับต่อ channel ≈ 4 บิต) ·
+    ตอนสอบให้จำแค่ "8 สี → เทียบเท่า 12-bit" ตามสไลด์</p>
+  <p><b>Figure 11-18</b> (p52, caption <i>“Space Harrier eat your heart out!”</i>): แถวบนเป็นภาพเทา 3 ภาพในกรอบแดง เขียว น้ำเงิน
+    มีลูกศรชี้ลงไปรวมเป็นภาพสีภาพเดียว เป็นฉากดวงอาทิตย์เหนือขอบฟ้ากับพื้นลายตารางหมากรุก ·
+    สังเกตว่าแต่ละ plane <b>มีหลายระดับเทา</b> ภาพรวมจึงไล่เฉดได้ ไม่ได้ติดอยู่แค่ 8 สี ·
+    โค้ดเต็มที่ <a href="https://oreilly-qc.github.io/?p=11-6">oreilly-qc.github.io/?p=11-6</a></p>
+
+  <div class="quiz" data-answer="1">
+    <div class="q">ถ้าใช้ 4 bitplanes (ยังไม่ supersample) จะได้กี่สี</div>
+    <button class="opt">8 สี</button>
+    <button class="opt">16 สี</button>
+    <button class="opt">12 สี</button>
+    <div class="fb ok" data-for="ok">ถูกค่ะ แต่ละ plane = 1 บิต → 2⁴ = 16 สี · หลักเดียวกับ 3 plane → 2³ = 8</div>
+    <div class="fb no" data-for="no">ลองใหม่ค่ะ 1 plane = 1 บิต (2 ทาง) · 4 plane = 2 × 2 × 2 × 2</div>
+  </div>
+
+  <h2>สรุปคาบ Lec 11 (p53–54)</h2>
+  <p>สไลด์สรุป 4 ข้อ (p53):</p>
+  <ol>
+    <li>ลองผสม <b>QPU primitive</b> แบบใหม่ๆ + domain knowledge นิดหน่อย อาจได้ QPU application ใหม่
+      (QSS = arithmetic + AA + QFT + ความรู้ด้านกราฟิก)</li>
+    <li>ความสามารถในการ <b>redistribute sampling noise (จัดการกระจาย noise ใหม่)</b> แสดงให้เห็นว่า
+      <b>บางทีต้องมองข้าม speedup</b> ถึงจะเห็นข้อดีของ QPU</li>
+    <li>การกระจาย noise แบบใหม่นี้อาจมีประโยชน์<b>นอกเหนือ computer graphics</b></li>
+    <li>งานอื่นที่ใช้ <b>Monte Carlo sampling</b> หนัก: artificial intelligence · computational fluid dynamics · finance</li>
+  </ol>
+  <p>p54: คาบนี้แทนภาพด้วย <b>phase encoding</b> แต่วงการ Quantum Image Processing ยังมี representation อื่นอีก (สไลด์ให้แค่ชื่อ):
+    <b>Qubit Lattice</b> · <b>FRQI</b> (Flexible Representation of Quantum Images) · <b>NEQR</b> (Novel Enhanced Quantum Representation) ·
+    <b>GQIR</b> (Generalized Quantum Image Representation) · ซึ่งถูกเอาไปลองกับงาน <b>template matching</b> · <b>edge detection</b> ·
+    <b>image classification</b> · <b>image translation</b></p>
+
+  <div class="box aha">
+    <b>ภาพรวมทั้งคาบในประโยคเดียว</b>: วาดภาพลง phase (0041–0042) → แบ่ง tile (0043) →
+    นับขาวด้วย AA + QFT (0044) → <b>แปลค่า READ ด้วย lookup table</b> แล้วได้ความมั่นใจกับสีเป็นของแถม (0045)
+  </div>
+
+  <div class="box warn">
+    <b>เรื่องสอบ</b>: ครึ่งหลังของคาบนี้<b>ไม่มีวงจรใหม่</b> (cheat sheet ไม่ต้องเติม) ·
+    ที่น่าออกคือ: อ่าน lookup table (READ → จำนวน) · ขนาดตาราง (แถว = 2<sup>counter</sup>, คอลัมน์ = subpixel + 1) ·
+    ทำไมตารางไม่ขึ้นกับภาพ · READ 0/1 มั่นใจ vs 2/3/4 ไม่มั่นใจ · bitplanes 3 plane = 8 สี → 12-bit
+  </div>
+
+  <h2>ทบทวนจากความจำ</h2>
+  <details class="recall"><summary>ทำไมค่า READ ถึงใช้เป็นความสว่างตรงๆ ไม่ได้</summary>
+    peak ของ QFT เบลอ (ความถี่ไม่ลงช่อง) + ลำดับช่องถูกสลับ → ค่า READ "เกี่ยวแต่ไม่เท่า" จำนวน subpixel ขาว (p41)</details>
+  <details class="recall"><summary>แถว / คอลัมน์ / ความสว่าง ของ lookup table หมายถึงอะไร</summary>
+    แถว = ค่า READ · คอลัมน์ = จำนวน subpixel ขาว · สว่าง = ความน่าจะเป็น · READ 10 → 5 (รอง 4/6, จาง 3/7) (p42–43)</details>
+  <details class="recall"><summary>ทำไมสร้างตารางครั้งเดียวแล้วใช้กับภาพไหนก็ได้</summary>
+    QSS นับแค่ "กี่ตัว" ไม่สน "ตัวไหน" → ใช้ flip_n_terms แทน shader ได้ · ใช้ซ้ำได้ถ้า tile + counter ขนาดเท่าเดิม (p41, p44)</details>
+  <details class="recall"><summary>เพิ่ม subpixel / เพิ่ม counter ตารางเปลี่ยนยังไง</summary>
+    เพิ่ม subpixel = เพิ่มคอลัมน์ (แถบยืด กำกวมขึ้น) · เพิ่ม counter = เพิ่มแถว (จุดคมขึ้น) · 16 vs 17 columns → ที่ถูกคือ 17 (p45–47)</details>
+  <details class="recall"><summary>confidence map คืออะไร สว่างแปลว่าอะไร</summary>
+    เปิดแถวของค่า READ ดูว่าคำตอบกระจายแค่ไหน ทำทุก pixel · สว่าง = น่าจะถูก · READ 0/1 มั่นใจ · 2/3/4 ไม่มั่นใจ (p48–49)</details>
+  <details class="recall"><summary>ทำไมต้อง bitplanes และ 3 plane ได้กี่สี</summary>
+    ยัดหลายระดับลง phase แล้ว Sum Estimation พัง · render ขาวดำแยกทีละ channel · 3 plane = 8 สี → supersample แล้วเทียบเท่า 12-bit (p50–51)</details>
+
+  <h2>สรุป</h2>
+  <ul>
+    <li>QSS lookup table แปลค่า READ → จำนวน subpixel ขาว · แถว = READ · คอลัมน์ = จำนวน · สว่าง = น่าจะเป็น (p41–43)</li>
+    <li>ไม่ขึ้นกับภาพ · สร้างด้วย Example 11-5 (<code class="code">flip_n_terms</code> + <code class="code">peekProbability</code>) ทีละคอลัมน์ (p44)</li>
+    <li>fingerprint: คอลัมน์ = subpixel + 1 · แถว = 2<sup>counter</sup> (Figure 11-15 / 11-16) (p45–47)</li>
+    <li>confidence map: แถวคม = มั่นใจ · แถวกระจาย = ไม่มั่นใจ · Figure 11-17 สว่าง = น่าจะถูก (p48–49)</li>
+    <li>bitplanes: render R/G/B แยก → 8 สี → supersample แล้วเทียบเท่า 12-bit (Figure 11-18) (p50–52)</li>
+    <li>มองข้าม speedup · redistribute noise · ใช้ได้กับงาน Monte Carlo อื่น · FRQI / NEQR / GQIR / Qubit Lattice (p53–54)</li>
+  </ul>
+
+  <div class="footer" id="next">
+    <p><b>อ่านต่อจากต้นทาง</b>: <i>Programming Quantum Computers</i> (O’Reilly) โดย
+      Eric R. Johnston, Nic Harrigan และ Mercedes Gimeno-Segovia · บทที่ 11 <i>Quantum Supersampling</i> หัวข้อ
+      <i>The QSS Lookup Table</i>, <i>Confidence Maps</i> และ <i>Adding Color</i> (Figure 11-14 ถึง 11-18) ·
+      โค้ดตัวอย่างรันได้ที่ <a href="https://oreilly-qc.github.io/?p=11-6">oreilly-qc.github.io/?p=11-6</a> ·
+      สไลด์ <code class="code">QuantumProg_Lec11.pdf</code> หน้า 41–55</p>
+    <p><b>บทก่อนหน้า</b>: <a href="0044-sum-estimation-counting-flips-aa-qft.html">0044 · นับว่า tile โดน flip กี่วง</a> ·
+      <b>บทถัดไป</b>: จบ Lec 11 แล้ว 🎉</p>
+    <p><b>บทที่เกี่ยวข้อง</b>:
+      <a href="0028-dft-mirror-peaks.html">0028 · DFT กับ peak คู่สะท้อน</a> ·
+      <a href="0041-qss-noise-character-and-blank-canvas.html">0041 · QSS กับ character of noise</a> ·
+      <a href="0043-tiles-drawing-16-subpixels-at-once.html">0043 · แบ่งภาพเป็น tile</a> ·
+      <a href="../reference/glossary.html">อภิธานศัพท์</a></p>
+    <div class="ask">
+      <b>ติดตรงไหนถามคาโฮะได้เลยนะคะ</b> จุดที่คนมักงงในบทนี้:
+      ① ทำไมแถวของตารางมาเป็นคู่ (peak คู่สะท้อน)
+      ② ตารางอ่าน "ตามคอลัมน์" (ขาว M → READ อะไร) กับ "ตามแถว" (READ r → ขาวกี่ตัว) ต่างกันยังไง
+      ③ ทำไมยัดสีหลายระดับลง phase แล้ว Sum Estimation ถึงพัง
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
