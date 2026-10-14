@@ -185,6 +185,159 @@
       <b>ข้อความ p15</b> “เก็บ 3 (110) ที่ 0x01 และ 5 (111) ที่ 0x11” — ของจริง 110 = 6, 111 = 7 (อ่านซ้าย = MSB) ซึ่งตรงกับวง ∣6⟩ ∣7⟩ ใน Figure 9-4 ·
       และ “0x01 / 0x11” จริงๆ คือ binary 01 / 11 · ถ้าถามตรงๆ ตอบตามสไลด์ แต่รู้ของจริงไว้</p></div>
     <p><a href="../lessons/0034-loading-real-data-fixed-point-ram-qram.html">อ่านตัวเต็ม → บท 0034 (fixed point · RAM · QRAM)</a></p>
+
+    <h3 id="lec09-qubits">3. Vector: state encoding vs amplitude encoding</h3>
+    <p>vector ยาว N เช่น v⃗ = [0, 1, 2, 3] (เจอบ่อยใน quantum machine learning) เก็บใน QPU ได้ 2 แบบ:</p>
+    <table class="cmp">
+      <thead><tr><th>ประเด็น</th><th>state encoding</th><th>amplitude encoding</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-label="ประเด็น">เก็บยังไง</td>
+          <td data-label="state encoding">component ละ <b>1 register</b> เก็บค่าเป็นเลขฐานสองใน <b>basis state เดียว</b> (วงเต็มวงเดียว ไม่มี superposition)</td>
+          <td data-label="amplitude encoding">ทุก component อยู่ใน <b>amplitude ของ superposition ใน register เดียว</b> — component ที่ i = amplitude ของ ∣i⟩</td>
+        </tr>
+        <tr>
+          <td data-label="ประเด็น">ใช้กี่ qubit (vector ยาว N)</td>
+          <td data-label="state encoding"><b>N × (จำนวนบิตต่อ component)</b></td>
+          <td data-label="amplitude encoding"><b>⌈log₂ N⌉</b> — register k qubit มี 2<sup>k</sup> amplitude · N ไม่เป็นกำลังของ 2 ก็เติม 0 ให้ครบ</td>
+        </tr>
+        <tr>
+          <td data-label="ประเด็น">ต้องมี QRAM ไหม</td>
+          <td data-label="state encoding">ไม่ต้อง — เก็บใน RAM ธรรมดาแล้วเตรียมทีละ register</td>
+          <td data-label="amplitude encoding">ต้องพึ่ง QRAM (ไม่มีก็ทำได้แต่ไม่ efficient)</td>
+        </tr>
+        <tr>
+          <td data-label="ประเด็น">อ่านค่าออกได้ไหม</td>
+          <td data-label="state encoding">ได้ — แต่ละ register เป็น basis state ธรรมดา</td>
+          <td data-label="amplitude encoding"><b>ไม่ได้ทีละ component</b> (Caveat 1) — READ ได้ผลเดียวแบบสุ่มแล้ว state ยุบ · ได้แค่ <b>global properties</b> (คุณสมบัติภาพรวม)</td>
+        </tr>
+        <tr>
+          <td data-label="ประเด็น">เงื่อนไข</td>
+          <td data-label="state encoding">เลือก binary encoding ให้เหมาะ (เช่น fixed point)</td>
+          <td data-label="amplitude encoding"><b>ต้อง normalize</b>: Σ∣aᵢ∣² = 1 (Caveat 2) · ใส่ค่าเชิงซ้อนได้ (ใช้ทั้ง magnitude + phase → จึงชื่อ <i>amplitude</i> ไม่ใช่ <i>magnitude</i> encoding)</td>
+        </tr>
+        <tr>
+          <td data-label="ประเด็น">ข้อเสียหลัก</td>
+          <td data-label="state encoding">กิน qubit เยอะ (ทรัพยากรที่หายากสุด) และ<b>ใช้พลัง QPU ไม่ได้</b> — จัดการ relative phase ยากเมื่อแต่ละ register เป็นแค่ binary ธรรมดา</td>
+          <td data-label="amplitude encoding">output ที่เป็น amplitude-encoded vector อ่านออกมาไม่ได้ (“no free lunch”)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><b>นับ qubit — Table 9-1</b> (amplitude ใช้ 2 qubit ทุกแถว เพราะ N = 4)</p>
+    <table class="cmp">
+      <thead><tr><th>vector</th><th>amplitude encoding</th><th>state encoding</th></tr></thead>
+      <tbody>
+        <tr><td data-label="vector">[0, 1, 2, 3]</td><td data-label="amplitude encoding">⌈log₂ 4⌉ = <b>2</b></td><td data-label="state encoding">4 × 2 = <b>8</b></td></tr>
+        <tr><td data-label="vector">[6, 1, 1, 4]</td><td data-label="amplitude encoding"><b>2</b></td><td data-label="state encoding">4 × 3 = <b>12</b> (6 ต้องใช้ 3 บิต)</td></tr>
+        <tr><td data-label="vector">[0.52, 0.77, 0.26, 0.26]</td><td data-label="amplitude encoding"><b>2</b></td><td data-label="state encoding">4 × 7 = <b>28</b></td></tr>
+      </tbody>
+    </table>
+    <p>Example 9-3 (<code class="code">amplitude_encode</code>): vector ยาว 8 → <code class="code">Math.log2(8)</code> = <b>3 qubit</b> ·
+    vector 1 ล้าน component → ⌈log₂ 10⁶⌉ = <b>20 qubit</b> <i>(ตัวอย่างจากบทเรียน)</i></p>
+
+    <h4 id="lec09-normalize">normalize + อ่านพื้นที่วง</h4>
+    <p>amplitude [0, 1, 2, 3] ตรงๆ <b>เป็นไปไม่ได้</b> เพราะ 0² + 1² + 2² + 3² = 14 ≠ 1 → หารทุกตัวด้วย <b>√(ผลรวมกำลังสอง)</b></p>
+    <p class="eq">[0, 1, 2, 3] ÷ √14 (≈ 3.74) ≈ [0.00, 0.27, 0.53, 0.80]</p>
+    <p>ทิศของ vector ไม่เปลี่ยน แค่ย่อความยาว · เก็บค่า 3.74 ไว้ใน register อื่นได้ · ใน circle notation <b>พื้นที่วง = amplitude²</b> (Figure 9-8):</p>
+    <div class="scrollx">
+      <div class="crow" data-n="4" data-lab="[0, 0.27, 0.53, 0.80]" data-mag="0,0.0714,0.2857,0.6429" data-sub="0,0.07,0.28,0.64"></div>
+    </div>
+    <div class="box aha"><span class="tag">กับดักยกกำลังสอง</span>
+      <p>อ่านพื้นที่วงแล้วต้อง<b>ถอดรูท</b>กลับเป็น amplitude · กลับกัน amplitude → โอกาส READ ต้อง<b>ยกกำลังสอง</b><br>
+      เช่น [6, 1, 1, 4] → ÷√54 · โอกาส READ ได้ ∣0⟩ = 36/54 ≈ <b>67%</b> (ถ้าตอบ 82% = ลืมยกกำลังสอง — นั่นคือ amplitude 6/√54)</p></div>
+    <p><b>Caveat 1 — ระวัง quantum output:</b> input ไม่ค่อยมีปัญหา (โหลดจาก memory เรารู้ทุกค่าอยู่แล้ว) แต่ app ที่รับ amplitude-encoded vector มักคืน
+    output เป็น amplitude-encoded vector ด้วย → อ่านทีละ component ไม่ได้ · เจอ QML app ที่อ้างว่าเร็วขึ้นมหาศาล ให้เช็คเสมอว่าคืนผลเป็น quantum output หรือเปล่า</p>
+    <div class="box warn"><span class="tag">สไลด์ amplitude encoding มีจุดผิด — ตอบตามสไลด์ แต่รู้ของจริง</span>
+      <p><b>p25</b> เขียน <code class="code">ceil(log(n))</code> ไม่บอกฐาน → ของจริงคือ <b>⌈log₂ n⌉</b><br>
+      <b>p36</b> บอกว่า “หารด้วย summed squares” แต่ตัวเลขที่ใช้คือ 3.74 = <b>√14</b> (ผลรวมกำลังสองคือ 14) → ตัวเลขถูก ถ้อยคำผิด<br>
+      <b>Table 9-1 แถว 3</b>: state encoding เอาค่า ×100 เป็นเลข state (0.52 → ∣52⟩) และเรียกว่า “Q7.7” ทั้งที่ register 7 qubit —
+      ไม่ตรงกับ fixed point จริง · ถ้าถามจำนวน qubit ตอบตามสไลด์ = 4 × 7 = <b>28</b></p></div>
+    <p><a href="../lessons/0035-vector-state-vs-amplitude-encoding.html">อ่านตัวเต็ม → บท 0035 (state vs amplitude encoding)</a></p>
+
+    <h3 id="lec09-matrix">4. Matrix encoding / quantum simulation</h3>
+    <p><b>วิธีตรงๆ</b>: matrix m × n → m register ยาว log₂(n) qubit แล้ว amplitude-encode ทีละ <b>row</b> — ใส่ข้อมูลเข้าได้ แต่ไม่ได้แทน “ในฐานะ matrix”
+    (ไม่ชัดว่าจะ transpose หรือคูณกับ vector ยังไง) → <b>เข้ารหัส matrix เป็น QPU operation</b> ที่กระทำกับ register ที่เก็บ vector แทน</p>
+    <ul>
+      <li><b>แทนได้ถูก</b> = M·v ↔ U∣v⟩ ได้ผลตรงกันทุก v · เกณฑ์ที่ง่ายกว่า: <b>eigen decomposition เดียวกัน</b> —
+        eigenstates ของ U = amplitude encoding ของ eigenvectors ของ M · eigenphases <b>“สัมพันธ์กับ”</b> eigenvalues (สไลด์ไม่ได้บอกว่าเท่ากัน)</li>
+      <li>แค่นั้น “<b>เกือบพอ</b>” — ต้องมี <b>prescription</b> (วิธีสร้างจาก gate พื้นฐาน) และต้อง <b>efficient</b> ด้วย =
+        <i>good matrix representation</i></li>
+    </ul>
+    <p><b>Quantum simulation</b> = คำเรียกรวมของวิธีหา QPU operation ที่ efficient เพื่อแทน <b>Hermitian matrix</b> (H = H† · † = transpose แล้ว complex conjugate)
+    — ทุกเทคนิคอย่างน้อยต้องการ H ที่เป็น Hermitian เพราะ QPU operation ต้องเป็น <b>unitary</b> และ</p>
+    <p class="eq">U = exp(−iHt) เป็น unitary เสมอเมื่อ H เป็น Hermitian</p>
+    <p>t = เวลาที่ทำ operation (ถือเป็นรายละเอียด hardware) · ชื่อ “simulation” มาจากฟิสิกส์ — H ที่อธิบายระบบเรียกว่า <b>Hamiltonian</b> ·
+    matrix X ที่<b>ไม่</b> Hermitian → ห่อเป็น block matrix ที่ใหญ่ขึ้น:</p>
+    <p class="eq">H = [ 0 &nbsp; X ; X† &nbsp; 0 ]</p>
+    <p><b>3 ขั้น</b> (เกือบทุกวิธี): ① <b>Deconstruct</b> — แตก H = H₁ + … + Hₙ ให้แต่ละชิ้น simulate ง่าย (เช่นมีแต่ diagonal หรือกระทำกับ qubit ไม่กี่ตัว)
+    → ② <b>Simulate components</b> — หาวงจรของ Hᵢ แต่ละตัว → ③ <b>Reconstruction</b> — ประกอบกลับด้วย <b>Lie product formula</b>:
+    ทำ U₁ = exp(−iH₁δt), …, Uₙ = exp(−iHₙδt) ต่อกันทีละช่วงสั้น δt แล้ว<b>วนทั้งชุดซ้ำ m รอบ</b></p>
+    <p class="eq">exp(−iHt) ≈ (U₁ U₂ … Uₙ)<sup>m</sup></p>
+    <p><i>(สูตรบรรทัดนี้เป็นการสรุปเป็นสัญลักษณ์ — สไลด์พูดเป็นคำ ไม่ได้เขียนสูตรตรงๆ)</i></p>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="circuit" data-wires="3"
+           data-dash="1-5; 7-11; 13-17" data-under="1-17:m times"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2; BOX:0,2:e^−iH₁δt:2; _; ELL:0,1,2; BOX:0,2:e^−iHₙδt:2; _; _; BOX:0,2:e^−iH₁δt:2; _; ELL:0,1,2; BOX:0,2:e^−iHₙδt:2; _; ELL:0,1,2; BOX:0,2:e^−iH₁δt:2; _; ELL:0,1,2; BOX:0,2:e^−iHₙδt:2; _; _"
+           data-cap="Figure 9-9 · กล่อง exp คร่อมทุกสาย · กรอบแดงประ = 1 รอบ · ปีกกา m times = วนซ้ำ m รอบ"></div>
+    </div>
+    <p><b>ขั้น ① ทำยังไง</b> (ตัวอย่างของ product formula): ถ้า H เป็น <b>sparse</b> → มองเป็น adjacency matrix ของ <b>graph</b> แล้วแก้
+    <b>coloring problem</b> (vertex ที่มี edge ต่อกันห้ามสีเดียวกัน) — สีแต่ละสีจับกลุ่มสมาชิกเป็นชิ้น H₁ … Hₙ
+    (สไลด์ไม่ได้อธิบายกลไกต่อ · หัวสไลด์เขียน “Destructing H” = Deconstructing)</p>
+    <table class="cmp">
+      <thead><tr><th>เทคนิค (Table 9-2)</th><th>circuit runtime</th></tr></thead>
+      <tbody>
+        <tr><td data-label="เทคนิค">Product formula</td><td data-label="circuit runtime">O(d⁴)</td></tr>
+        <tr><td data-label="เทคนิค">Quantum walks</td><td data-label="circuit runtime">O(d/√ϵ)</td></tr>
+        <tr><td data-label="เทคนิค">Quantum signal processing</td><td data-label="circuit runtime">O(d + log(1/ϵ) / log log(1/ϵ))</td></tr>
+      </tbody>
+    </table>
+    <p>runtime = <b>ขนาดวงจร</b> · <b>d</b> = sparsity (จำนวนสมาชิกไม่เป็นศูนย์สูงสุดต่อแถว) · <b>ϵ</b> = ความแม่นยำที่ต้องการ ·
+    product formula ปรับดีขึ้นได้นิดหน่อยด้วย Lie product formula อันดับสูงขึ้น</p>
+    <div class="box warn"><span class="tag">ขนาด block matrix บนสไลด์</span>
+      <p>สไลด์: X ขนาด m × n → H ขนาด <b>2m × 2n</b> และ block ศูนย์ขนาด m × n — <b>ตอบตามสไลด์</b><br>
+      ของจริง: X† เป็น n × m → block ศูนย์บนซ้าย m × m · ล่างขวา n × n · H = <b>(m+n) × (m+n)</b> (Hermitian ต้องจัตุรัส) —
+      สองแบบตรงกันเฉพาะ m = n</p></div>
+    <p><a href="../lessons/0036-matrix-encoding-quantum-simulation.html">อ่านตัวเต็ม → บท 0036 (matrix · quantum simulation)</a></p>
+
+    <h3 id="lec09-symbols">5. สัญลักษณ์วงจรของคาบนี้</h3>
+    <table class="cmp">
+      <thead><tr><th>สัญลักษณ์</th><th>ชื่อ</th><th>ทำอะไร</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="2" data-ops="WRITE:0:1 + WRITE:1; _" data-alt="write 1 กับ write 0"></div></td>
+          <td data-label="ชื่อ">WRITE ▷ (เหลืองทึบ = 1 · วงฟ้า = 0)</td>
+          <td data-label="ทำอะไร">ตั้งค่าบิตเริ่มต้น — เช่นบิตของ fixed point ใน Figure 9-1</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="2" data-ops="_; READ:0:1 + READ:1:0" data-alt="detector ที่อ่านได้ 1 และ 0"></div></td>
+          <td data-label="ชื่อ">READ แบบบอกค่า (เหลือง+ขีด = 1 · เทา+วง = 0)</td>
+          <td data-label="ทำอะไร">อ่านค่ากลับไปเก็บใน RAM — Figure 9-3 (increment a[2])</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="scrollx"><div class="circuit" data-wires="5" data-ops="RAM:0,4:00>011|01>110|10>100|11>111:4; _; _; _" data-alt="กล่อง RAM"></div></div></td>
+          <td data-label="ชื่อ">กล่อง RAM (Figure 9-2)</td>
+          <td data-label="ทำอะไร">address ค่าเดียว → output = ค่าที่เก็บไว้ ณ address นั้น</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="scrollx"><div class="circuit" data-wires="5" data-ops="QRAM:0,4:00>011|01>110|10>100|11>111:4; _; _; _" data-alt="กล่อง QRAM"></div></div></td>
+          <td data-label="ชื่อ">กล่องเทา QRAM (Figure 9-4)</td>
+          <td data-label="ทำอะไร">address เป็น superposition → output เป็น superposition ของค่าที่เก็บไว้</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="5" data-ops="QRAMDA:0,4:3" data-alt="กล่อง QRAM แบ่ง D กับ A"></div></td>
+          <td data-label="ชื่อ">QRAM แบบ D / A (Figure 9-5)</td>
+          <td data-label="ทำอะไร">ครึ่งบน D = data (output) · ครึ่งล่าง A = address · จุดดำครึ่งวงที่ขอบทุกสาย</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="scrollx"><div class="circuit" data-wires="2" data-dash="0-4" data-under="0-4:m times"
+               data-ops="BOX:0,1:e^−iH₁δt:2; _; ELL:0,1; BOX:0,1:e^−iHₙδt:2; _" data-alt="กล่อง exp ในกรอบแดงประ พร้อมปีกกา m times"></div></div></td>
+          <td data-label="ชื่อ">กล่อง e<sup>−iHᵢδt</sup> + กรอบแดงประ + ปีกกา “m times” + สาย ··· (Figure 9-9)</td>
+          <td data-label="ทำอะไร">product formula — ทำชิ้น H₁…Hₙ ทีละ δt (1 กรอบ = 1 รอบ) แล้ววนซ้ำ m รอบ</td>
+        </tr>
+      </tbody>
+    </table>
     <!-- lec09:content-end -->
     <button type="button" class="next-btn" data-target="lec10">บทถัดไป: Lec10 Quantum Search →</button>
   </section>
