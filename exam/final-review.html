@@ -75,7 +75,116 @@
     <p class="kicker">Lec09 · กระชับ</p>
     <h2>Real Data — เอาข้อมูลจริงเข้า QPU</h2>
     <!-- lec09:content-start — เนื้อหาของ page นี้เขียนระหว่าง start/end เท่านั้น -->
-    <div class="box"><p>🚧 กำลังเขียน — page นี้ยังไม่เสร็จ</p></div>
+    <p>คาบนี้ตอบ 2 คำถาม: <b>① ข้อมูลที่ซับซ้อนกว่าจำนวนเต็ม (ทศนิยม · vector · matrix) แทนใน register ยังไง</b>
+    และ <b>② จะอ่านข้อมูลเข้า register ยังไง</b> (ไม่ใช่ตั้งค่าทีละบิตด้วยมือ) — ไล่จากเล็กไปใหญ่:
+    ตัวเลข 1 ตัว → memory (QRAM) → vector → matrix</p>
+
+    <h3 id="lec09-fixed">1. Fixed point — แทนเลขทศนิยมด้วย qubit</h3>
+    <p>แทนเลขไม่ใช่จำนวนเต็มใน binary มี 2 แบบ: <b>fixed point</b> (จุดทศนิยมตายตัว) กับ <b>floating point</b> (จุดทศนิยมลอยตัว)
+    — floating ยืดหยุ่นกว่า แต่ qubit มีค่ามากและอยากให้ง่าย จึงเริ่มที่ <b>fixed point</b>: แบ่ง register เป็น 2 ส่วน</p>
+    <ul>
+      <li><b>ส่วน integer</b> — binary ปกติ น้ำหนักบิต 2⁰, 2¹, 2², … (ยิ่งสูงยิ่งใหญ่)</li>
+      <li><b>ส่วน fractional (เศษ)</b> — น้ำหนักบิต ½¹, ½², ½³, … = ½, ¼, ⅛, … (ยิ่งลึกยิ่งเล็ก)</li>
+    </ul>
+    <p class="eq">Qn.m = register n bit · m bit เป็นเศษ · (n − m) bit เป็นจำนวนเต็ม</p>
+    <p>(Q ใน Q notation <b>ไม่ได้</b>ย่อมาจาก quantum — มีไว้บอกว่าบิตเศษจบตรงไหน บิตจำนวนเต็มเริ่มตรงไหน)</p>
+
+    <p><b>ตัวอย่างบนสไลด์ (Figure 9-1):</b> เก็บ <b>3.640625</b> ใน register 8 qubit แบบ <b>Q8.6</b> (เศษ 6 bit + จำนวนเต็ม 2 bit)
+    — ป้ายซ้ายแต่ละสาย = น้ำหนักของบิตนั้น · <b>สายบนสุด = บิตน้ำหนักต่ำสุด (1/64)</b> · ▷ เหลืองทึบ = write 1 · ▷ วงฟ้า = write 0</p>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="circuit" data-wires="8" data-wire-labels="0x1/64,0x1/32,0x1/16,0x1/8,0x1/4,0x1/2,0x1,0x2"
+           data-ops="WRITE:0:1 + WRITE:1 + WRITE:2 + WRITE:3:1 + WRITE:4 + WRITE:5:1 + WRITE:6:1 + WRITE:7:1; _"
+           data-cap="Figure 9-1 · Q8.6 ของ 3.640625 — อ่านจากสายล่างขึ้นบน = 11101001"></div>
+    </div>
+    <p class="eq">11.101001 → 2 + 1 + ½ + ⅛ + 1/64 = 2 + 1 + 0.5 + 0.125 + 0.015625 = 3.640625</p>
+    <p>ตัวนี้ลงตัว<b>พอดีเป๊ะ</b>เพราะบังเอิญเป็นผลรวมของกำลังของ 2 — ปกติไม่โชคดีขนาดนั้น ต้องปัดเข้าค่าที่ใกล้สุด</p>
+
+    <table class="cmp">
+      <thead><tr><th>เพิ่มบิตฝั่งไหน</th><th>ได้อะไร</th><th>ตัวเลข</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-label="เพิ่มบิตฝั่งไหน">ฝั่ง <b>integer</b> (n − m)</td>
+          <td data-label="ได้อะไร">เพิ่ม <b>range</b> (ช่วงค่าที่แทนได้)</td>
+          <td data-label="ตัวเลข">ค่าสูงสุดแบบไม่ติดลบ = 2<sup>n−m</sup> − ½<sup>m</sup> · เช่น Q8.6 → 4 − 1/64 = 3.984375 <i>(คิดจากน้ำหนักบิต ไม่ได้เขียนบนสไลด์)</i></td>
+        </tr>
+        <tr>
+          <td data-label="เพิ่มบิตฝั่งไหน">ฝั่ง <b>fractional</b> (m)</td>
+          <td data-label="ได้อะไร">เพิ่ม <b>accuracy</b> (ความแม่นยำของส่วนเศษ)</td>
+          <td data-label="ตัวเลข">ความละเอียด (ช่องห่างเล็กสุด) = ½<sup>m</sup> = ค่าบิตเศษตัวสุดท้าย · Q8.6 → 1/64 = 0.015625</td>
+        </tr>
+      </tbody>
+    </table>
+    <p><b>ตัวอย่างปัดค่า</b> (จากบทเรียน 0034): Q3.2 = จำนวนเต็ม 1 bit + เศษ 2 bit → ก้าวทีละ ¼ แทนได้ 0, 0.25, 0.5, …, 1.75
+    → อยากเก็บ <b>1.3</b> ได้ใกล้สุดคือ <b>1.25</b> (= 1 + ¼ · คลาด 0.05)</p>
+    <div class="box aha"><span class="tag">register ไม่รู้ตัวว่าตัวเองเป็น encoding อะไร</span>
+      <p>ต้อง<b>จำเอง</b>ว่า register ไหนใช้ binary ธรรมดา / two's complement / fixed point ไม่งั้นตีความ state ผิด ·
+      และระวัง <b>overflow (ล้น)</b> — ผลใหญ่เกินที่ register แทนได้ → ได้ตัวเลขไร้ความหมาย · ทางแก้จริงทางเดียว = <b>เพิ่ม qubit</b></p></div>
+    <p><a href="../lessons/0034-loading-real-data-fixed-point-ram-qram.html">อ่านตัวเต็ม → บท 0034 (fixed point · RAM · QRAM)</a></p>
+
+    <h3 id="lec09-qram">2. RAM vs QRAM</h3>
+    <p>ทั้งคู่รับ register 2 ตัว: <b>address</b> (บอกตำแหน่ง) กับ <b>output</b> (รอรับค่า) แล้วตั้ง output = ค่าที่เก็บอยู่ ณ address นั้น
+    — ต่างกันที่ <b>QRAM ให้ทั้งสอง register เป็น qubit register</b> จึงใส่ address เป็น <b>superposition</b> ได้</p>
+    <table class="cmp">
+      <thead><tr><th>ประเด็น</th><th>RAM ธรรมดา</th><th>QRAM</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-label="ประเด็น">ตั้งค่า register ด้วย<b>ค่าเดียว</b></td>
+          <td data-label="RAM ธรรมดา">ได้ดี — <code class="code">write()</code> / <code class="code">read()</code> · CPU เป็นคนเลือก <code class="code">a[index]</code> แล้วส่งค่าให้ QPU (QCEngine ก็ทำแบบนี้เบื้องหลัง)</td>
+          <td data-label="QRAM">ได้</td>
+        </tr>
+        <tr>
+          <td data-label="ประเด็น">ตั้งเป็น <b>superposition ของค่าที่เก็บไว้หลายค่า</b></td>
+          <td data-label="RAM ธรรมดา"><b>ไม่มีทาง</b> — ข้อบกพร่องร้ายแรง</td>
+          <td data-label="QRAM"><b>ได้</b> — address เป็น superposition (เช่น H ที่บิต address) → output เป็น superposition ของค่า ณ address เหล่านั้น
+          โดย amplitude ตามที่ใส่ใน address</td>
+        </tr>
+        <tr>
+          <td data-label="ประเด็น">ฮาร์ดแวร์</td>
+          <td data-label="RAM ธรรมดา">มีอยู่แล้ว</td>
+          <td data-label="QRAM">หนังสือไม่บอกวิธีสร้าง (มีแค่ข้อเสนอเทคโนโลยี) · QPU ที่ทรงพลังอาจมาก่อน QRAM ที่ใช้ได้จริงนานมาก ·
+          โค้ดตัวอย่างรันบน simulator ที่เลียนพฤติกรรม QRAM — สำคัญที่<b>แนวคิด fundamental resource (ทรัพยากรพื้นฐาน)</b></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><b>Figure 9-4</b> — address สายบน write 1 · สายล่าง write 0 แล้ว H → address = ∣1⟩ + ∣3⟩ → ตาราง: 01 → 110 (= 6), 11 → 111 (= 7)
+    → output = <b>∣6⟩ + ∣7⟩</b> (50/50)</p>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="circuit" data-wires="5" data-names="out,out,out,addr,addr"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3:1 + WRITE:4; H:4; QRAM:0,4:00>011|01>110|10>100|11>111:4; _; _; _; _"
+           data-cap="Figure 9-4 · กล่องเทา QRAM คร่อม output 3 สาย + address 2 สาย มีตาราง Address → Value ข้างใน"></div>
+    </div>
+    <div class="scrollx">
+      <div class="crow" data-n="4" data-lab="address" data-mag="0,0.5,0,0.5" data-sub=",50%,,50%"></div>
+      <div class="crow" data-n="8" data-lab="output" data-mag="0,0,0,0,0,0,0.5,0.5" data-sub=",,,,,,50%,50%" data-hl="6,7"></div>
+    </div>
+
+    <p><b>Figure 9-5 / Example 9-2</b> — increment ค่าที่อ่านจาก QRAM: <code class="code">a = [4,3,5,1]</code> ·
+    <code class="code">addr.write(2)</code> + <code class="code">hadamard(0x1)</code> → addr = ∣2⟩ + ∣3⟩ →
+    <code class="code">qram_load</code> ได้ a[2] = 5 / a[3] = 1 → +1 (CCNOT → CNOT → NOT) → qreg = <b>∣6⟩ + ∣2⟩</b>
+    (พันกับ addr) <i>— ผล 6/2 คำนวณเอง สไลด์ไม่ได้แสดง</i> · กล่องแบบนี้แบ่ง <b>D</b> (data) / <b>A</b> (address)</p>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="circuit" data-wires="5" data-names="qreg,,,addr," data-wire-labels="0x1,0x2,0x4,0x1,0x2"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4:1; H:3; QRAMDA:0,4:3; CCNOT:0,1,2; CNOT:0,1; X:0"
+           data-cap="Figure 9-5 · QRAM แบบ D/A (จุดดำครึ่งวงที่ขอบทุกสาย) ตามด้วยวงจร +1"></div>
+    </div>
+
+    <p><b>ข้อจำกัดของ QRAM ตามสไลด์</b></p>
+    <ul>
+      <li><b>เขียน superposition กลับลง QRAM ไม่ใช่จุดประสงค์</b> — QRAM มีไว้<b>อ่าน</b>ค่าดิจิทัลที่เขียนแบบธรรมดา ในลักษณะ superposition ·
+        หน่วยความจำที่เก็บ superposition ไว้ได้ไม่จำกัดเวลา = <b>persistent quantum memory</b> เป็นฮาร์ดแวร์อีกชนิด และอาจสร้างยากกว่า QRAM</li>
+      <li>ยังไม่รู้ว่าฮาร์ดแวร์จริงจะหน้าตาแบบไหน — รายละเอียดการ implement อาจเปลี่ยนได้อีก</li>
+      <li>ไม่มี QRAM ก็สร้างวงจร amplitude encoding ได้ <b>แต่ไม่ efficient</b> (QCEngine จำลองแบบช้าแต่ใช้ได้)</li>
+    </ul>
+    <div class="box warn"><span class="tag">ลำดับบิตบนสไลด์ RAM/QRAM ขัดกันเอง</span>
+      <p><b>Figure 9-2 (RAM ธรรมดา)</b>: address บน→ล่าง 1,0 แต่ output ออกมาบน→ล่าง 0,0,1 — ไม่มี convention เดียวที่อธิบายได้ →
+      <b>ตอบตามรูป: address 10 → ค่า 100</b><br>
+      <b>ข้อความ p15</b> “เก็บ 3 (110) ที่ 0x01 และ 5 (111) ที่ 0x11” — ของจริง 110 = 6, 111 = 7 (อ่านซ้าย = MSB) ซึ่งตรงกับวง ∣6⟩ ∣7⟩ ใน Figure 9-4 ·
+      และ “0x01 / 0x11” จริงๆ คือ binary 01 / 11 · ถ้าถามตรงๆ ตอบตามสไลด์ แต่รู้ของจริงไว้</p></div>
+    <p><a href="../lessons/0034-loading-real-data-fixed-point-ram-qram.html">อ่านตัวเต็ม → บท 0034 (fixed point · RAM · QRAM)</a></p>
     <!-- lec09:content-end -->
     <button type="button" class="next-btn" data-target="lec10">บทถัดไป: Lec10 Quantum Search →</button>
   </section>
