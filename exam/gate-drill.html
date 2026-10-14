@@ -26,6 +26,8 @@
         <span><b>ลอจิกดิจิทัล</b> — NOT · AND · OR · XOR · NAND · NOR</span></label>
       <label><input type="checkbox" class="drill-grp" value="4" checked>
         <span><b>กล่องระดับสูง</b> — increment/decrement · a += b · negate · abs · uncompute</span></label>
+      <label><input type="checkbox" class="drill-grp" value="5" checked>
+        <span><b>ปลายภาค (Lec06–11)</b> — flip · mirror · AA · QFT/invQFT · กลับลำดับบิต · Phase estimation · controlled-U · RAM/QRAM · product formula · |−⟩ · bit_or</span></label>
     </div>
     <p class="drill-warn" id="drill-warn" hidden>ต้องเลือกอย่างน้อย 1 กลุ่มนะ</p>
     <button type="button" class="next-btn" id="drill-start">เริ่มซ้อม →</button>
@@ -155,6 +157,53 @@ var GATES = [
     attrs: { wires: "4", "wire-labels": "0x1,0x2,0x4,0x1", names: "a,,,scratch",
              ops: "BOX:0,3:abs†:2; _" },
     why: "กล่องเดิมที่มี † = ทำย้อนกลับเพื่อล้าง scratch ให้กลับเป็น |0⟩ ก่อนจบวงจร" },
+
+  /* ---------- กลุ่ม 5 : ปลายภาค (Lec06–11) ---------- */
+  { id: "aa-flip", g: 5, kind: "c", name: "flip (mark ค่าเดียว)",
+    attrs: { wires: "4", "wire-labels": "0x1,0x2,0x4,0x8",
+             ops: "X:2 + X:3; CZ:0,1,2,3; X:2 + X:3" },
+    why: "NOT บิตที่เป็น 0 → CZ ทุกสาย → NOT กลับ = พลิก phase เฉพาะค่าเดียว (รูปนี้ mark ค่า 3) · ตำแหน่ง NOT เปลี่ยนตามค่าที่ mark" },
+  { id: "aa-mirror", g: 5, kind: "c", name: "mirror (Grover iteration)",
+    attrs: { wires: "4",
+             ops: "H:0 + H:1 + H:2 + H:3; X:0 + X:1 + X:2 + X:3; CZ:0,1,2,3; X:0 + X:1 + X:2 + X:3; H:0 + H:1 + H:2 + H:3" },
+    why: "H → NOT → CZ → NOT → H ครบทุกสาย สมมาตรซ้าย-ขวา = สะท้อนรอบค่าเฉลี่ย · หน้าตาเหมือนเดิมทุกโจทย์" },
+  { id: "aa-box", g: 5, kind: "c", name: "กรอบ AA (1 รอบ = flip + mirror)",
+    attrs: { wires: "4", ops: "BOX:0,3:AA:1" },
+    why: "กล่อง AA คร่อมทุกสาย = amplitude amplification 1 รอบ · วนหลายรอบ = วางกล่อง AA ต่อกัน" },
+  { id: "qft", g: 5, kind: "c", name: "QFT",
+    attrs: { wires: "4", ops: "BOX:0,3:QFT:2; _" },
+    why: "ความถี่ที่ซ่อนอยู่ใน phase → กลายเป็น peak ที่ READ ได้ (ข้างในใช้ CPHASE มุมลบ)" },
+  { id: "iqft", g: 5, kind: "c", name: "invQFT",
+    attrs: { wires: "4", ops: "BOX:0,3:invQFT:3; _; _" },
+    why: "ตัวกลับของ QFT: เลขใน register → phase ที่แกว่งเป็นคาบ (ข้างในใช้ CPHASE มุมบวก) · ใช้ปิดท้าย phase estimation" },
+  { id: "bitrev", g: 5, kind: "c", name: "กลับลำดับบิต (SWAP ×—× + สายไขว้)",
+    attrs: { wires: "4", ops: "SWAP:0,3 + XWIRE:1,2" },
+    why: "คอลัมน์เดียวสลับ 2 คู่: 0x1↔0x8 วาดเป็น ×—× · 0x2↔0x4 วาดเป็นเส้นไขว้ = ขั้นสุดท้ายของ QFT" },
+  { id: "pe", g: 5, kind: "c", name: "กล่อง Phase estimation",
+    attrs: { wires: "3", ops: "BOX:0,2:Phase estimation:3; _; _" },
+    why: "คร่อมทั้ง register output และ eigenstate · หลังกล่อง READ เฉพาะ output → ได้ eigenphase" },
+  { id: "cu", g: 5, kind: "c", name: "controlled-U^(2ʲ)",
+    attrs: { wires: "3", ops: "CTRL:0 + BOX:1,2:U²" },
+    why: "● บนสาย output 1 เส้น คุมกล่อง U คร่อม eigenstate · phase เด้งกลับขึ้นไปที่ ● (phase kickback)" },
+  { id: "ram", g: 5, kind: "c", name: "กล่อง RAM (คลาสสิก)",
+    attrs: { wires: "5", ops: "RAM:0,4:00>011|01>110|10>100|11>111:4; _; _; _" },
+    why: "ชื่อกล่อง RAM = address ค่าเดียว → ได้ค่าที่เก็บไว้ค่าเดียว (Figure 9-2)" },
+  { id: "qram", g: 5, kind: "c", name: "กล่อง QRAM",
+    attrs: { wires: "5", ops: "QRAM:0,4:00>011|01>110|10>100|11>111:4; _; _; _" },
+    why: "หน้าตาเหมือน RAM แต่ชื่อ QRAM = address เป็น superposition → output เป็น superposition ของค่าที่เก็บ (Figure 9-4)" },
+  { id: "qramda", g: 5, kind: "c", name: "QRAM แบบ D / A",
+    attrs: { wires: "5", ops: "QRAMDA:0,4:3" },
+    why: "ครึ่งบน D = data · ครึ่งล่าง A = address · มีจุดดำครึ่งวงที่ขอบทุกสาย (Figure 9-5)" },
+  { id: "trotter", g: 5, kind: "c", name: "product formula (quantum simulation)",
+    attrs: { wires: "2", dash: "0-4", under: "0-4:m times",
+             ops: "BOX:0,1:e^−iH₁δt:2; _; ELL:0,1; BOX:0,1:e^−iHₙδt:2; _" },
+    why: "กล่อง e^(−iHᵢδt) ทีละชิ้นในกรอบแดงประ (1 กรอบ = 1 รอบ) + ปีกกา m times = วนซ้ำ m รอบ (Figure 9-9)" },
+  { id: "minus", g: 5, kind: "c", name: "เตรียม scratch เป็น |−⟩",
+    attrs: { wires: "1", names: "scratch", ops: "WRITE:0; X:0; H:0" },
+    why: "WRITE 0 → X → H = |−⟩ · ใช้ทำ phase XOR / XNOR แบบ phase kickback (Lec10)" },
+  { id: "bitor", g: 5, kind: "c", name: "bit_or (OR แบบ magnitude)",
+    attrs: { wires: "3", names: "q1,q2,out", ops: "X:0 + X:1; CCNOT:0,1,2; X:0 + X:1 + X:2" },
+    why: "X ที่ input → Toffoli ลง out → X ทั้ง input และ out = OR แบบ De Morgan เขียนผล 0/1 ลง scratch" },
 ];
 
 /* ---------- helper ล้วนๆ ---------- */
