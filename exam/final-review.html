@@ -85,7 +85,267 @@
     <p class="kicker">Lec10 · กระชับ</p>
     <h2>Quantum Search</h2>
     <!-- lec10:content-start — เนื้อหาของ page นี้เขียนระหว่าง start/end เท่านั้น -->
-    <div class="box"><p>🚧 กำลังเขียน — page นี้ยังไม่เสร็จ</p></div>
+    <p>คาบนี้คือ "ชิ้นที่ขาด" ของ AA (Lec06): ตอนนั้นเราสมมติว่ามี subroutine <b>flip</b> ที่พลิก phase ของคำตอบมาให้ (เป็นแค่ placeholder ที่พลิกค่าเดียวที่รู้อยู่แล้ว)
+    คาบนี้สร้าง flip จาก <b>logic จริง</b> → <b>Quantum Search (QS) = AA + flip ที่สร้างจาก logic</b> ·
+    ตัวต้นแบบคือ <b>Grover's search</b> ที่ค้นฐานข้อมูลแบบไม่มีโครงสร้าง (unstructured) ด้วย <b>O(√N)</b> query เทียบกับคลาสสิกที่ต้องใช้ O(N)</p>
+
+    <div class="box warn"><span class="tag">สไลด์ p3 พิมพ์ตก</span>
+      <p>สไลด์เขียนว่า "using only <i>O N</i> database queries" (ไม่มี √ และไม่มีวงเล็บ) — ของจริงคือ <b>O(√N)</b> ·
+      ถ้าข้อสอบถามความเร็วของ Grover ให้ตอบ <b>O(√N)</b> (ส่วนคลาสสิกคือ O(N))</p></div>
+
+    <h3 id="lec10-symbols">สัญลักษณ์วงจรของคาบนี้</h3>
+    <p>คาบนี้ไม่มี gate ใหม่เลย ทุกอย่างประกอบจากของ Lec02–06 · สิ่งที่ต้องจำคือ "บล็อก" ที่เอาของเดิมมาต่อกัน</p>
+    <table class="cmp">
+      <thead><tr><th>สัญลักษณ์</th><th>ชื่อ</th><th>ทำอะไร</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="scrollx"><div class="circuit" data-wires="1" data-ops="P:0:180"></div></div></td>
+          <td data-label="ชื่อ"><b>PHASE(180)</b></td>
+          <td data-label="ทำอะไร">phase logic ตัวแรก: พลิก phase ของ ∣1⟩ = "เขียนค่าของ qubit ลงใน phase ของมันเอง"</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="scrollx"><div class="circuit" data-wires="4" data-ops="CZ:0,1,2,3"></div></div></td>
+          <td data-label="ชื่อ"><b>CZ หลายจุด</b> (pAND / flip phase)</td>
+          <td data-label="ทำอะไร">●—● กี่จุดก็ได้ · พลิก phase เฉพาะค่าที่ทุกสายเป็น 1 = phase AND</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="scrollx"><div class="circuit" data-wires="1" data-names="scratch" data-ops="WRITE:0; X:0; H:0"></div></div></td>
+          <td data-label="ชื่อ"><b>เตรียม scratch เป็น ∣−⟩</b></td>
+          <td data-label="ทำอะไร">WRITE 0 → X → H ได้ ∣−⟩ · ใช้กับ phase XOR / XNOR (phase kickback)</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="scrollx"><div class="circuit" data-wires="3" data-names="q1,q2,out" data-ops="X:0 + X:1; CCNOT:0,1,2; X:0 + X:1 + X:2"></div></div></td>
+          <td data-label="ชื่อ"><b>bit_or</b> (magnitude OR)</td>
+          <td data-label="ทำอะไร">X ที่ input → Toffoli ลง out → X ทั้ง input และ out = OR แบบ De Morgan เขียนผลเป็น 0/1 ลง scratch · inv_bit_or = ลำดับเดียวกันแบบกลับหลัง</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="scrollx"><div class="circuit" data-wires="2" data-ops="H:0 + H:1; X:0 + X:1; CZ:0,1; X:0 + X:1; H:0 + H:1"></div></div></td>
+          <td data-label="ชื่อ"><b>mirror</b> (Grover)</td>
+          <td data-label="ทำอะไร">H → X → CZ → X → H บนรีจิสเตอร์ input เท่านั้น · ขยาย magnitude ของค่าที่ phase ต่างจากค่าอื่น (ของเดิมจาก Lec06)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 id="lec10-phase-logic">1. Phase logic: เก็บคำตอบไว้ใน phase</h3>
+    <p>Lec05 คือ <b>magnitude logic</b>: input เป็นค่าในรีจิสเตอร์ แล้ว output เขียนเป็นค่า 0/1 ลงบิต (มักเป็น scratch) ·
+    คาบนี้คือ <b>phase logic</b>: input ยังเป็นค่าในรีจิสเตอร์เหมือนเดิม แต่ output <b>ไปอยู่ใน relative phase</b> ·
+    นิยาม: <b>พลิก phase ของทุกค่าที่ทำให้ operation ได้ 1</b> (ค่าพวกนี้เรียกว่าค่าที่ <b>satisfy</b> operation)</p>
+    <table class="cmp">
+      <thead><tr><th>แบบ</th><th>ทำอะไร</th></tr></thead>
+      <tbody>
+        <tr><td data-label="แบบ">Conventional binary logic</td><td data-label="ทำอะไร">input 1 ค่า → output 1 ค่า</td></tr>
+        <tr><td data-label="แบบ">Quantum magnitude logic (Lec05)</td><td data-label="ทำอะไร">superposition ของ input → superposition ของ output</td></tr>
+        <tr><td data-label="แบบ">Quantum phase logic</td><td data-label="ทำอะไร">พลิก phase ของทุก input ที่ให้ output = 1 · ใช้ได้ทั้งตอนรีจิสเตอร์เป็น superposition และเป็นค่าเดียว</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li>ถ้าป้อน<b>ค่าเดียว</b> (ไม่ใช่ superposition) การพลิก phase เป็นแค่ <b>global phase</b> ใช้ประโยชน์ไม่ได้ · ถ้าเป็น <b>superposition</b> จะกลายเป็น relative phase ที่ AA ดึงออกมาได้</li>
+      <li>ผลอยู่ใน phase จึง <b>READ ตรงๆ ไม่ได้</b> · แต่ข้อดีคือ <b>mark คำตอบได้หลายตัวพร้อมกัน</b>ในรีจิสเตอร์เดียว แล้วใช้เป็น flip ของ AA</li>
+    </ul>
+
+    <h4 id="lec10-gates">ตารางประตู phase logic (Figure 10-1 + 10-2)</h4>
+    <p>a = สายบน (0x1) · b = สายล่าง (0x2) · ∣n⟩ = a + 2b · φ ทุกตัว = 180° · "พลิก" = วงที่เข็มชี้ลงหลังผ่าน gate (เมื่อป้อน uniform superposition)</p>
+    <table class="cmp">
+      <thead><tr><th>วงจร</th><th>ชื่อ</th><th>พลิก phase ของ</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="1" data-names="a" data-ops="X:0; P:0:180; X:0"></div></div></td>
+          <td data-label="ชื่อ"><b>phase NOT</b></td>
+          <td data-label="พลิก phase ของ">∣0⟩ · X สลับ ∣0⟩ ไปอยู่ตำแหน่ง ∣1⟩ → PHASE พลิก → X สลับกลับ</td>
+        </tr>
+        <tr>
+          <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="2" data-names="a,b" data-ops="CZ:0,1"></div></div></td>
+          <td data-label="ชื่อ"><b>phase AND</b></td>
+          <td data-label="พลิก phase ของ">∣3⟩ (a = b = 1) · CZ เฉยๆ</td>
+        </tr>
+        <tr>
+          <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="2" data-names="a,b" data-ops="P:0:180; CZ:0,1; P:1:180"></div></div></td>
+          <td data-label="ชื่อ"><b>phase OR</b></td>
+          <td data-label="พลิก phase ของ">∣1⟩ ∣2⟩ ∣3⟩ · ตัวคูณรวม (−1)<sup>a</sup>(−1)<sup>ab</sup>(−1)<sup>b</sup> → ∣3⟩ โดนพลิก 3 ครั้ง (คี่) จึงได้ −1</td>
+        </tr>
+        <tr>
+          <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="2" data-names="a,b" data-ops="X:0 + X:1; CZ:0,1; X:0 + X:1"></div></div></td>
+          <td data-label="ชื่อ"><b>phase NOR</b></td>
+          <td data-label="พลิก phase ของ">∣0⟩ (a = b = 0) · = phase AND ที่ครอบด้วย X ทั้งสองสาย</td>
+        </tr>
+        <tr>
+          <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="2" data-names="a,b" data-ops="X:0 + X:1; P:0:180; CZ:0,1; P:1:180; X:0 + X:1"></div></div></td>
+          <td data-label="ชื่อ"><b>phase NAND</b></td>
+          <td data-label="พลิก phase ของ">∣0⟩ ∣1⟩ ∣2⟩ · = phase OR ที่ครอบด้วย X ทั้งสองสาย</td>
+        </tr>
+        <tr>
+          <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="3" data-names="a,b,scratch" data-groups="3-4:phase XOR" data-ops="WRITE:2; X:2; H:2; CNOT:0,2; CNOT:1,2; H:2; X:2"></div></div></td>
+          <td data-label="ชื่อ"><b>phase XOR</b></td>
+          <td data-label="พลิก phase ของ">∣1⟩ ∣2⟩ · scratch ∣−⟩ + CNOT 2 ตัว → <b>phase kickback</b> ให้ −1 ไปเกาะค่าที่ a⊕b = 1 · กล่องเทาครอบแค่ CNOT 2 ตัว ส่วนที่เหลือคือเตรียม/คืน scratch</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="box aha"><span class="tag">2 เรื่องที่ต้องจำให้ขึ้นใจ</span>
+      <p>① ชื่อ "phase logic" หลอกตา: <b>input อยู่ในค่าของรีจิสเตอร์</b> (เช่น ∣2⟩, ∣5⟩) มีแค่ <b>output ที่อยู่ใน phase</b> · มันไม่ได้รับ phase เป็น input</p>
+      <p>② scratch ของ phase XOR <b>ไม่ entangle</b> กับ input (ตัวมันยังเป็น ∣−⟩ เหมือนเดิม ส่วน −1 ไปเกาะที่ค่าของ input แทน) → <b>ไม่ต้อง uncompute</b> ทั้ง gate</p></div>
+    <p><a href="../lessons/0037-phase-logic-answers-in-phase.html">อ่านตัวเต็ม → บท 0037</a></p>
+
+    <h3 id="lec10-mag-phase">2. Logic ยาวๆ: magnitude ก่อน phase ทีหลัง</h3>
+    <p>ปัญหา: phase logic <b>ให้ output เป็น phase แต่ต้องการ input เป็นค่าในรีจิสเตอร์ (magnitude)</b> → เอามาต่อกันตรงๆ ไม่ได้ ·
+    ทริก: ทำ <b>ทุก operation ยกเว้นตัวนอกสุด</b>ด้วย magnitude logic แบบ Lec05 (เขียนผลลง scratch) → ใช้ <b>phase logic แค่ตัวสุดท้าย</b> → <b>uncompute</b> คืน scratch เป็น ∣0⟩</p>
+    <p>ตัวอย่าง <b>(a OR NOT b) AND c</b> · a = 0x1, b = 0x2, c = 0x4, scratch = 0x8 (สาย 0x8 <b>ไม่มี H</b>):</p>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="circuit" data-wires="4" data-names="a,b,c,scratch" data-wire-labels="0x1,0x2,0x4,0x8"
+           data-groups="2-5:(a OR NOT b); 6-6:pAND; 7-10:uncompute"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2; X:1; X:0 + X:1; CCNOT:0,1,3; X:0 + X:1 + X:3; CZ:2,3; X:0 + X:1 + X:3; CCNOT:0,1,3; X:0 + X:1; X:1"
+           data-cap="Figure 10-4 · X บน b = NOT b → bit_or ลง 0x8 → pAND (CZ ระหว่าง c กับ scratch) → ทำย้อนลำดับเพื่อ uncompute"></div>
+    </div>
+    <ul>
+      <li><b>pAND</b> = CZ ระหว่าง c กับ scratch → พลิกเฉพาะค่าที่ c = 1 และ (a OR NOT b) = 1 · มันไม่เปลี่ยนค่าในรีจิสเตอร์ จึงไม่รบกวนการ uncompute</li>
+      <li><b>ต้อง uncompute</b> เพราะ scratch เก็บค่า 0/1 ที่ขึ้นกับ input จึง entangle ค้างอยู่ → phase ที่พลิกไว้เอาไปใช้ต่อไม่ได้ ·
+        ต่างจาก scratch ∣−⟩ ของ phase XOR ที่ไม่ต้อง uncompute</li>
+      <li>ผล (Figure 10-5): magnitude เท่าเดิมทุกวง · phase ของ <b>∣4⟩ ∣5⟩ ∣7⟩</b> ถูกพลิก (3 จาก 8 ค่า · ไล่ตารางเต็มที่<a href="#lec10-truth">ข้อ 5</a>)</li>
+    </ul>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="crow" data-n="8" data-r="18" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-phase="0,0,0,0,180,180,0,180" data-hl="4,5,7" data-lab="หลัง phase (a OR NOT b) AND c"></div>
+    </div>
+    <p><a href="../lessons/0038-magnitude-first-phase-last.html">อ่านตัวเต็ม → บท 0038</a></p>
+
+    <h3 id="lec10-kittens">3. ลูกแมว/เสือ: รันครั้งเดียวต้องถูก</h3>
+    <p><b>โจทย์:</b> กล่อง A กับ B แต่ละใบมีลูกแมวหรือเสือ เปิดได้ใบเดียว ·
+    ป้ายกล่อง A: "อย่างน้อย 1 กล่องมีลูกแมว" · ป้ายกล่อง B: "อีกกล่อง (A) มีเสือ" ·
+    พระราชาเพิ่มว่า <b>"ป้ายทั้งสองใบ จริงทั้งคู่ หรือ เท็จทั้งคู่"</b> และ <b>รันอุปกรณ์ได้ครั้งเดียว</b></p>
+    <p><b>ปริศนา → logic</b> (0 = เสือ, 1 = ลูกแมว): ป้าย A = <b>A OR B</b> · ป้าย B = <b>NOT A</b> · กติกาพระราชา = <b>XNOR</b> →
+    <b>out = (A OR B) XNOR (NOT A)</b></p>
+    <table class="cmp" id="lec10-kittens-truth">
+      <thead><tr><th>A</th><th>B</th><th>A OR B</th><th>NOT A</th><th>XNOR</th></tr></thead>
+      <tbody>
+        <tr><td data-label="A">0 (เสือ)</td><td data-label="B">0 (เสือ)</td><td data-label="A OR B">0</td><td data-label="NOT A">1</td><td data-label="XNOR">0</td></tr>
+        <tr><td data-label="A">0 (เสือ)</td><td data-label="B">1 (แมว)</td><td data-label="A OR B">1</td><td data-label="NOT A">1</td><td data-label="XNOR"><b>1 ✓</b></td></tr>
+        <tr><td data-label="A">1 (แมว)</td><td data-label="B">0 (เสือ)</td><td data-label="A OR B">1</td><td data-label="NOT A">0</td><td data-label="XNOR">0</td></tr>
+        <tr><td data-label="A">1 (แมว)</td><td data-label="B">1 (แมว)</td><td data-label="A OR B">1</td><td data-label="NOT A">0</td><td data-label="XNOR">0</td></tr>
+      </tbody>
+    </table>
+    <p>คำตอบเดียว: <b>A = เสือ, B = ลูกแมว</b> = ค่า <b>∣2⟩</b> (A = 0x1, B = 0x2) ·
+    ถ้าใช้วงจรคลาสสิกรันได้ครั้งเดียว ต้องเดา input เอง → ถูกแค่ <b>25%</b> (1 ใน 4) · บน QPU รันครั้งเดียวได้ <b>100%</b></p>
+
+    <p><b>วงจร → AA</b> (Figure 10-8): magnitude logic จนถึงตัวรองสุดท้าย → phase XNOR ตัวสุดท้าย → uncompute → mirror 1 รอบ → READ</p>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="circuit" data-wires="4" data-names="boxes,boxes,noteA,scratch" data-wire-labels="0x1,0x2,0x1,0x1"
+           data-groups="2-4:noteA = A OR B; 5-5:NOT A; 8-10:XNOR; 13-17:uncompute; 18-22:mirror"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1; X:0 + X:1; CCNOT:0,1,2; X:0 + X:1 + X:2; X:0; X:3; H:3; CNOT:2,3; CNOT:0,3; X:3; H:3; X:3; X:0; _; X:0 + X:1 + X:2; CCNOT:0,1,2; X:0 + X:1; H:0 + H:1; X:0 + X:1; CZ:0,1; X:0 + X:1; H:0 + H:1; READ:0:0 + READ:1:1"
+           data-cap="Figure 10-8 · ผล READ: A = 0 (เสือ) · B = 1 (ลูกแมว) → เปิดกล่อง B · ป้าย 0x1 ที่ noteA/scratch เพราะ QCEngine นับบิตแยกในแต่ละ register"></div>
+    </div>
+    <ul>
+      <li><b>noteA = A OR B</b>: bit_or ลงสาย noteA (magnitude) · <b>NOT A</b>: X เขียนทับสาย A เลย (ย้อนกลับได้ด้วย X อีกตัว)</li>
+      <li><b>XNOR</b>: scratch ∣−⟩ + CNOT จาก noteA + CNOT จากสาย A (ที่ตอนนี้เก็บ NOT A) = phase XOR · แล้ว X บน scratch อีกตัวทำให้เป็น XNOR</li>
+      <li><b>uncompute</b>: X คืน A → bit_or กลับหลัง (คืน noteA เป็น 0) · <b>mirror</b> = H X CZ X H บน boxes 2 สาย</li>
+      <li>จำนวนรอบ: N<sub>AA</sub> = ⌊(π/4)·√(2²/1)⌋ = ⌊1.57⌋ = <b>1 รอบ</b> · กรณี 4 ค่ามีคำตอบ 1 ตัว เป็นกรณีพิเศษที่ 1 รอบได้ 100% พอดี</li>
+    </ul>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="crow" data-n="4" data-r="20" data-mag="0.25,0.25,0.25,0.25" data-phase="0,0,180,0" data-hl="2" data-lab="ก่อน mirror"></div>
+      <div class="crow" data-n="4" data-r="20" data-mag="0,0,1,0" data-phase="0,0,180,0" data-hl="2" data-sub=",,100%," data-lab="หลัง mirror 1 รอบ"></div>
+    </div>
+    <div class="box why"><span class="tag">คำตอบที่ถูกมี phase บวกก็ได้</span>
+      <p>สไลด์ p36 บอกว่าในปริศนานี้ <b>คำตอบที่ถูกมี phase บวก ตัวที่ผิดมี phase ลบ</b> แต่ AA ก็ยังทำงาน เพราะ mirror ขยายค่าที่ phase <b>ต่างจากค่าอื่น</b> (relative) ไม่จำเป็นต้องเป็นลบ ·
+      X บน scratch (ที่เป็น ∣−⟩) คูณ −1 ทั้งรีจิสเตอร์ = global phase → phase XOR กับ phase XNOR จึงเป็นสถานะเดียวกันทางฟิสิกส์ (รูปข้างบนวาดแบบรวม X แล้ว จึงเห็น ∣2⟩ เป็นวงที่ชี้ลง)</p></div>
+    <p><a href="../lessons/0039-kittens-and-tigers-one-shot.html">อ่านตัวเต็ม → บท 0039</a></p>
+
+    <h3 id="lec10-recipe">4. สูตร 9 ขั้นแก้ SAT ด้วย QPU</h3>
+    <p><b>SAT (boolean satisfiability)</b> = ถามว่า "มี input ไหนทำให้ boolean statement เป็นจริงไหม" · ใช้จริงใน model checking, AI planning, software verification</p>
+    <ol>
+      <li>แปลง statement ให้เป็น <b>AND ของ clause</b> หลายตัวที่ต้องจริงพร้อมกัน</li>
+      <li>แทนแต่ละ clause ด้วย <b>magnitude logic</b> · ใช้ <b>scratch 1 ตัวต่อ 1 clause</b></li>
+      <li>HAD ทุก qubit ของ input ให้เป็น uniform superposition · scratch ทุกตัวตั้งเป็น ∣0⟩</li>
+      <li>คำนวณ clause ทีละตัวด้วย magnitude logic เก็บผลไว้ใน scratch ของมัน</li>
+      <li>ทำ <b>phase-logic AND</b> (CZ) ระหว่าง scratch ทุกตัว เพื่อรวม clause ทั้งหมด</li>
+      <li><b>uncompute</b> magnitude logic ทั้งหมด คืน scratch กลับเป็นค่าเริ่มต้น</li>
+      <li>รัน <b>mirror</b> บนรีจิสเตอร์ input</li>
+      <li>ทำขั้นก่อนหน้าซ้ำตามจำนวนรอบจากสูตร AA (Equation 6-2)</li>
+      <li><b>READ</b> รีจิสเตอร์ input</li>
+    </ol>
+    <p class="eq" id="lec10-naa">N<sub>AA</sub> = ⌊ (π/4)·√(2<sup>n</sup>/m) ⌋ &nbsp;·&nbsp; n = จำนวน qubit ของ input · m = จำนวนคำตอบ</p>
+    <p>จำง่ายๆ เป็น 3 ช่วง: <b>เตรียม</b> (1–3) · <b>1 รอบ AA</b> = compute → pAND → uncompute → mirror (4–7) · <b>วนแล้วอ่าน</b> (8–9)</p>
+    <p><a href="../lessons/0040-sat-recipe-and-3sat.html">อ่านตัวเต็ม → บท 0040</a></p>
+
+    <h3 id="lec10-3sat">5. 3-SAT: กรณีมีคำตอบ</h3>
+    <p class="eq">(a OR b) AND (NOT a OR c) AND (NOT b OR NOT c) AND (a OR c)</p>
+    <p>เป็น AND ของ 4 clause อยู่แล้ว → ใช้ <b>7 qubit</b> = 3 ตัวเป็น a, b, c (0x1, 0x2, 0x4) + scratch 4 ตัว (0x8, 0x10, 0x20, 0x40) ตัวละ clause ·
+    clause ที่มี NOT ทำโดย X ครอบ input ก่อนและหลัง bit_or · <b>flip phase</b> = CZ 4 จุดบน scratch ทั้ง 4 ตัว</p>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="circuit" data-wires="7" data-wire-labels="0x1,0x2,0x4,0x8,0x10,0x20,0x40"
+           data-names="a,b,c,cl1,cl2,cl3,cl4"
+           data-groups="2-4:clause 1; 5-9:clause 2; 10-14:clause 3; 15-17:clause 4; 18-18:flip; 19-21:inv 4; 22-26:inv 3; 27-31:inv 2; 32-34:inv 1; 35-39:mirror"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6; H:0 + H:1 + H:2; X:0,1; CCNOT:0,1,3; X:0,1,3; X:0; X:0,2; CCNOT:0,2,4; X:0,2,4; X:0; X:1,2; X:1,2; CCNOT:1,2,5; X:1,2,5; X:1,2; X:0,2; CCNOT:0,2,6; X:0,2,6; CZ:3,4,5,6; X:0,2,6; CCNOT:0,2,6; X:0,2; X:1,2; X:1,2,5; CCNOT:1,2,5; X:1,2; X:1,2; X:0; X:0,2,4; CCNOT:0,2,4; X:0,2; X:0; X:0,1,3; CCNOT:0,1,3; X:0,1; H:0 + H:1 + H:2; X:0,1,2; CZ:0,1,2; X:0,1,2; H:0 + H:1 + H:2"
+           data-cap="Figure 10-9 · 3-SAT ที่มีคำตอบ (1 รอบ) · ป้าย &quot;mirror&quot; เติมเอง ในรูปจริงช่วงท้ายไม่มีป้าย · ⊕ สองตัวติดกันบนสายเดียววาดตามหนังสือ (หักล้างกัน)"></div>
+    </div>
+    <p>ผล (Figure 10-10): phase logic พลิกแค่ <b>∣5⟩</b> → หลัง mirror ∣5⟩ ใหญ่สุด → READ ได้ <b>a = 1, b = 0, c = 1</b> · แทนค่าตรวจได้ทันที (ปัญหา NP: หาคำตอบยาก ตรวจคำตอบง่าย)</p>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="crow" data-n="8" data-r="18" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-lab="หลัง HAD"></div>
+      <div class="crow" data-n="8" data-r="18" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-phase="0,0,0,0,0,180,0,0" data-hl="5" data-lab="หลัง phase logic"></div>
+      <div class="crow" data-n="8" data-r="18" data-mag="0.031,0.031,0.031,0.031,0.031,0.781,0.031,0.031" data-phase="180,180,180,180,180,180,180,180" data-hl="5" data-sub=",,,,,78%,," data-lab="หลัง mirror 1 รอบ"></div>
+    </div>
+    <div class="work" id="lec10-3sat-calc">
+      <div class="step"><span class="lbl">N<sub>AA</sub></span> n = 3, m = 1 → (π/4)·√8 ≈ 2.22 → ⌊2.22⌋ = <b>2 รอบ</b></div>
+      <div class="step"><span class="lbl">1 รอบ</span> ∣5⟩: 1/√8 → 2.5/√8 → ความน่าจะเป็น 6.25/8 ≈ <b>78%</b> · ค่าอื่น 0.5/√8 → ≈ 3.1% ต่อค่า</div>
+      <div class="step"><span class="lbl">2 รอบ</span> ∣5⟩ ≈ <b>94.5%</b></div>
+      <div class="step"><span class="lbl">phase หลัง mirror</span> ทุกวงชี้ลง (180°) = global phase จาก mirror แบบ H-X-CZ-X-H ไม่กระทบผลอ่าน</div>
+    </div>
+    <div class="box warn"><span class="tag">จุดที่สไลด์ไม่ตรงกับของจริง (3-SAT)</span>
+      <p>① p41 เขียนว่า mirror บน "seven-qubit register" แต่วงจรและโค้ด (<code>reg.Grover()</code>) ทำ mirror แค่ <b>3 สาย</b> (a, b, c) · ถ้าถามตามข้อความให้ตอบตามสไลด์ แต่ของจริงคือ 3 สาย</p>
+      <p>② สูตรได้ N<sub>AA</sub> = 2 แต่สไลด์รันแค่ <b>1 รอบ</b> (ได้ 78% ไม่ใช่ 100%) · 2 รอบได้ 94.5%</p>
+      <p>③ ชื่อ "3-SAT" ตามนิยามเคร่งคือ clause ละ 3 literal แต่โจทย์นี้ clause ละ 2 (จริงๆ คือ 2-SAT) → ตอบตามสไลด์ว่า 3-SAT</p></div>
+    <p><a href="../lessons/0040-sat-recipe-and-3sat.html">อ่านตัวเต็ม → บท 0040</a></p>
+
+    <h3 id="lec10-3sat-unsat">6. 3-SAT: กรณีไม่มีคำตอบ</h3>
+    <p class="eq">(a OR b) AND (NOT a OR c) AND (NOT b OR NOT c) AND (a OR c) AND <b>b</b></p>
+    <p>ไล่ให้เห็นว่าขัดกันเอง: b = 1 (บังคับจากเทอมท้าย) → c = 0 (clause 3) → a = 1 (clause 4) → clause 2 (NOT a OR c) = 0 ✗ ·
+    วงจร (Figure 10-11) <b>เหมือน 10-9 ทุกอย่าง</b> ต่างแค่คอลัมน์ flip ที่เติม ● บนสาย b (0x2) ตรงๆ เป็น <b>CZ 5 จุด</b> (เทอม AND b ไม่ต้องใช้ scratch)</p>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="circuit" data-wires="7" data-wire-labels="0x1,0x2,0x4,0x8,0x10,0x20,0x40" data-names="a,b,c,cl1,cl2,cl3,cl4"
+           data-groups="2-4:clause 1; 5-9:clause 2; 10-14:clause 3; 15-17:clause 4; 18-18:flip; 19-21:inv 4; 22-26:inv 3; 27-31:inv 2; 32-34:inv 1; 35-39:mirror"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6; H:0 + H:1 + H:2; X:0,1; CCNOT:0,1,3; X:0,1,3; X:0; X:0,2; CCNOT:0,2,4; X:0,2,4; X:0; X:1,2; X:1,2; CCNOT:1,2,5; X:1,2,5; X:1,2; X:0,2; CCNOT:0,2,6; X:0,2,6; CZ:1,3,4,5,6; X:0,2,6; CCNOT:0,2,6; X:0,2; X:1,2; X:1,2,5; CCNOT:1,2,5; X:1,2; X:1,2; X:0; X:0,2,4; CCNOT:0,2,4; X:0,2; X:0; X:0,1,3; CCNOT:0,1,3; X:0,1; H:0 + H:1 + H:2; X:0,1,2; CZ:0,1,2; X:0,1,2; H:0 + H:1 + H:2"
+           data-cap="Figure 10-11 · 3-SAT ที่ไม่มีคำตอบ · ต่างจาก 10-9 แค่คอลัมน์ flip ที่มี ● บน 0x2 เพิ่ม (CZ 5 จุด)"></div>
+    </div>
+    <ul>
+      <li>ผล (Figure 10-12): <b>"Nothing has happened!"</b> ไม่มีค่าไหนถูกพลิก → mirror กระทำกับทุกค่าเท่ากัน → magnitude ยังเท่ากันหมด (1/8 ทุกค่า) · ทุกวงชี้ลงหลัง mirror = global phase อีกเช่นเคย</li>
+      <li>ทำ AA กี่รอบก็ READ ได้ 1 ใน 8 ค่าแบบสุ่ม → <b>เอาค่าที่อ่านได้ไปแทนในสูตร ถ้าได้ 0</b> สรุปได้ว่าสูตร <b>น่าจะ unsatisfiable</b> (ด้วยความน่าจะเป็นสูง ไม่ใช่ 100%)</li>
+    </ul>
+    <p class="scroll-hint">← เลื่อนดูได้</p>
+    <div class="scrollx">
+      <div class="crow" data-n="8" data-r="18" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-lab="หลัง phase logic"></div>
+      <div class="crow" data-n="8" data-r="18" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-phase="180,180,180,180,180,180,180,180" data-lab="หลัง mirror"></div>
+    </div>
+
+    <p><a href="../lessons/0040-sat-recipe-and-3sat.html">อ่านตัวเต็ม → บท 0040</a></p>
+
+    <h4 id="lec10-truth">ไล่ตารางความจริง: state ไหนโดนพลิก phase</h4>
+    <p>วิธีไล่: ∣n⟩ = a + 2b + 4c (a = 0x1, b = 0x2, c = 0x4) → แทนค่าทีละ clause → state ที่ทุก clause = 1 คือ state ที่ phase logic พลิก</p>
+    <table class="cmp">
+      <thead><tr><th>state</th><th>a b c</th><th>a OR b</th><th>NOT a OR c</th><th>NOT b OR NOT c</th><th>a OR c</th><th>4 clause (มีคำตอบ)</th><th>… AND b (ไม่มีคำตอบ)</th><th>(a OR NOT b) AND c</th></tr></thead>
+      <tbody>
+        <tr><td data-label="state">∣0⟩</td><td data-label="a b c">0 0 0</td><td data-label="a OR b">0</td><td data-label="NOT a OR c">1</td><td data-label="NOT b OR NOT c">1</td><td data-label="a OR c">0</td><td data-label="4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c">0</td></tr>
+        <tr><td data-label="state">∣1⟩</td><td data-label="a b c">1 0 0</td><td data-label="a OR b">1</td><td data-label="NOT a OR c">0</td><td data-label="NOT b OR NOT c">1</td><td data-label="a OR c">1</td><td data-label="4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c">0</td></tr>
+        <tr><td data-label="state">∣2⟩</td><td data-label="a b c">0 1 0</td><td data-label="a OR b">1</td><td data-label="NOT a OR c">1</td><td data-label="NOT b OR NOT c">1</td><td data-label="a OR c">0</td><td data-label="4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c">0</td></tr>
+        <tr><td data-label="state">∣3⟩</td><td data-label="a b c">1 1 0</td><td data-label="a OR b">1</td><td data-label="NOT a OR c">0</td><td data-label="NOT b OR NOT c">1</td><td data-label="a OR c">1</td><td data-label="4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c">0</td></tr>
+        <tr><td data-label="state">∣4⟩</td><td data-label="a b c">0 0 1</td><td data-label="a OR b">0</td><td data-label="NOT a OR c">1</td><td data-label="NOT b OR NOT c">1</td><td data-label="a OR c">1</td><td data-label="4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c"><b>1 พลิก</b></td></tr>
+        <tr><td data-label="state">∣5⟩</td><td data-label="a b c">1 0 1</td><td data-label="a OR b">1</td><td data-label="NOT a OR c">1</td><td data-label="NOT b OR NOT c">1</td><td data-label="a OR c">1</td><td data-label="4 clause"><b>1 พลิก</b></td><td data-label="… AND b">0 (b = 0)</td><td data-label="(a OR NOT b) AND c"><b>1 พลิก</b></td></tr>
+        <tr><td data-label="state">∣6⟩</td><td data-label="a b c">0 1 1</td><td data-label="a OR b">1</td><td data-label="NOT a OR c">1</td><td data-label="NOT b OR NOT c">0</td><td data-label="a OR c">1</td><td data-label="4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c">0</td></tr>
+        <tr><td data-label="state">∣7⟩</td><td data-label="a b c">1 1 1</td><td data-label="a OR b">1</td><td data-label="NOT a OR c">1</td><td data-label="NOT b OR NOT c">0</td><td data-label="a OR c">1</td><td data-label="4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c"><b>1 พลิก</b></td></tr>
+      </tbody>
+    </table>
+    <p>สรุป: 4 clause → พลิกแค่ <b>∣5⟩</b> · เติม AND b → <b>ไม่มีตัวไหนพลิก</b> · (a OR NOT b) AND c → พลิก <b>∣4⟩ ∣5⟩ ∣7⟩</b></p>
+
+    <h3 id="lec10-speedup">7. AA เร่งอะไรได้บ้าง</h3>
+    <ul>
+      <li>บางกรณีได้ <b>quadratic speedup</b> (เร็วขึ้นแบบกำลังสอง) เทียบกับ<b>อัลกอริทึมคลาสสิกที่ดีที่สุด</b> ไม่ใช่แค่เทียบกับ brute force</li>
+      <li>เร่งได้กับอัลกอริทึมที่มี <b>one-sided error</b> (ผิดได้ด้านเดียว): ถ้าคำตอบจริงคือ "no" จะตอบ "no" <b>เสมอ</b> · ถ้าคำตอบจริงคือ "yes" จะตอบ "yes" ด้วยความน่าจะเป็น p &gt; 0 ·
+        3-SAT ตอบ "yes" ก็ต่อเมื่อเจอ assignment ที่ทำให้เป็นจริงจริงๆ (นี่คือเหตุผลที่กรณีไม่มีคำตอบสรุปได้แค่ "น่าจะ")</li>
+      <li>ตัวอย่างอื่นที่ AA เร่งได้: <b>element distinctness</b> (มี i ≠ j ที่ f(i) = f(j) ไหม · ใช้หาสามเหลี่ยมในกราฟ, ผลคูณเมทริกซ์) · <b>finding global minima</b> (หา i ที่ f(i) ต่ำสุด)</li>
+    </ul>
+    <p><a href="../lessons/0040-sat-recipe-and-3sat.html">อ่านตัวเต็ม → บท 0040</a></p>
     <!-- lec10:content-end -->
     <button type="button" class="next-btn" data-target="lec11">บทถัดไป: Lec11 Quantum Supersampling →</button>
   </section>
