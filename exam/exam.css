@@ -252,3 +252,8 @@ table.cmp.lb-tt td { text-align:center; white-space:nowrap; }
   .star .scrollx { overflow-x: visible; }
   .star .scrollx .crow { max-width: 100% !important; }
 }
+
+/* final: hub แบ่ง 2 กล่อง ปลายภาค (บน) / กลางภาค (ล่าง) */
+.exam-group { border:1px solid var(--rule); border-radius:12px; padding:.2rem 1rem 1rem; margin:1.2rem 0; }
+.exam-group.final { border-color:var(--accent); border-width:2px; }
+.exam-group h2 { margin-top:.8rem; }
