@@ -45,7 +45,168 @@
     <p class="kicker">Lec06 · สิทธิ์ยาวได้</p>
     <h2>Amplitude Amplification</h2>
     <!-- lec06:content-start — เนื้อหาของ page นี้เขียนระหว่าง start/end เท่านั้น -->
-    <div class="box"><p>🚧 กำลังเขียน — page นี้ยังไม่เสร็จ</p></div>
+    <div class="box aha"><span class="tag">ประโยคแกนของคาบนี้</span>
+      <p>amplitude amplification (AA) แปลง <b>ความต่างของ phase</b> (READ มองไม่เห็น) ให้เป็น
+      <b>ความต่างของ magnitude</b> (READ เห็น) · เป็น quantum primitive ตัวแรกของคอร์ส
+      (ชื่อที่ตรงกว่าคือ “magnitude amplification” แต่วงการเรียก amplitude จนติดแล้ว)</p></div>
+
+    <h3 id="lec06-start">โจทย์ตั้งต้น: phase ต่าง แต่ READ ไม่เห็นอะไรเลย</h3>
+    <p>register 4 qubit = 16 ค่า ทุกวงขนาดเท่ากัน (6.25%) · มีค่าเดียวที่ถูก <b>mark</b> ด้วย phase 180° (ตัวอย่างหลักของสไลด์ mark ค่า <b>3</b>)
+    → READ ตอนนี้ได้ 3 แค่ 1/16 เท่ากับค่าอื่น · ข้อมูลอยู่ใน phase ล้วนๆ</p>
+    <div class="wide">
+      <div class="crow" data-n="16" data-r="12" data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+           data-mag="0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625,0.0625"
+           data-phase="0,0,0,180,0,0,0,0,0,0,0,0,0,0,0,0" data-hl="3"></div>
+      <p class="src">สไลด์ p4–5 (สถานะ B) · ขนาดเท่ากันหมด มีแต่เข็มของ ∣3⟩ ที่ชี้ลง</p>
+    </div>
+
+    <h3 id="lec06-circuit">AA 1 รอบ = flip + mirror</h3>
+    <div class="wide">
+      <div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8"
+           data-groups="1-1:prep; 2-4:flip; 5-9:mirror"
+           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3;
+                     H:0 + H:1 + H:2 + H:3;
+                     X:2 + X:3; CZ:0,1,2,3; X:2 + X:3;
+                     H:0 + H:1 + H:2 + H:3;
+                     X:0 + X:1 + X:2 + X:3; CZ:0,1,2,3; X:0 + X:1 + X:2 + X:3;
+                     H:0 + H:1 + H:2 + H:3"
+           data-cap="prep → flip → mirror (สไลด์ p6–7 · mark ค่า 3) · ● 4 จุดบนเส้นเดียว = CZ คร่อม 4 สาย"></div>
+    </div>
+    <ul>
+      <li><b>flip</b> = พลิก phase ของค่าที่ mark · ทำโดย NOT บิตที่เป็น 0 ของค่านั้น (3 = 0011 → NOT สาย 0x4, 0x8)
+        ให้มันกลายเป็น 1111 → CZ คร่อมทุกสาย (ติดเฉพาะ 1111) → NOT กลับ · <b>เปลี่ยนตามโจทย์</b></li>
+      <li><b>mirror</b> = H → NOT → CZ ทุกสาย → NOT → H · <b>หน้าตาเหมือนเดิมทุกโจทย์</b> (ไม่ต้องจำว่าข้างในทำงานยังไง
+        จำแค่ผลของมัน = “สะท้อนรอบค่าเฉลี่ย” ข้างล่าง)</li>
+      <li>หลัง 1 รอบ: ∣3⟩ <b>6.25% → 47.3%</b> · ค่าอื่นเหลือวงละ 3.5% · และ phase ของ ∣3⟩ <b>กลับมาเท่าค่าอื่นแล้ว</b>
+        (ความต่างของ phase ถูก “ใช้” ไปเป็นความต่างของ magnitude)</li>
+    </ul>
+    <div class="box warn"><span class="tag">⚠️ ชื่อเรียก — ตอบตามสไลด์</span>
+      <p>สไลด์ p10 เขียนว่า <b>mirror = “Grover iteration”</b> → ตอนสอบตอบตามนี้ · แต่ตำราทั่วไปเรียก
+      <b>flip + mirror</b> ทั้งชุดว่า Grover iteration และเรียก mirror เดี่ยวๆ ว่า diffusion operator ·
+      ส่วนสไลด์ p12 เรียก flip + mirror ว่า <b>“AA iteration”</b> (วาดเป็นกรอบป้าย AA)</p></div>
+    <p><a href="../lessons/0023-flip-and-mirror.html">อ่านตัวเต็ม: บท 0023 flip + mirror →</a></p>
+
+    <h3 id="lec06-why">🔴 ทำไม flip + mirror ถึงขยายได้ — สะท้อนรอบค่าเฉลี่ย</h3>
+    <p>ลืมวงกลมไปก่อน ให้มองแต่ละค่าเป็น <b>จุดบนเส้นจำนวน</b> (phase 0° = บวก · phase 180° = ลบ) แล้ว mirror ทำแค่อย่างเดียว:</p>
+    <div class="eq">ค่าใหม่ = 2 × ค่าเฉลี่ย − ค่าเดิม</div>
+    <p>คือ “กระโดดข้ามค่าเฉลี่ยไปอีกฝั่ง ระยะเท่าเดิม” — <b>ใครอยู่ไกลค่าเฉลี่ย ก็ถูกเหวี่ยงไปไกล</b> · ไล่ตัวเลขรอบแรก:</p>
+    <div class="work">
+      <div class="step"><span class="lbl">①</span> ก่อน flip: 16 ค่า = +0.25 ทุกตัว (0.25² = 6.25%)</div>
+      <div class="step"><span class="lbl">②</span> flip: ∣3⟩ กลายเป็น −0.25 · อีก 15 ตัวยัง +0.25</div>
+      <div class="step"><span class="lbl">③</span> ค่าเฉลี่ย = (15×0.25 − 0.25)/16 = <b>0.21875</b> — พวกมาก 15 ตัว<b>ลากค่าเฉลี่ยเข้าหาตัวเอง</b></div>
+      <div class="step"><span class="lbl">④</span> 15 ตัว: 2×0.21875 − 0.25 = <b>0.1875</b> (ขยับนิดเดียว เพราะอยู่ใกล้ค่าเฉลี่ยอยู่แล้ว)</div>
+      <div class="step"><span class="lbl">⑤</span> ∣3⟩: 2×0.21875 − (−0.25) = <b>0.6875</b> → 0.6875² = <b>47.3%</b> (อยู่ไกลค่าเฉลี่ยสุด = โดนเหวี่ยงไกลสุด)</div>
+    </div>
+    <div class="wide">
+      <div class="mplot" data-amp="0.25;0.25;0.25;-0.25;0.25;0.25;0.25;0.25;0.25;0.25;0.25;0.25;0.25;0.25;0.25;0.25"
+           data-mode="mirror" data-hl="3" data-r="22"
+           data-cap="AA รอบแรกแบบเรขาคณิต — ● ค่าเฉลี่ยอยู่ใกล้ 15 วง · ∣3⟩ (oddball) ถูกเหวี่ยงไปที่ 0.6875"></div>
+    </div>
+    <div class="box why"><span class="tag">ภาพจำ: หนังสติ๊ก (slingshot)</span>
+      <p>flip ทำให้ค่าที่ mark กลายเป็น <b>ตัวแปลกแยก</b> อยู่คนละฝั่งกับพวกมาก → mirror เหวี่ยงมันข้ามค่าเฉลี่ยไปไกล
+      ส่วนพวกมากขยับนิดเดียว · flip รอบใหม่ทำให้มันกลับไปเป็นตัวแปลกแยกอีก → เหวี่ยงอีก → โตขึ้นเรื่อยๆ</p></div>
+
+    <p id="lec06-overshoot"><b>แล้วทำไมวนเกินแล้วตก?</b> — ดูค่าเฉลี่ยตอนก่อน mirror ในแต่ละรอบ (คำนวณเองแล้ว ตรงสไลด์ทุกหลัก):</p>
+    <table class="cmp">
+      <thead><tr><th>รอบ</th><th>ค่าเฉลี่ย</th><th>∣3⟩ หลัง mirror</th><th>READ ได้ 3</th></tr></thead>
+      <tbody>
+        <tr><td data-label="รอบ">1</td><td data-label="ค่าเฉลี่ย">0.219</td><td data-label="∣3⟩ หลัง mirror">0.688</td><td data-label="READ ได้ 3">47.3%</td></tr>
+        <tr><td data-label="รอบ">2</td><td data-label="ค่าเฉลี่ย">0.133</td><td data-label="∣3⟩ หลัง mirror">0.953</td><td data-label="READ ได้ 3">90.8%</td></tr>
+        <tr><td data-label="รอบ">3</td><td data-label="ค่าเฉลี่ย">0.014 (เกือบ 0)</td><td data-label="∣3⟩ หลัง mirror">0.980</td><td data-label="READ ได้ 3"><b>96.1%</b> ← ยอดแรก</td></tr>
+        <tr><td data-label="รอบ">4</td><td data-label="ค่าเฉลี่ย"><b>−0.109</b> (ข้ามไปติดลบ)</td><td data-label="∣3⟩ หลัง mirror">0.763</td><td data-label="READ ได้ 3">58.2%</td></tr>
+        <tr><td data-label="รอบ">5</td><td data-label="ค่าเฉลี่ย">−0.204</td><td data-label="∣3⟩ หลัง mirror">0.354</td><td data-label="READ ได้ 3">12.5%</td></tr>
+      </tbody>
+    </table>
+    <p>ยิ่ง ∣3⟩ ใหญ่ พวกมากยิ่งเล็ก → ค่าเฉลี่ยลดลงทุกรอบ · รอบ 3 ค่าเฉลี่ยเกือบ 0 = <b>แทบไม่เหลือแรงเหวี่ยง</b> ·
+    รอบ 4 ∣3⟩ ที่ใหญ่มากโดน flip เป็นลบ แล้ว<b>ลากค่าเฉลี่ยข้ามไปฝั่งลบ</b> → การสะท้อนกลับทำให้พวกมากโตขึ้นแทน และ ∣3⟩ หดลง
+    → ความน่าจะเป็น<b>แกว่งเป็นคลื่น</b></p>
+    <div class="wide">
+      <div class="mplot" data-amp="-0.0508;-0.0508;-0.0508;-0.9805;-0.0508;-0.0508;-0.0508;-0.0508;-0.0508;-0.0508;-0.0508;-0.0508;-0.0508;-0.0508;-0.0508;-0.0508"
+           data-mode="mirror" data-hl="3" data-r="22"
+           data-cap="รอบที่ 4 (หลัง flip ก่อน mirror) — ● ค่าเฉลี่ยข้ามไปฝั่งเดียวกับ ∣3⟩ แล้ว · ∣3⟩ เลยหดเหลือ 0.763"></div>
+    </div>
+    <ul>
+      <li>ภาพเดียวกันอธิบายกรณีพิเศษได้: mark <b>8 จาก 16</b> → ค่าเฉลี่ย = 0 → สะท้อนแค่กลับหัวทุกตัว magnitude ไม่เปลี่ยนเลย (50% ตลอด) ·
+        mark <b>4 จาก 16</b> → รอบเดียวได้ <b>100%</b></li>
+      <li>วงจร mirror จริงให้ <b>ค่าเดิม − 2×ค่าเฉลี่ย</b> (= สะท้อน + พลิก phase ทุกวง) ไม่ใช่ 2×ค่าเฉลี่ย − ค่าเดิม ·
+        ใช้แทนกันได้เพราะ READ เห็นแต่ <b>relative phase</b> พลิกทุกวงพร้อมกันไม่ต่าง (สไลด์ p44)</li>
+    </ul>
+    <div class="box warn"><span class="tag">⚠️ สไลด์ p42 เขียนป้ายผิด</span>
+      <p>Figure 6-25 (3 วงเฟส 0° + oddball เฟส 180°) ป้ายเขียน <b>average: [0.25, 0.00]</b> แต่คำนวณจริงได้
+      <b>[0.00, 0.25]</b> (สลับ x กับ y · จุดที่วาดในรูปถูกแล้ว อยู่เหนือจุดศูนย์กลาง) → ตอนสอบตอบตามสไลด์ แต่รู้ไว้ว่าของจริงคือ y = +0.25</p></div>
+    <p><a href="../lessons/0026-inside-the-mirror.html">อ่านตัวเต็ม: บท 0026 ข้างใน mirror →</a></p>
+
+    <h3 id="lec06-rounds">วนกี่รอบดี — สูตร N<sub>AA</sub></h3>
+    <div class="eq">mark 1 ค่า: N<sub>AA</sub> = ⌊ π √(2ⁿ) / 4 ⌋ &nbsp;&nbsp;·&nbsp;&nbsp; mark m ค่า: N<sub>AA</sub> = ⌊ (π/4) · √(2ⁿ / m) ⌋</div>
+    <p>n = จำนวน qubit · m = จำนวนค่าที่ mark · ⌊ ⌋ = <b>ปัดลง</b> · ได้รอบของ<b>ยอดคลื่นลูกแรก</b> (ไม่ใช่ยอดสูงสุดตลอดกาล)</p>
+    <div class="wide">
+      <div class="bars"
+           data-labels="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+           data-vals="6.25,47.3,90.8,96.1,58.2,12.5,2.0,36.5,83.6,99.2,68.7,20.6,0.1,26.4,74.8,99.96"
+           data-max="100"
+           data-hl="3:ok; 9:on; 15:on"
+           data-cap="% ที่ READ ได้ค่าที่ mark (แกน y) เทียบจำนวนรอบ AA (แกน x) · 4 qubit · mark 1 ค่า"></div>
+    </div>
+    <ul>
+      <li>n = 4: √16 = 4 → π ≈ 3.14 → <b>3 รอบ</b> (96.1%) · ถ้าพลาดก็รันใหม่ — 2 ครั้งสำเร็จอย่างน้อย 1 = <b>99.848%</b> ใช้แค่ 6 รอบรวม (สไลด์ p18)</li>
+      <li>วน<b>เกิน</b>ยอดแรก → ตกลง (รอบ 4 = 58.2% · รอบ 6 = 2.0%) แล้วขึ้นใหม่เป็นคลื่น · ยิ่ง m มาก ยิ่งแกว่งถี่
+        (ความถี่ขึ้นกับ <b>จำนวน</b>ค่าที่ mark ไม่ขึ้นกับว่า mark <b>ค่าไหน</b>)</li>
+    </ul>
+    <div class="box warn"><span class="tag">⚠️ สไลด์ p17 พิมพ์ไม่เป๊ะ</span>
+      <p>สไลด์ว่ายอดสูงสุดคือ <b>“รอบ 9 หรือ 15” ได้ 99.9563%</b> → ตอบตามนี้ตอนสอบ · ของจริงรอบ 15 = 99.956% ✓ แต่<b>รอบ 9 = 99.22%</b></p></div>
+
+    <table class="cmp" id="lec06-multi">
+      <thead><tr><th>4 qubit (N = 16) · mark m ค่า</th><th>N<sub>AA</sub></th><th>ได้ค่าที่ mark</th></tr></thead>
+      <tbody>
+        <tr><td data-label="mark m ค่า">m = 1</td><td data-label="NAA">⌊π·√16/4⌋ = 3</td><td data-label="ได้ค่าที่ mark">96.1%</td></tr>
+        <tr><td data-label="mark m ค่า">m = 2</td><td data-label="NAA">⌊0.785·√8⌋ = 2</td><td data-label="ได้ค่าที่ mark">94.5%</td></tr>
+        <tr><td data-label="mark m ค่า">m = 3</td><td data-label="NAA">⌊0.785·√5.33⌋ = 1</td><td data-label="ได้ค่าที่ mark">94.9%</td></tr>
+        <tr><td data-label="mark m ค่า">m = 4 (¼ ของ N)</td><td data-label="NAA">⌊0.785·√4⌋ = 1</td><td data-label="ได้ค่าที่ mark"><b>100%</b> แล้ววน 25% → 25% → 100% ทุก 3 รอบ</td></tr>
+        <tr><td data-label="mark m ค่า">m = 8 (ครึ่งนึง)</td><td data-label="NAA">สูตรได้ 1 แต่ไร้ประโยชน์</td><td data-label="ได้ค่าที่ mark"><b>50% ตลอด</b> = ไม่ดีกว่าสุ่ม</td></tr>
+        <tr><td data-label="mark m ค่า">m = 12 (เกินครึ่ง)</td><td data-label="NAA">—</td><td data-label="ได้ค่าที่ mark">สมมาตรกับ m = 4 แค่<b>สลับความหมายสำเร็จ/ล้มเหลว</b> → ไม่ต้องวิเคราะห์ m &gt; N/2</td></tr>
+      </tbody>
+    </table>
+    <p class="src">ตัวเลขคำนวณเองแล้วตรงกับ learning record · ตัวอย่างอื่น: n = 6, m = 1 → 6 รอบ · n = 8, m = 1 → 12 รอบ ·
+    n = 6, m = 4 → 3 รอบ · N = 10,000 → 78 รอบ · ⚠️ กราฟหลายค่าในสไลด์ (p21–25) แกน x = 0 คือ<b>หลัง AA ไปแล้ว 1 รอบ</b></p>
+    <p><a href="../lessons/0024-how-many-aa-iterations.html">อ่านตัวเต็ม: บท 0024 วน AA กี่รอบ →</a> ·
+    <a href="../lessons/0025-many-marked-values-and-using-aa.html">บท 0025 mark หลายค่า →</a></p>
+
+    <h3 id="lec06-use">AA เอาไปใช้ทำอะไร</h3>
+    <ul>
+      <li><b>“ต้องรู้คำตอบก่อนถึงจะ flip ได้?”</b> — flip เป็นแค่ตัวอย่างง่ายสุด · งานจริงแทนด้วย <b>phase logic</b>
+        (วงจรที่พลิก phase ของทุกค่าที่ “ผ่านเงื่อนไข” เอง) → ต่อยอดใน Lec10</li>
+      <li><b>ไก่กับไข่</b>: สูตร N<sub>AA</sub> ต้องรู้ m · ถ้าไม่รู้ m? → ความถี่ของคลื่นขึ้นกับ m และ <b>QFT อ่านความถี่ได้</b>
+        → AA + QFT = <b>Quantum Sum Estimation</b> (ใช้จริงใน Lec11)</li>
+      <li>เร่งอัลกอริทึมคลาสสิกที่ต้อง “ตรวจคำตอบซ้ำๆ” ได้แบบ <b>quadratic</b> (เช่น boolean satisfiability, หา global/local minima) ·
+        ส่วน <b>flip</b> = ที่ใส่ตัวตรวจคำตอบ (เปลี่ยนตามโจทย์) · ส่วน <b>mirror</b> = เหมือนเดิมทุกงาน</li>
+    </ul>
+
+    <h3 id="lec06-symbols">สัญลักษณ์วงจรของคาบนี้</h3>
+    <table class="cmp">
+      <thead><tr><th>สัญลักษณ์</th><th>ชื่อ</th><th>ทำอะไร</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="4" data-ops="CZ:0,1,2,3" data-alt="จุดทึบ 4 จุดบนเส้นตั้งเดียว"></div></td>
+          <td data-label="ชื่อ">CZ คร่อม 4 สาย</td>
+          <td data-label="ทำอะไร">● ทุกจุดบนเส้นเดียว (ไม่มี ⊕) · พลิก phase เฉพาะค่า 1111</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="4" data-wire-labels="0x1,0x2,0x4,0x8" data-ops="X:2 + X:3; CZ:0,1,2,3; X:2 + X:3" data-alt="flip ของค่า 3"></div></td>
+          <td data-label="ชื่อ">flip (mark ค่า 3)</td>
+          <td data-label="ทำอะไร">NOT บิตที่เป็น 0 → CZ → NOT กลับ · ตำแหน่ง NOT เปลี่ยนตามค่าที่ mark</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="4" data-ops="H:0 + H:1 + H:2 + H:3; X:0 + X:1 + X:2 + X:3; CZ:0,1,2,3; X:0 + X:1 + X:2 + X:3; H:0 + H:1 + H:2 + H:3" data-alt="mirror"></div></td>
+          <td data-label="ชื่อ">mirror (สไลด์เรียก Grover iteration)</td>
+          <td data-label="ทำอะไร">H → NOT → CZ → NOT → H ทุกสาย · สะท้อนรอบค่าเฉลี่ย · ไม่เปลี่ยนตามโจทย์</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="4" data-ops="BOX:0,3:AA:1" data-alt="กรอบ AA"></div></td>
+          <td data-label="ชื่อ">กรอบ AA</td>
+          <td data-label="ทำอะไร">AA 1 รอบ = flip + mirror · วนหลายรอบ = วางกรอบ AA ต่อกัน (สไลด์ p15 วาด prep + AA ×4)</td>
+        </tr>
+      </tbody>
+    </table>
     <!-- lec06:content-end -->
     <button type="button" class="next-btn" data-target="lec07">บทถัดไป: Lec07 QFT →</button>
   </section>
