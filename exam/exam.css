@@ -257,3 +257,11 @@ table.cmp.lb-tt td { text-align:center; white-space:nowrap; }
 .exam-group { border:1px solid var(--rule); border-radius:12px; padding:.2rem 1rem 1rem; margin:1.2rem 0; }
 .exam-group.final { border-color:var(--accent); border-width:2px; }
 .exam-group h2 { margin-top:.8rem; }
+
+/* final: lec10 — ตารางสัญลักษณ์/ประตู phase logic: กันคอลัมน์วงจรกินที่จนข้อความโดนบีบ (จอกว้างเท่านั้น) */
+@media (min-width:34.01rem) {
+  table.lec10-symtab td:first-child { width:42%; }
+  table.lec10-symtab td:nth-child(2) { width:20%; }
+}
+/* final: lec10 — ค่าบิตในตารางความจริงไม่ให้ตัดบรรทัด */
+.lec10-nw { white-space:nowrap; }

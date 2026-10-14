@@ -95,7 +95,7 @@
 
     <h3 id="lec10-symbols">สัญลักษณ์วงจรของคาบนี้</h3>
     <p>คาบนี้ไม่มี gate ใหม่เลย ทุกอย่างประกอบจากของ Lec02–06 · สิ่งที่ต้องจำคือ "บล็อก" ที่เอาของเดิมมาต่อกัน</p>
-    <table class="cmp">
+    <table class="cmp lec10-symtab">
       <thead><tr><th>สัญลักษณ์</th><th>ชื่อ</th><th>ทำอะไร</th></tr></thead>
       <tbody>
         <tr>
@@ -145,7 +145,7 @@
 
     <h4 id="lec10-gates">ตารางประตู phase logic (Figure 10-1 + 10-2)</h4>
     <p>a = สายบน (0x1) · b = สายล่าง (0x2) · ∣n⟩ = a + 2b · φ ทุกตัว = 180° · "พลิก" = วงที่เข็มชี้ลงหลังผ่าน gate (เมื่อป้อน uniform superposition)</p>
-    <table class="cmp">
+    <table class="cmp lec10-symtab">
       <thead><tr><th>วงจร</th><th>ชื่อ</th><th>พลิก phase ของ</th></tr></thead>
       <tbody>
         <tr>
@@ -200,7 +200,7 @@
       <li><b>pAND</b> = CZ ระหว่าง c กับ scratch → พลิกเฉพาะค่าที่ c = 1 และ (a OR NOT b) = 1 · มันไม่เปลี่ยนค่าในรีจิสเตอร์ จึงไม่รบกวนการ uncompute</li>
       <li><b>ต้อง uncompute</b> เพราะ scratch เก็บค่า 0/1 ที่ขึ้นกับ input จึง entangle ค้างอยู่ → phase ที่พลิกไว้เอาไปใช้ต่อไม่ได้ ·
         ต่างจาก scratch ∣−⟩ ของ phase XOR ที่ไม่ต้อง uncompute</li>
-      <li>ผล (Figure 10-5): magnitude เท่าเดิมทุกวง · phase ของ <b>∣4⟩ ∣5⟩ ∣7⟩</b> ถูกพลิก (3 จาก 8 ค่า · ไล่ตารางเต็มที่<a href="#lec10-truth">ข้อ 5</a>)</li>
+      <li>ผล (Figure 10-5): magnitude เท่าเดิมทุกวง · phase ของ <b>∣4⟩ ∣5⟩ ∣7⟩</b> ถูกพลิก (3 จาก 8 ค่า · ไล่ตารางเต็มได้ที่<a href="#lec10-truth">ตารางความจริงท้ายข้อ 6</a>)</li>
     </ul>
     <p class="scroll-hint">← เลื่อนดูได้</p>
     <div class="scrollx">
@@ -322,18 +322,18 @@
     <p><a href="../lessons/0040-sat-recipe-and-3sat.html">อ่านตัวเต็ม → บท 0040</a></p>
 
     <h4 id="lec10-truth">ไล่ตารางความจริง: state ไหนโดนพลิก phase</h4>
-    <p>วิธีไล่: ∣n⟩ = a + 2b + 4c (a = 0x1, b = 0x2, c = 0x4) → แทนค่าทีละ clause → state ที่ทุก clause = 1 คือ state ที่ phase logic พลิก</p>
+    <p>วิธีไล่: ∣n⟩ = a + 2b + 4c (a = 0x1, b = 0x2, c = 0x4) → แทนค่าทีละ clause → state ที่ทุก clause = 1 คือ state ที่ phase logic พลิก · clause 1–4 = (a OR b) · (NOT a OR c) · (NOT b OR NOT c) · (a OR c)</p>
     <table class="cmp">
-      <thead><tr><th>state</th><th>a b c</th><th>a OR b</th><th>NOT a OR c</th><th>NOT b OR NOT c</th><th>a OR c</th><th>4 clause (มีคำตอบ)</th><th>… AND b (ไม่มีคำตอบ)</th><th>(a OR NOT b) AND c</th></tr></thead>
+      <thead><tr><th>state</th><th>(a,b,c)</th><th>clause 1 2 3 4</th><th>ทั้ง 4 clause (มีคำตอบ)</th><th>… AND b (ไม่มีคำตอบ)</th><th>(a OR NOT b) AND c</th></tr></thead>
       <tbody>
-        <tr><td data-label="state">∣0⟩</td><td data-label="a b c">0 0 0</td><td data-label="a OR b">0</td><td data-label="NOT a OR c">1</td><td data-label="NOT b OR NOT c">1</td><td data-label="a OR c">0</td><td data-label="4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c">0</td></tr>
-        <tr><td data-label="state">∣1⟩</td><td data-label="a b c">1 0 0</td><td data-label="a OR b">1</td><td data-label="NOT a OR c">0</td><td data-label="NOT b OR NOT c">1</td><td data-label="a OR c">1</td><td data-label="4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c">0</td></tr>
-        <tr><td data-label="state">∣2⟩</td><td data-label="a b c">0 1 0</td><td data-label="a OR b">1</td><td data-label="NOT a OR c">1</td><td data-label="NOT b OR NOT c">1</td><td data-label="a OR c">0</td><td data-label="4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c">0</td></tr>
-        <tr><td data-label="state">∣3⟩</td><td data-label="a b c">1 1 0</td><td data-label="a OR b">1</td><td data-label="NOT a OR c">0</td><td data-label="NOT b OR NOT c">1</td><td data-label="a OR c">1</td><td data-label="4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c">0</td></tr>
-        <tr><td data-label="state">∣4⟩</td><td data-label="a b c">0 0 1</td><td data-label="a OR b">0</td><td data-label="NOT a OR c">1</td><td data-label="NOT b OR NOT c">1</td><td data-label="a OR c">1</td><td data-label="4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c"><b>1 พลิก</b></td></tr>
-        <tr><td data-label="state">∣5⟩</td><td data-label="a b c">1 0 1</td><td data-label="a OR b">1</td><td data-label="NOT a OR c">1</td><td data-label="NOT b OR NOT c">1</td><td data-label="a OR c">1</td><td data-label="4 clause"><b>1 พลิก</b></td><td data-label="… AND b">0 (b = 0)</td><td data-label="(a OR NOT b) AND c"><b>1 พลิก</b></td></tr>
-        <tr><td data-label="state">∣6⟩</td><td data-label="a b c">0 1 1</td><td data-label="a OR b">1</td><td data-label="NOT a OR c">1</td><td data-label="NOT b OR NOT c">0</td><td data-label="a OR c">1</td><td data-label="4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c">0</td></tr>
-        <tr><td data-label="state">∣7⟩</td><td data-label="a b c">1 1 1</td><td data-label="a OR b">1</td><td data-label="NOT a OR c">1</td><td data-label="NOT b OR NOT c">0</td><td data-label="a OR c">1</td><td data-label="4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c"><b>1 พลิก</b></td></tr>
+        <tr><td data-label="state">∣0⟩</td><td data-label="(a,b,c)"><span class="lec10-nw">(0,0,0)</span></td><td data-label="clause 1 2 3 4"><span class="lec10-nw">0 1 1 0</span></td><td data-label="ทั้ง 4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c">0</td></tr>
+        <tr><td data-label="state">∣1⟩</td><td data-label="(a,b,c)"><span class="lec10-nw">(1,0,0)</span></td><td data-label="clause 1 2 3 4"><span class="lec10-nw">1 0 1 1</span></td><td data-label="ทั้ง 4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c">0</td></tr>
+        <tr><td data-label="state">∣2⟩</td><td data-label="(a,b,c)"><span class="lec10-nw">(0,1,0)</span></td><td data-label="clause 1 2 3 4"><span class="lec10-nw">1 1 1 0</span></td><td data-label="ทั้ง 4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c">0</td></tr>
+        <tr><td data-label="state">∣3⟩</td><td data-label="(a,b,c)"><span class="lec10-nw">(1,1,0)</span></td><td data-label="clause 1 2 3 4"><span class="lec10-nw">1 0 1 1</span></td><td data-label="ทั้ง 4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c">0</td></tr>
+        <tr><td data-label="state">∣4⟩</td><td data-label="(a,b,c)"><span class="lec10-nw">(0,0,1)</span></td><td data-label="clause 1 2 3 4"><span class="lec10-nw">0 1 1 1</span></td><td data-label="ทั้ง 4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c"><b>1 พลิก</b></td></tr>
+        <tr><td data-label="state">∣5⟩</td><td data-label="(a,b,c)"><span class="lec10-nw">(1,0,1)</span></td><td data-label="clause 1 2 3 4"><span class="lec10-nw">1 1 1 1</span></td><td data-label="ทั้ง 4 clause"><b>1 พลิก</b></td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c"><b>1 พลิก</b></td></tr>
+        <tr><td data-label="state">∣6⟩</td><td data-label="(a,b,c)"><span class="lec10-nw">(0,1,1)</span></td><td data-label="clause 1 2 3 4"><span class="lec10-nw">1 1 0 1</span></td><td data-label="ทั้ง 4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c">0</td></tr>
+        <tr><td data-label="state">∣7⟩</td><td data-label="(a,b,c)"><span class="lec10-nw">(1,1,1)</span></td><td data-label="clause 1 2 3 4"><span class="lec10-nw">1 1 0 1</span></td><td data-label="ทั้ง 4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c"><b>1 พลิก</b></td></tr>
       </tbody>
     </table>
     <p>สรุป: 4 clause → พลิกแค่ <b>∣5⟩</b> · เติม AND b → <b>ไม่มีตัวไหนพลิก</b> · (a OR NOT b) AND c → พลิก <b>∣4⟩ ∣5⟩ ∣7⟩</b></p>
