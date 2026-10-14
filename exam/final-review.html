@@ -1425,7 +1425,138 @@
     <p class="kicker">รวมไว้ที่เดียว</p>
     <h2>🧮 โจทย์คำนวณ + วิธีทำ</h2>
     <!-- calc:content-start — เนื้อหาของ page นี้เขียนระหว่าง start/end เท่านั้น -->
-    <div class="box"><p>🚧 กำลังเขียน — page นี้ยังไม่เสร็จ</p></div>
+    <p>9 ข้อ ครบทุกคาบ Lec06–11 · ตัวเลข<b>เปลี่ยนจากตัวอย่างใน page</b> จะได้ลองคิดเองจริงๆ ·
+    <b>ลองคิดก่อนแล้วค่อยกด "ดูวิธีทำ"</b> · ทุกข้อมีลิงก์กลับไปทวนเนื้อหา · ตัวเลขทุกตัวคาโฮะคำนวณซ้ำด้วย numpy แล้ว</p>
+
+    <h3 id="calc-formulas">สูตรที่ต้องพกเข้าห้องสอบ</h3>
+    <table class="cmp">
+      <thead><tr><th>คาบ</th><th>สูตร</th><th>ใช้ตอน</th></tr></thead>
+      <tbody>
+        <tr><td data-label="คาบ">Lec06</td><td data-label="สูตร">N<sub>AA</sub> = ⌊ (π/4)·√(2ⁿ/m) ⌋ · โอกาสหลัง k รอบ = sin²((2k+1)θ) เมื่อ sin²θ = m/2ⁿ</td><td data-label="ใช้ตอน">วน AA กี่รอบ / วนแล้วได้กี่ %</td></tr>
+        <tr><td data-label="คาบ">Lec06</td><td data-label="สูตร">mirror: ค่าใหม่ = 2 × ค่าเฉลี่ย − ค่าเดิม</td><td data-label="ใช้ตอน">ไล่ amplitude ทีละรอบด้วยมือ</td></tr>
+        <tr><td data-label="คาบ">Lec07</td><td data-label="สูตร">phase หมุนทวนเข็ม f รอบ → ∣f⟩ · ตามเข็ม → ∣N − f⟩ · สัญญาณจริง → f และ N − f</td><td data-label="ใช้ตอน">หาว่า peak อยู่ค่าไหน</td></tr>
+        <tr><td data-label="คาบ">Lec08</td><td data-label="สูตร">R = (θ/360°) × 2<sup>m</sup> · ความละเอียด = 360°/2<sup>m</sup> · m = p + ⌈log₂(2 + 1/ε)⌉ (ตามสไลด์)</td><td data-label="ใช้ตอน">แปลงค่า READ ↔ มุม</td></tr>
+        <tr><td data-label="คาบ">Lec09</td><td data-label="สูตร">amplitude: ⌈log₂ N⌉ qubit · state: N × บิตต่อค่า · fixed point Qn.m: ช่องละ ½<sup>m</sup> · สูงสุด 2<sup>n−m</sup> − ½<sup>m</sup></td><td data-label="ใช้ตอน">นับ qubit / แปลงทศนิยม</td></tr>
+        <tr><td data-label="คาบ">Lec11</td><td data-label="สูตร">ความสว่าง = จำนวนขาว ÷ จำนวน subpixel · counter c qubit → รัน shader 2<sup>c</sup> − 1 ครั้ง</td><td data-label="ใช้ตอน">sum estimation</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="calc-1">1. Lec06 · วน AA กี่รอบ และวนเกินแล้วเป็นยังไง</h3>
+    <p><b>โจทย์:</b> register 5 qubit mark ไว้ 1 ค่า · (ก) ต้องวน AA กี่รอบ ได้ค่าที่ mark กี่ % · (ข) ถ้าเผลอวน 6 รอบ หรือ 8 รอบล่ะ ·
+    (ค) ถ้า mark 2 ค่าล่ะ</p>
+    <details class="calc-ans"><summary>ดูวิธีทำ</summary>
+      <div class="work">
+        <div class="step"><span class="lbl">ก</span> N = 2⁵ = 32 · (π/4)·√32 = 0.785 × 5.66 ≈ 4.44 → ปัดลง = <b>4 รอบ</b> · ได้ค่าที่ mark ≈ <b>99.9%</b></div>
+        <div class="step"><span class="lbl">ข</span> เลยยอดแรกไปแล้วตกลง: 5 รอบ = 86.0% · 6 รอบ = <b>54.6%</b> · 8 รอบ = <b>1.4%</b> (แย่กว่าไม่ทำ AA เลยที่ได้ 1/32 = 3.1%)</div>
+        <div class="step"><span class="lbl">ค</span> m = 2 → (π/4)·√(32/2) = 0.785 × 4 = 3.14 → <b>3 รอบ</b> · ได้ 96.1% · mark มากขึ้น → ใช้รอบน้อยลง</div>
+        <div class="step"><span class="lbl">ทวน</span> เทียบกับ 4 qubit ใน page: n = 4 → 3 รอบ (96.1%) · n = 10 → ⌊0.785 × 32⌋ = 25 รอบ (≈ 99.95%) · รอบโตตาม √N ไม่ใช่ N</div>
+      </div>
+    </details>
+    <p class="meta"><a href="#lec06-rounds">ทวนเนื้อหา → Lec06 วนกี่รอบดี</a> · <a href="#lec06-multi">ตาราง mark หลายค่า</a></p>
+
+    <h3 id="calc-2">2. Lec06 · ไล่ amplitude ด้วยมือ 1 รอบ (สะท้อนรอบค่าเฉลี่ย)</h3>
+    <p><b>โจทย์:</b> 3 qubit (8 ค่า) uniform superposition · mark 1 ค่า · ทำ AA 1 รอบ แล้วค่าที่ mark กับค่าอื่นมี amplitude และโอกาส READ เท่าไหร่</p>
+    <details class="calc-ans"><summary>ดูวิธีทำ</summary>
+      <div class="work">
+        <div class="step"><span class="lbl">①</span> เริ่ม: ทุกค่า 1/√8 ≈ <b>0.354</b></div>
+        <div class="step"><span class="lbl">②</span> flip: ค่าที่ mark กลายเป็น −0.354 · ค่าเฉลี่ย = (7 × 0.354 − 0.354) / 8 = <b>0.265</b></div>
+        <div class="step"><span class="lbl">③</span> mirror (2 × เฉลี่ย − ค่าเดิม): ค่าที่ mark = 0.530 + 0.354 = <b>0.884</b> → 0.884² = <b>78.1%</b></div>
+        <div class="step"><span class="lbl">④</span> ค่าอื่น = 0.530 − 0.354 = <b>0.177</b> → 0.177² = 3.1% ต่อค่า · ตรวจ: 78.1 + 7 × 3.1 ≈ 100 ✓</div>
+        <div class="step"><span class="lbl">ทวน</span> เลข 78% นี้เจออีกทีใน 3-SAT ของ Lec10 (8 ค่า มีคำตอบ 1 ตัว รัน 1 รอบ)</div>
+      </div>
+    </details>
+    <p class="meta"><a href="#lec06-why">ทวนเนื้อหา → Lec06 สะท้อนรอบค่าเฉลี่ย</a> · <a href="#lec10-3sat-calc">3-SAT 1 รอบ = 78%</a></p>
+
+    <h3 id="calc-3">3. Lec07 · peak ของ QFT อยู่ค่าไหน</h3>
+    <p><b>โจทย์:</b> register 4 qubit (16 ค่า) · บอกว่า QFT แล้ว peak อยู่ที่ค่าไหน ถ้า input คือ
+    (ก) phase หมุนทวนเข็ม 3 รอบ (ข) phase หมุนตามเข็ม 3 รอบ (ค) สัญญาณจริง (cos) 5 รอบใน register 5 qubit (32 ค่า)
+    (ง) phase หมุนทวนเข็ม 3.5 รอบ</p>
+    <details class="calc-ans"><summary>ดูวิธีทำ</summary>
+      <div class="work">
+        <div class="step"><span class="lbl">ก</span> ทวนเข็ม f รอบ = เชิงซ้อน → peak เดียวที่ <b>∣3⟩</b> (100%)</div>
+        <div class="step"><span class="lbl">ข</span> ตามเข็ม → <b>∣16 − 3⟩ = ∣13⟩</b> peak เดียว</div>
+        <div class="step"><span class="lbl">ค</span> สัญญาณจริง → peak คู่ที่ <b>∣5⟩ และ ∣32 − 5⟩ = ∣27⟩</b> สูงเท่ากัน (กระจก)</div>
+        <div class="step"><span class="lbl">ง</span> 3.5 รอบไม่ลงช่อง → peak แบ่งไปช่องที่ใกล้สุดสองช่อง <b>∣3⟩ กับ ∣4⟩ ช่องละ ≈ 40.7%</b> แล้วรั่วไปข้างๆ (∣2⟩, ∣5⟩ ≈ 4.6%)</div>
+      </div>
+    </details>
+    <p class="meta"><a href="#lec07-peak">ทวนเนื้อหา → Lec07 จุดยอดคู่ · ความถี่ไม่ลงตัว</a></p>
+
+    <h3 id="calc-4">4. Lec08 · แปลง READ ↔ มุม และความละเอียด</h3>
+    <p><b>โจทย์:</b> (ก) qout 4 qubit READ ได้ 6 → eigenphase กี่องศา (ข) θ = 45° ใช้ qout 3 qubit จะ READ ได้เท่าไหร่
+    (ค) θ = 100° ใช้ 4 qubit จะ READ ได้อะไร (ง) อยากแม่น p = 4 bit ยอมพลาด ε = 0.05 ต้องใช้ m เท่าไหร่</p>
+    <details class="calc-ans"><summary>ดูวิธีทำ</summary>
+      <div class="work">
+        <div class="step"><span class="lbl">ก</span> θ = 6 × 360 / 2⁴ = 6 × 22.5 = <b>135°</b></div>
+        <div class="step"><span class="lbl">ข</span> R = 45/360 × 8 = <b>1</b> (ลงช่องพอดี → ได้ 1 แน่นอน)</div>
+        <div class="step"><span class="lbl">ค</span> R = 100/360 × 16 = 4.44 → ไม่ลงช่อง (ช่องละ 22.5°) · ได้ <b>4 (= 90°) ≈ 49.9%</b> · 5 (= 112.5°) ≈ 32.0% · ที่เหลือกระจายช่องข้างๆ ·
+          ช่องที่ใกล้สุด (4) ยังได้เกิน 40% ตามที่สไลด์บอก</div>
+        <div class="step"><span class="lbl">ง</span> ตามสไลด์: m = 4 + ⌈log₂(2 + 1/0.05)⌉ = 4 + ⌈log₂ 22⌉ = 4 + ⌈4.46⌉ = <b>9</b> ·
+          (ตำรามาตรฐานใช้ 1/(2ε) → 4 + ⌈log₂ 12⌉ = 8 · <b>ตอบตามสไลด์</b>)</div>
+      </div>
+    </details>
+    <p class="meta"><a href="#lec08-read">ทวนเนื้อหา → Lec08 สูตรแปลงค่า</a> · <a href="#lec08-resolution">ความละเอียด</a></p>
+
+    <h3 id="calc-5">5. Lec09 · นับ qubit: state vs amplitude encoding</h3>
+    <p><b>โจทย์:</b> vector [3, 0, 5, 1, 2, 7] · (ก) amplitude encoding ใช้กี่ qubit (ข) state encoding (จำนวนเต็มไม่ติดลบ) ใช้กี่ qubit
+    (ค) normalize แล้ว โอกาส READ ได้ ∣5⟩ เท่าไหร่</p>
+    <details class="calc-ans"><summary>ดูวิธีทำ</summary>
+      <div class="work">
+        <div class="step"><span class="lbl">ก</span> ยาว 6 → ⌈log₂ 6⌉ = ⌈2.58⌉ = <b>3 qubit</b> (8 ช่อง · เติม 0 อีก 2 ช่อง)</div>
+        <div class="step"><span class="lbl">ข</span> ค่าใหญ่สุด 7 = 111 → 3 บิตต่อค่า → 6 × 3 = <b>18 qubit</b></div>
+        <div class="step"><span class="lbl">ค</span> ผลรวมกำลังสอง = 9 + 0 + 25 + 1 + 4 + 49 = 88 → หารด้วย √88 ≈ 9.38 ·
+          ∣5⟩ มี amplitude 7/√88 ≈ 0.746 → โอกาส = 49/88 ≈ <b>55.7%</b> (ถ้าตอบ 74.6% = ลืมยกกำลังสอง)</div>
+      </div>
+    </details>
+    <p class="meta"><a href="#lec09-qubits">ทวนเนื้อหา → Lec09 state vs amplitude</a> · <a href="#lec09-normalize">normalize</a></p>
+
+    <h3 id="calc-6">6. Lec09 · fixed point</h3>
+    <p><b>โจทย์:</b> เก็บ 2.7 ใน register แบบ <b>Q6.4</b> · (ก) ได้ค่าใกล้สุดเท่าไหร่ เขียนเป็นบิตยังไง (ข) ความละเอียดและค่าสูงสุดที่เก็บได้</p>
+    <details class="calc-ans"><summary>ดูวิธีทำ</summary>
+      <div class="work">
+        <div class="step"><span class="lbl">①</span> Q6.4 = 6 bit · เศษ 4 bit · จำนวนเต็ม 2 bit → ช่องละ ½⁴ = <b>1/16 = 0.0625</b></div>
+        <div class="step"><span class="lbl">②</span> 2.7 × 16 = 43.2 → ปัดเป็น 43 → 43/16 = <b>2.6875</b> (คลาด 0.0125)</div>
+        <div class="step"><span class="lbl">③</span> 43 = 101011 → อ่านเป็น <b>10.1011</b> = 2 + ½ + ⅛ + 1/16 = 2.6875 ✓</div>
+        <div class="step"><span class="lbl">④</span> ค่าสูงสุด = 2² − 1/16 = <b>3.9375</b> · อยากได้ range มากขึ้นเพิ่มบิตจำนวนเต็ม อยากแม่นขึ้นเพิ่มบิตเศษ</div>
+      </div>
+    </details>
+    <p class="meta"><a href="#lec09-fixed">ทวนเนื้อหา → Lec09 fixed point</a></p>
+
+    <h3 id="calc-7">7. Lec10 · ไล่ตารางความจริง → state ไหนโดนพลิก phase</h3>
+    <p><b>โจทย์:</b> phase logic ของ <b>(a OR b) AND (NOT c)</b> · a = 0x1, b = 0x2, c = 0x4 · (ก) state ไหนโดนพลิก
+    (ข) ต้องวน AA กี่รอบ ได้คำตอบกี่ % (ค) ถ้าวน 2 รอบล่ะ</p>
+    <details class="calc-ans"><summary>ดูวิธีทำ</summary>
+      <div class="work">
+        <div class="step"><span class="lbl">ก</span> ต้อง c = 0 (state 0–3) และ a OR b = 1 → ตัด ∣0⟩ ออก → พลิก <b>∣1⟩ ∣2⟩ ∣3⟩</b> (m = 3 จาก 8)</div>
+        <div class="step"><span class="lbl">ข</span> N<sub>AA</sub> = ⌊0.785 × √(8/3)⌋ = ⌊0.785 × 1.63⌋ = ⌊1.28⌋ = <b>1 รอบ</b> → READ ได้ 1 ใน 3 คำตอบรวม <b>84.4%</b></div>
+        <div class="step"><span class="lbl">ค</span> 2 รอบ → เหลือ <b>2.3%</b> · คำตอบเยอะ (3/8) → แกว่งเร็ว วนเกินแค่รอบเดียวก็ตกฮวบ</div>
+        <div class="step"><span class="lbl">ทวน</span> วงจร: (a OR b) ด้วย bit_or ลง scratch → <b>NOT c</b> = X บน c → CZ ระหว่าง c กับ scratch → uncompute (magnitude ก่อน phase ทีหลัง)</div>
+      </div>
+    </details>
+    <p class="meta"><a href="#lec10-truth">ทวนเนื้อหา → Lec10 ตารางความจริง 3-SAT</a> · <a href="#lec10-mag-phase">magnitude ก่อน phase</a></p>
+
+    <h3 id="calc-8">8. Lec11 · READ → ความสว่าง + มั่นใจกี่ %</h3>
+    <p><b>โจทย์:</b> tile 4×4 (16 subpixel) counter 4 qubit · ใช้ lookup table (Figure 11-14) ·
+    READ ได้ (ก) 9 (ข) 4 (ค) 10 → แต่ละค่า น่าจะขาวกี่ subpixel · ความสว่างเท่าไหร่ · มั่นใจแค่ไหน</p>
+    <details class="calc-ans"><summary>ดูวิธีทำ</summary>
+      <div class="work">
+        <div class="step"><span class="lbl">ก</span> แถว 9 สว่างสุดที่ <b>1</b> → 1/16 ≈ <b>6%</b> · ช่องเดียวเด่น → มั่นใจราว <b>80%</b></div>
+        <div class="step"><span class="lbl">ข</span> แถว 4 สว่างสุดที่ <b>14</b> → 14/16 ≈ <b>88%</b> · แต่ 13 ก็สว่างเกือบเท่า → มั่นใจแค่ราว <b>43%</b></div>
+        <div class="step"><span class="lbl">ค</span> แถว 10 (ตัวอย่างสไลด์) → <b>5</b> → 5/16 ≈ <b>31%</b> · 4 หรือ 6 ก็เป็นไปได้ → มั่นใจราว 36%</div>
+        <div class="step"><span class="lbl">หลัก</span> สว่างช่องเดียว = มั่นใจ · สว่างกระจาย = ไม่มั่นใจ · % เป็นค่าที่คาโฮะจำลองเอง สไลด์ไม่มีตัวเลข (บอกแค่ READ 0/1 มั่นใจ · 2/3/4 ไม่มั่นใจ)</div>
+      </div>
+    </details>
+    <p class="meta"><a href="#lec11-lut">ทวนเนื้อหา → Lec11 lookup table + confidence</a></p>
+
+    <h3 id="calc-9">9. Lec11 · ต้นทุนของ sum estimation</h3>
+    <p><b>โจทย์:</b> counter 3 qubit กับ 5 qubit ต้องรันโค้ดวาดรูป (shader) กี่ครั้งต่อ tile · lookup table มีกี่แถวกี่คอลัมน์ (tile 4×4)</p>
+    <details class="calc-ans"><summary>ดูวิธีทำ</summary>
+      <div class="work">
+        <div class="step"><span class="lbl">①</span> qubit ของ counter ที่น้ำหนัก 2ʲ คุม AA 2ʲ รอบ → รวม 1 + 2 + 4 + … = 2<sup>c</sup> − 1</div>
+        <div class="step"><span class="lbl">②</span> c = 3 → <b>7 ครั้ง</b> · c = 5 → <b>31 ครั้ง</b> (ตรงกับ 1/3/7/15/31 ใน Figure 11-13)</div>
+        <div class="step"><span class="lbl">③</span> แถว = 2<sup>c</sup> → 8 กับ 32 แถว · คอลัมน์ = 16 + 1 = <b>17</b> เสมอ (ขาว 0–16) · counter มากขึ้น = ภาพดีขึ้นแต่ต้องรันมากขึ้น</div>
+      </div>
+    </details>
+    <p class="meta"><a href="#lec11-sum">ทวนเนื้อหา → Lec11 sum estimation</a></p>
     <!-- calc:content-end -->
     <a href="index.html" class="hub-link-btn">← กลับไปหน้า Hub</a>
   </section>

@@ -265,3 +265,8 @@ table.cmp.lb-tt td { text-align:center; white-space:nowrap; }
 }
 /* final: lec10 — ค่าบิตในตารางความจริงไม่ให้ตัดบรรทัด */
 .lec10-nw { white-space:nowrap; }
+
+/* final: calc — วิธีทำซ่อนไว้ให้ลองคิดก่อน */
+details.calc-ans { margin:.4rem 0 .2rem; }
+details.calc-ans > summary { cursor:pointer; font-weight:700; color:var(--accent); padding:.25rem 0; }
+details.calc-ans[open] > summary { margin-bottom:.2rem; }
