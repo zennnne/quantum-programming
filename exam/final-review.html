@@ -226,7 +226,149 @@
     <p class="kicker">Lec08 · สิทธิ์ยาวได้ (เน้นที่สุด)</p>
     <h2>Phase Estimation</h2>
     <!-- lec08:content-start — เนื้อหาของ page นี้เขียนระหว่าง start/end เท่านั้น -->
-    <div class="box"><p>🚧 กำลังเขียน — page นี้ยังไม่เสร็จ</p></div>
+    <div class="box aha"><span class="tag">แกนเดียวกับ teleport: คำตอบซ่อนอยู่ใน phase</span>
+      <p>ที่ teleport ครึ่งหลังยาก (<a href="review.html#lec04">ทวน Lec04</a>) เพราะข้อมูลที่ต้องการไปอยู่ใน <b>phase</b> ซึ่ง READ มองไม่เห็น ·
+      Lec08 คือปัญหาแบบเดียวกันแต่หนักกว่า: คำตอบ (eigenphase) เป็น <b>global phase</b> ซึ่งไม่มีทางอ่านได้เลย ·
+      ทางออกมี 3 ขั้น จำเป็นประโยคเดียว:</p>
+      <p style="text-align:center"><b>ย้าย phase ไป register อื่น (kickback) → ทำให้มันเป็น “ความถี่” → invQFT แปลงความถี่เป็นตัวเลข → READ</b></p></div>
+
+    <h3 id="lec08-eigen">eigenstate และ eigenphase — สิ่งที่ phase estimation หา</h3>
+    <ul>
+      <li><b>eigenstate</b> (สถานะเฉพาะ) ของ operation U = state ที่ U <b>ไม่เปลี่ยน</b> ยกเว้นเติม global phase ให้ทั้ง state</li>
+      <li><b>eigenphase</b> = มุม θ ของ global phase ก้อนนั้น (U∣u⟩ = e<sup>iθ</sup>∣u⟩)</li>
+      <li>เซตของ eigenstate + eigenphase เป็นเหมือน<b>ลายนิ้วมือ</b> ของ operation — ไม่มี operation อื่นที่มีเซตเดียวกัน</li>
+    </ul>
+    <p>ตัวอย่างของสไลด์: HAD มี eigenstate <b>2 ตัวเท่านั้น</b> (Table 8-1)</p>
+    <table class="cmp">
+      <thead><tr><th>eigenstate ของ HAD</th><th>HAD ทำอะไรกับมัน</th><th>eigenphase</th></tr></thead>
+      <tbody>
+        <tr><td data-label="eigenstate ของ HAD"><div class="crow" data-n="2" data-r="20" data-labels="0,1" data-mag="0.8535,0.1465" data-phase="0,0"></div>
+          85.35%∣0⟩ + 14.64%∣1⟩ (เฟส 0° ทั้งคู่)</td>
+          <td data-label="HAD ทำอะไรกับมัน">ไม่เปลี่ยนเลย</td><td data-label="eigenphase"><b>0°</b></td></tr>
+        <tr><td data-label="eigenstate ของ HAD"><div class="crow" data-n="2" data-r="20" data-labels="0,1" data-mag="0.1465,0.8535" data-phase="180,0"></div>
+          14.64%∣0⟩ (เฟส 180°) + 85.35%∣1⟩</td>
+          <td data-label="HAD ทำอะไรกับมัน">ทั้งสองวงหมุน 180° พร้อมกัน (relative phase เท่าเดิม)</td><td data-label="eigenphase"><b>180°</b></td></tr>
+      </tbody>
+    </table>
+    <div class="box warn"><span class="tag">⚠️ 180° มีสองความหมายในตารางนี้</span>
+      <p>เฟส 180° ที่เห็นใน<b>วง ∣0⟩</b> ของแถวล่าง = <b>relative phase</b> (ส่วนหนึ่งของหน้าตา state) ·
+      ส่วน eigenphase 180° = <b>global phase</b> ที่ HAD เติมให้<b>ทั้ง state</b> · บังเอิญเป็นเลขเดียวกัน อย่าสับสน</p></div>
+    <p><a href="../lessons/0031-eigenstate-and-eigenphase.html">อ่านตัวเต็ม: บท 0031 eigenstate และ eigenphase →</a></p>
+
+    <h3 id="lec08-use">ใช้ phase_est() ยังไง — input 3 อย่าง</h3>
+    <div class="wide">
+      <div class="circuit" data-wires="5" data-wire-labels="qout,qout,qout,qout,qin"
+           data-ops="BOX:0,4:Phase estimation:3; _; _; READ:0 + READ:1 + READ:2 + READ:3"
+           data-cap="Figure 8-4 แบบย่อ — กล่องใหญ่คร่อม qout (4 qubit) + qin · READ เฉพาะ qout · qin ไม่ถูกอ่าน"></div>
+    </div>
+    <table class="cmp">
+      <thead><tr><th>input</th><th>คืออะไร</th><th>ตัวอย่าง HAD (Example 8-1)</th></tr></thead>
+      <tbody>
+        <tr><td data-label="input"><code class="code">qin</code></td><td data-label="คืออะไร">eigenstate ของ U (n qubit) · จบแล้ว<b>ยังเป็น eigenstate เดิม</b></td><td data-label="ตัวอย่าง HAD">1 qubit = eigenstate ที่ eigenphase 180°</td></tr>
+        <tr><td data-label="input"><code class="code">qout</code></td><td data-label="คืออะไร">output m qubit เริ่มที่ 0 ทั้งหมด · <b>m กำหนดความละเอียด</b></td><td data-label="ตัวอย่าง HAD">m = 4</td></tr>
+        <tr><td data-label="input"><code class="code">cont_u</code></td><td data-label="คืออะไร">ฟังก์ชันที่ทำ <b>controlled-U</b> (ไม่ใช่ U ตรงๆ) — วาดเป็นกล่องเทามีลูกศรชี้ขึ้นเข้ากล่องใหญ่ ไม่ใช่สาย qubit</td><td data-label="ตัวอย่าง HAD">controlled-HAD</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="lec08-read">READ ได้ 8 แปลว่า 180° — สูตรแปลงค่า</h3>
+    <p>phase estimation เก็บ θ เป็น <b>เศษส่วนของ 360°</b> แล้วเขียนลง qout เป็น <b>เศษส่วนเดียวกันของ 2<sup>m</sup></b>:</p>
+    <div class="eq">R = (θ / 360°) × 2<sup>m</sup> &nbsp;&nbsp;⇔&nbsp;&nbsp; θ = R × 360° / 2<sup>m</sup></div>
+    <div class="work">
+      <div class="step"><span class="lbl">①</span> HAD, θ = 180°, m = 4 → 180/360 × 16 = <b>8</b> (“We were expecting 180° and we got 8!”)</div>
+      <div class="step"><span class="lbl">②</span> θ = 90°, m = 3 → 1/4 × 8 = <b>2</b> · θ = 270°, m = 4 → 3/4 × 16 = <b>12</b></div>
+      <div class="step"><span class="lbl">③</span> กลับด้าน: m = 5 อ่านได้ 10 → 10 × 360 / 32 = <b>112.5°</b></div>
+    </div>
+    <p class="src">⚠️ สไลด์ p21–22 ตัวยกหาย พิมพ์ “23 = 8” / “24 = 16” → ที่ถูกคือ 2³ = 8 · 2⁴ = 16</p>
+    <p><a href="../lessons/0032-using-phase-est-read-8-means-180.html">อ่านตัวเต็ม: บท 0032 ใช้ phase_est() จริง →</a></p>
+
+    <h3 id="lec08-resolution">ความละเอียด = 360° / 2<sup>m</sup> — มุมไม่ลงตัวจะเป็นยังไง</h3>
+    <table class="cmp">
+      <thead><tr><th>READ (3 qubit)</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th></tr></thead>
+      <tbody>
+        <tr><td data-label="READ (3 qubit)">มุม</td><td data-label="0">0°</td><td data-label="1">45°</td><td data-label="2">90°</td><td data-label="3">135°</td>
+          <td data-label="4">180°</td><td data-label="5">225°</td><td data-label="6">270°</td><td data-label="7">315°</td></tr>
+      </tbody>
+    </table>
+    <p>m = 3 → ทีละ 45° · m = 4 → 22.5° · m = 5 → 11.25° · ถ้า θ <b>ไม่ตรงช่อง</b> เช่น 150° กับ m = 3
+    (150/360 × 8 = 3.33) → ได้ <b>superposition กระจุกรอบค่าที่ใกล้สุด</b> (เหมือน peak บานของ QFT ใน Lec07):</p>
+    <div class="wide">
+      <div class="bars" data-labels="0,1,2,3,4,5,6,7" data-vals="1.3,1.9,4.7,68.8,17.5,3.2,1.6,1.2" data-max="100" data-hl="3:ok"
+           data-cap="Figure 8-5 — θ = 150°, m = 3 · ได้ 3 (= 135°) 68.8% · ได้ 4 (= 180°) 17.5% · คำนวณเองแล้วตรง"></div>
+    </div>
+    <ul>
+      <li>โอกาสได้ค่าประมาณที่ดีที่สุด <b>มากกว่าราว 40% เสมอ</b> · เพิ่ม m เพื่อให้แม่นขึ้น</li>
+      <li>ต้องการแม่น <b>p bit</b> และยอมพลาดไม่เกิน <b>ε</b> → m = p + ⌈log(2 + 1/ε)⌉ (สไลด์ p27)</li>
+      <li>ความซับซ้อน <b>O(m²)</b> · ข้อจำกัดใหญ่สุด: ต้องมี <code class="code">cont_u</code> ที่ทำได้เร็ว (ถ้าช้ากว่า O(m²) ข้อดีหาย)</li>
+      <li>ใส่ <b>superposition ของ eigenstate</b> เข้า qin → ได้ <b>superposition ของ eigenphase</b> ออกมา (magnitude ตรงกับใน input)
+        · state <b>ใดๆ</b> มองเป็น superposition ของ eigenstate ได้เสมอ → เช่นใส่ ∣0⟩ เข้า phase est ของ HAD ได้ 0 ราว 85% · ได้ 8 ราว 15%</li>
+    </ul>
+    <div class="box warn"><span class="tag">⚠️ สูตร m ในสไลด์ต่างจากตำรา</span>
+      <p>สไลด์: m = p + ⌈log(2 + <b>1/ε</b>)⌉ (ไม่บอกฐาน log) · ตำรามาตรฐาน: m = p + ⌈log₂(2 + <b>1/(2ε)</b>)⌉ ·
+      ตัวอย่าง p = 3, ε = 0.1 → สไลด์ได้ <b>7</b> · ตำราได้ 6 → <b>ตอบตามสไลด์</b> (ใช้ log₂)</p></div>
+
+    <h3 id="lec08-inside">🔴 ข้างใน: เปลี่ยน θ ให้เป็น “ความถี่”</h3>
+    <p><b>ขั้น 0 — ไอเดียซื่อๆ ใช้ไม่ได้:</b> ใส่ U ตรงๆ บน eigenstate → ทุกวงหมุนเท่ากัน = global phase (Figure 8-7) → θ อยู่ใน register จริง แต่ READ ไม่เห็น</p>
+    <p><b>ขั้น 1 — เป้าหมาย:</b> ทำให้ output register มี relative phase ที่<b>หมุนเป็นคาบ</b> ด้วยความถี่ θ/360 · invQFT (Lec07) อ่านความถี่ได้อยู่แล้ว
+    · วิธีคือให้ทุกวงขนาดเท่ากัน แล้ว<b>หมุนวง ∣k⟩ ด้วย k×θ</b> (Figure 8-8):</p>
+    <div class="wide">
+      <p class="meta" style="margin:.5rem 0 0;"><b>θ = 90°</b> → ∣k⟩ เฟส 90k · หมุนครบ <b>2 รอบ</b> ใน 8 วง → invQFT → READ <b>2</b> (2/8 = 90/360)</p>
+      <div class="crow" data-n="8" data-r="18" data-labels="0,1,2,3,4,5,6,7"
+           data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-phase="0,90,180,270,0,90,180,270"></div>
+      <p class="meta" style="margin:.5rem 0 0;"><b>θ = 180°</b> → หมุนครบ <b>4 รอบ</b> → READ <b>4</b> (4/8 = 180/360)</p>
+      <div class="crow" data-n="8" data-r="18" data-labels="0,1,2,3,4,5,6,7"
+           data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-phase="0,180,0,180,0,180,0,180"></div>
+      <p class="src">สไลด์ p37 พิมพ์ “frequency of 2/8 = 4/1” → ที่ถูกคือ 2/8 = <b>1/4</b></p>
+    </div>
+    <p><b>ขั้น 2 — สร้างการหมุน kθ ด้วย controlled-U + phase kickback:</b></p>
+    <ul>
+      <li>H ทุกสายของ output → ทุก k อยู่ใน superposition เท่ากัน</li>
+      <li>บิตที่ j ของ output คุม <b>U<sup>2ʲ</sup></b> บน eigenstate · U กับ eigenstate ให้แค่ phase θ แต่พอมี control
+        phase นั้น<b>เด้งกลับ (kickback)</b> ไปติดที่ control qubit แทน → eigenstate ข้างล่างไม่เปลี่ยน</li>
+      <li>state ∣k⟩ โดน U รวม <b>k ครั้งพอดี</b> → หมุน kθ · เช่น k = 6 = 110₂ → บิต 1 กับ 2 ติด → U² · U⁴ = U⁶ → 6θ</li>
+    </ul>
+    <p><b>ขั้น 3:</b> invQFT ที่ output → READ ได้ R = θ/360 × 2<sup>m</sup></p>
+    <div class="wide">
+      <div class="circuit" data-wires="6" data-wire-labels="out 0x1,out 0x2,out 0x4,out 0x8,eig,eig"
+           data-groups="0-0:H; 1-4:controlled-U; 5-7:invQFT + READ"
+           data-ops="H:0 + H:1 + H:2 + H:3; CTRL:0 + BOX:4,5:U; CTRL:1 + BOX:4,5:U²; CTRL:2 + BOX:4,5:U⁴; CTRL:3 + BOX:4,5:U⁸; BOX:0,3:invQFT:2; _; READ:0 + READ:1 + READ:2 + READ:3"
+           data-cap="วงจรเต็ม (Figure 8-12 แบบ output 4 สาย) · ● บนสาย output + เส้นตั้งลงกล่องที่คร่อม eigenstate = controlled-U"></div>
+    </div>
+    <div class="box warn"><span class="tag">⚠️ ป้ายกล่องสุดท้ายในสไลด์</span>
+      <p>สไลด์ p32/p44 เขียนกล่องสุดท้ายว่า <b>U<sup>2ⁿ</sup></b> โดย n = จำนวน qubit ของ eigenstate → <b>ตอบตามสไลด์</b> ·
+      แต่ของจริงเลขชี้กำลังผูกกับ <b>output</b> m qubit: กล่องแรก U = U<sup>2⁰</sup> → กล่องสุดท้าย <b>U<sup>2^(m−1)</sup></b> (m = 4 → U⁸ แบบในรูปข้างบน)</p></div>
+    <ul>
+      <li>ทำ U<sup>2ʲ</sup> แบบซื่อๆ = เรียก cont_u ซ้ำ 2ʲ ครั้ง → รวม <b>2<sup>m</sup> − 1 ครั้ง</b> (m = 4 → 15 ครั้ง) โตแบบ exponential ·
+        ทางแก้: ส่ง <code class="code">cont_u</code> ที่ยกกำลังได้เร็วในตัว</li>
+      <li>สรุปวัตถุดิบ 3 อย่าง: <b>H</b> (กระจาย k) · <b>controlled-U<sup>2ʲ</sup> + kickback</b> (ฝัง θ เป็นความถี่) · <b>invQFT</b> (อ่านความถี่)</li>
+    </ul>
+    <p><a href="../lessons/0033-inside-phase-estimation-theta-as-frequency.html">อ่านตัวเต็ม: บท 0033 ข้างใน phase estimation →</a></p>
+
+    <h3 id="lec08-symbols">สัญลักษณ์วงจรของคาบนี้</h3>
+    <table class="cmp">
+      <thead><tr><th>สัญลักษณ์</th><th>ชื่อ</th><th>ทำอะไร</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="3" data-ops="BOX:0,2:Phase estimation:3; _; _" data-alt="กล่อง Phase estimation"></div></td>
+          <td data-label="ชื่อ">กล่อง Phase estimation</td>
+          <td data-label="ทำอะไร">คร่อม qout + qin · ใต้กล่องมี <code class="code">cont_u</code> (กล่องเทา + ลูกศรชี้ขึ้น) · READ เฉพาะ qout</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="3" data-ops="CTRL:0 + BOX:1,2:U²" data-alt="controlled-U แบบกล่องคร่อมหลายสาย"></div></td>
+          <td data-label="ชื่อ">controlled-U<sup>2ʲ</sup></td>
+          <td data-label="ทำอะไร">● บนสาย output 1 เส้น + กล่องคร่อมทุกสายของ eigenstate · phase เด้งกลับขึ้นไปที่ ●</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="3" data-ops="BOX:0,2:U" data-alt="กล่อง U ไม่มี control"></div></td>
+          <td data-label="ชื่อ">U บน eigenstate (Figure 8-7)</td>
+          <td data-label="ทำอะไร">ไอเดียซื่อๆ — ได้แค่ global phase · READ ไม่เห็น θ</td>
+        </tr>
+        <tr>
+          <td data-label="สัญลักษณ์"><div class="circuit" data-wires="3" data-ops="BOX:0,2:invQFT:2; _; READ:0 + READ:1 + READ:2" data-alt="invQFT แล้ว READ"></div></td>
+          <td data-label="ชื่อ">invQFT → READ</td>
+          <td data-label="ทำอะไร">แปลงความถี่ของ relative phase เป็นตัวเลขที่อ่านได้ (จาก Lec07)</td>
+        </tr>
+      </tbody>
+    </table>
     <!-- lec08:content-end -->
     <button type="button" class="next-btn" data-target="lec09">บทถัดไป: Lec09 Real Data →</button>
   </section>
