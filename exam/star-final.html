@@ -1,0 +1,121 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>⭐ อ่านก่อนเข้าห้องสอบปลายภาค — Quantum Programming</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/lesson-bits.css">
+<link rel="stylesheet" href="exam.css">
+<style>
+  .fig { margin:1rem 0; text-align:center; }
+  .fig img { max-width:100%; height:auto; border:1px solid var(--line, #ddd); border-radius:8px; background:#fff; }
+  .fig .cap { font-size:.85rem; color:var(--ink-soft); margin-top:.4rem; }
+  .slice { margin:.6rem 0 1rem; }
+  .slice .row { display:flex; align-items:center; gap:.6rem; margin:.35rem 0; }
+  .slice .who { flex:0 0 7.5rem; font-size:.9rem; }
+  .slice .cells { display:grid; grid-template-columns:repeat(16, minmax(1.4rem, 1fr)); flex:1; }
+  .slice .cells span { text-align:center; font-size:.75rem; padding:.3rem 0; border:1px solid #ccc;
+    border-left-width:0; background:#fafafa; }
+  .slice .cells span:first-child { border-left-width:1px; }
+  .slice .cells span.cut { border-left:3px solid #c0392b; }
+  .slice .cells span.hit { background:#f7c948; font-weight:700; }
+  @media (max-width:600px) {
+    .slice .row { flex-wrap:wrap; gap:.2rem; }
+    .slice .who { flex:0 0 100%; }
+    .slice .cells { grid-template-columns:repeat(16, 1fr); }
+    .slice .cells span { font-size:.65rem; }
+  }
+</style>
+
+<div class="wrap star">
+
+  <p class="kicker">Exam Review · ปลายภาค · หน้าพิเศษ</p>
+  <h1>⭐ อ่านหน้าห้องสอบ — ปลายภาค</h1>
+  <p class="lead">2 อย่างที่ต้องมีในหัวตอนเดินเข้าห้อง</p>
+
+  <!-- ① สูตร N_AA -->
+  <div class="box aha">
+    <span class="tag">① วน Amplitude Amplification กี่รอบ</span>
+    <div class="eq">N<sub>AA</sub> = ⌊ (π/4) · √(2ⁿ / m) ⌋</div>
+    <p>n = จำนวน qubit · m = จำนวนค่าที่ mark (จำนวนคำตอบ) · ⌊ ⌋ = <b>ปัดลง</b> · π/4 ≈ <b>0.785</b></p>
+    <table class="cmp">
+      <thead><tr><th>โจทย์</th><th>แทนสูตร</th><th>ได้</th></tr></thead>
+      <tbody>
+        <tr><td data-label="โจทย์">n = 4, m = 1</td><td data-label="แทนสูตร">0.785 × √16 = 3.14</td>
+          <td data-label="ได้"><b>3 รอบ</b> (96.1%)</td></tr>
+        <tr><td data-label="โจทย์">n = 4, m = 2</td><td data-label="แทนสูตร">0.785 × √8 = 2.22</td>
+          <td data-label="ได้"><b>2 รอบ</b></td></tr>
+        <tr><td data-label="โจทย์">n = 3, m = 1</td><td data-label="แทนสูตร">0.785 × √8 = 2.22</td>
+          <td data-label="ได้"><b>2 รอบ</b></td></tr>
+        <tr><td data-label="โจทย์">n = 2, m = 1</td><td data-label="แทนสูตร">0.785 × √4 = 1.57</td>
+          <td data-label="ได้"><b>1 รอบ</b> (100% พอดี)</td></tr>
+      </tbody>
+    </table>
+    <p class="src">จำง่าย: <b>m อยู่ใต้รูท</b> · mark มากขึ้น → ใช้รอบน้อยลง · รอบโตตาม √N ไม่ใช่ N ·
+    วนเกินกว่านี้ความน่าจะเป็นจะ<b>ลดลง</b> (เลยยอดคลื่นลูกแรกไปแล้ว)</p>
+  </div>
+
+  <!-- ② square wave -->
+  <div class="box aha">
+    <span class="tag">② Square wave → QFT: สัญญาณจริงเป็นกระจก · จำแบบหั่นครึ่ง</span>
+
+    <p><b>สัญญาณจริงเป็นกระจก</b> — PHASE 180° = แค่ติด<b>เครื่องหมายลบ</b> (บวก/ลบ ไม่มีเฟสอื่น) = สัญญาณจริง
+    → หลัง QFT peak มาเป็น<b>คู่กระจก k กับ 16 − k</b> เสมอ (4 ↔ 12 · 2 ↔ 14 · 6 ↔ 10)</p>
+
+    <div class="fig">
+      <img src="img/fig7-8-square-wave-qft.png" alt="Figure 7-8 วงจร square wave: HAD ทุกสาย, PHASE 180 บนสาย 0x2, แล้ว QFT">
+      <div class="cap">Figure 7-8 (สไลด์ Lec07 p20) · <b>prep</b> = HAD ทุกสาย + PHASE 180° บนสายที่เลือก
+      (ในรูปคือ 0x2 = wave_period 2) · ตามด้วยกล่อง <b>QFT</b></div>
+    </div>
+
+    <p>โค้ดคือ <code class="code">signal.hadamard(); signal.phase(180, wave_period); signal.QFT();</code>
+    — เปลี่ยน <code class="code">wave_period</code> เป็น 1 / 2 / 4 / 8 ก็ได้สัญญาณ A / B / C / D</p>
+
+    <p><b>วิธีหั่นครึ่ง:</b> เอา 16 ช่อง (|0⟩–|15⟩) มาหั่นเป็น <b>wave_period ก้อน</b> แล้วจิ้ม<b>ตรงกลางของแต่ละก้อน</b> = ตำแหน่ง peak</p>
+
+    <div class="slice">
+      <div class="row"><span class="who"><b>1</b> · ก้อนเดียว หั่นครึ่ง</span>
+        <div class="cells">
+          <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span>
+          <span class="hit">8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span>
+        </div></div>
+      <div class="row"><span class="who"><b>2</b> · 2 ก้อน หั่นครึ่ง</span>
+        <div class="cells">
+          <span>0</span><span>1</span><span>2</span><span>3</span><span class="hit">4</span><span>5</span><span>6</span><span>7</span>
+          <span class="cut">8</span><span>9</span><span>10</span><span>11</span><span class="hit">12</span><span>13</span><span>14</span><span>15</span>
+        </div></div>
+      <div class="row"><span class="who"><b>4</b> · 4 ก้อน หั่นครึ่ง</span>
+        <div class="cells">
+          <span>0</span><span>1</span><span class="hit">2</span><span>3</span><span class="cut">4</span><span>5</span><span class="hit">6</span><span>7</span>
+          <span class="cut">8</span><span>9</span><span class="hit">10</span><span>11</span><span class="cut">12</span><span>13</span><span class="hit">14</span><span>15</span>
+        </div></div>
+    </div>
+
+    <table class="cmp">
+      <thead><tr><th>wave_period</th><th>หั่นยังไง</th><th>peak หลัง QFT</th></tr></thead>
+      <tbody>
+        <tr><td data-label="wave_period"><b>1</b> (A)</td><td data-label="หั่นยังไง">หั่นครึ่งครั้งเดียว</td>
+          <td data-label="peak หลัง QFT"><b>8</b> (100%)</td></tr>
+        <tr><td data-label="wave_period"><b>2</b> (B)</td><td data-label="หั่นยังไง">หั่นครึ่งสองก้อน</td>
+          <td data-label="peak หลัง QFT"><b>4, 12</b> (อย่างละ 50%)</td></tr>
+        <tr><td data-label="wave_period"><b>4</b> (C)</td><td data-label="หั่นยังไง">หั่นครึ่งสี่ก้อน</td>
+          <td data-label="peak หลัง QFT"><b>2, 6, 10, 14</b> (2, 14 ใหญ่ ≈ 43% · 6, 10 เล็ก ≈ 7%)</td></tr>
+        <tr><td data-label="wave_period">8 (D)</td><td data-label="หั่นยังไง">แปดก้อน (ก้อนละ 2)</td>
+          <td data-label="peak หลัง QFT">เลขคี่ทุกตัว 1, 3, …, 15 (1, 15 ใหญ่สุด ≈ 41%)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="fig">
+      <img src="img/fig7-7-square-wave-after-qft.png" alt="Figure 7-7 ผลหลัง QFT ของ square wave A ถึง D">
+      <div class="cap">Figure 7-7 (สไลด์ Lec07 p19) · ผลหลัง QFT ของ A–D — เช็คกับตารางหั่นครึ่งได้เลย
+      สังเกตว่าคู่กระจก (เช่น 2 กับ 14) วงใหญ่เท่ากัน</div>
+    </div>
+
+    <p class="src">ระวัง: wave_period คือ <b>bitmask ของสายที่โดน 180°</b> ไม่ใช่ความถี่ตรงๆ — ยิ่งเลขใหญ่
+    ยิ่งสลับ +/− ช้า ความถี่หลักจริงคือ <b>8 / wave_period</b> (1 → 8 · 2 → 4 · 4 → 2) ซึ่งก็คือ peak ตัวแรกในตาราง ·
+    peak ที่เหลือเป็นฮาร์มอนิกคี่ (3 เท่า, 5 เท่า, …) ที่สะท้อนกระจกกลับมา</p>
+  </div>
+
+  <p style="margin-top:2rem;">
+    <a href="index.html" class="hub-link-btn">← กลับไปหน้า Hub</a>
+  </p>
+
+</div>
