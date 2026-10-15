@@ -555,157 +555,80 @@
     <p class="kicker">Lec09 · กระชับ</p>
     <h2>Real Data — เอาข้อมูลจริงเข้า QPU</h2>
     <!-- lec09:content-start — เนื้อหาของ page นี้เขียนระหว่าง start/end เท่านั้น -->
-    <p>คาบนี้ตอบ 2 คำถาม: <b>① ข้อมูลที่ซับซ้อนกว่าจำนวนเต็ม (ทศนิยม · vector · matrix) แทนใน register ยังไง</b>
-    และ <b>② จะอ่านข้อมูลเข้า register ยังไง</b> (ไม่ใช่ตั้งค่าทีละบิตด้วยมือ) — ไล่จากเล็กไปใหญ่:
-    ตัวเลข 1 ตัว → memory (QRAM) → vector → matrix</p>
+    <p>คาบนี้ตอบ 2 คำถาม: <b>① ข้อมูลที่ไม่ใช่จำนวนเต็ม (ทศนิยม · vector · matrix) แทนใน register ยังไง</b>
+    และ <b>② จะโหลดข้อมูลเข้า register ยังไง</b> — ไล่จากเล็กไปใหญ่: ตัวเลข 1 ตัว → memory (QRAM) → vector → matrix</p>
 
     <h3 id="lec09-fixed">1. Fixed point — แทนเลขทศนิยมด้วย qubit</h3>
-    <p>แทนเลขไม่ใช่จำนวนเต็มใน binary มี 2 แบบ: <b>fixed point</b> (จุดทศนิยมตายตัว) กับ <b>floating point</b> (จุดทศนิยมลอยตัว)
-    — floating ยืดหยุ่นกว่า แต่ qubit มีค่ามากและอยากให้ง่าย จึงเริ่มที่ <b>fixed point</b>: แบ่ง register เป็น 2 ส่วน</p>
-    <ul>
-      <li><b>ส่วน integer</b> — binary ปกติ น้ำหนักบิต 2⁰, 2¹, 2², … (ยิ่งสูงยิ่งใหญ่)</li>
-      <li><b>ส่วน fractional (เศษ)</b> — น้ำหนักบิต ½¹, ½², ½³, … = ½, ¼, ⅛, … (ยิ่งลึกยิ่งเล็ก)</li>
-    </ul>
+    <p>แบ่ง register เป็น 2 ส่วน: <b>integer</b> (น้ำหนักบิต 2⁰, 2¹, 2², …) กับ <b>fractional</b> (น้ำหนักบิต ½, ¼, ⅛, …)
+    · (Q <b>ไม่ได้</b>ย่อจาก quantum — แค่บอกว่าบิตเศษจบตรงไหน)</p>
     <p class="eq">Qn.m = register n bit · m bit เป็นเศษ · (n − m) bit เป็นจำนวนเต็ม</p>
-    <p>(Q ใน Q notation <b>ไม่ได้</b>ย่อมาจาก quantum — มีไว้บอกว่าบิตเศษจบตรงไหน บิตจำนวนเต็มเริ่มตรงไหน)</p>
-
-    <p><b>ตัวอย่างบนสไลด์ (Figure 9-1):</b> เก็บ <b>3.640625</b> ใน register 8 qubit แบบ <b>Q8.6</b> (เศษ 6 bit + จำนวนเต็ม 2 bit)
-    — ป้ายซ้ายแต่ละสาย = น้ำหนักของบิตนั้น · <b>สายบนสุด = บิตน้ำหนักต่ำสุด (1/64)</b> · ▷ เหลืองทึบ = write 1 · ▷ วงฟ้า = write 0</p>
+    <p><b>Figure 9-1:</b> 3.640625 แบบ <b>Q8.6</b> · ป้ายซ้าย = น้ำหนักบิต · <b>สายบนสุด = บิตน้ำหนักต่ำสุด (1/64)</b> · ▷ เหลืองทึบ = write 1 · ▷ วงฟ้า = write 0</p>
     <p class="scroll-hint">← เลื่อนดูได้</p>
     <div class="scrollx">
       <div class="circuit" data-wires="8" data-wire-labels="0x1/64,0x1/32,0x1/16,0x1/8,0x1/4,0x1/2,0x1,0x2"
            data-ops="WRITE:0:1 + WRITE:1 + WRITE:2 + WRITE:3:1 + WRITE:4 + WRITE:5:1 + WRITE:6:1 + WRITE:7:1; _"
            data-cap="Figure 9-1 · Q8.6 ของ 3.640625 — อ่านจากสายล่างขึ้นบน = 11101001"></div>
     </div>
-    <p class="eq">11.101001 → 2 + 1 + ½ + ⅛ + 1/64 = 2 + 1 + 0.5 + 0.125 + 0.015625 = 3.640625</p>
-    <p>ตัวนี้ลงตัว<b>พอดีเป๊ะ</b>เพราะบังเอิญเป็นผลรวมของกำลังของ 2 — ปกติไม่โชคดีขนาดนั้น ต้องปัดเข้าค่าที่ใกล้สุด</p>
-
-    <table class="cmp">
-      <thead><tr><th>เพิ่มบิตฝั่งไหน</th><th>ได้อะไร</th><th>ตัวเลข</th></tr></thead>
-      <tbody>
-        <tr>
-          <td data-label="เพิ่มบิตฝั่งไหน">ฝั่ง <b>integer</b> (n − m)</td>
-          <td data-label="ได้อะไร">เพิ่ม <b>range</b> (ช่วงค่าที่แทนได้)</td>
-          <td data-label="ตัวเลข">ค่าสูงสุดแบบไม่ติดลบ = 2<sup>n−m</sup> − ½<sup>m</sup> · เช่น Q8.6 → 4 − 1/64 = 3.984375 <i>(คิดจากน้ำหนักบิต ไม่ได้เขียนบนสไลด์)</i></td>
-        </tr>
-        <tr>
-          <td data-label="เพิ่มบิตฝั่งไหน">ฝั่ง <b>fractional</b> (m)</td>
-          <td data-label="ได้อะไร">เพิ่ม <b>accuracy</b> (ความแม่นยำของส่วนเศษ)</td>
-          <td data-label="ตัวเลข">ความละเอียด (ช่องห่างเล็กสุด) = ½<sup>m</sup> = ค่าบิตเศษตัวสุดท้าย · Q8.6 → 1/64 = 0.015625</td>
-        </tr>
-      </tbody>
-    </table>
-    <p><b>ตัวอย่างปัดค่า</b> (จากบทเรียน 0034): Q3.2 = จำนวนเต็ม 1 bit + เศษ 2 bit → ก้าวทีละ ¼ แทนได้ 0, 0.25, 0.5, …, 1.75
-    → อยากเก็บ <b>1.3</b> ได้ใกล้สุดคือ <b>1.25</b> (= 1 + ¼ · คลาด 0.05)</p>
-    <div class="box aha"><span class="tag">register ไม่รู้ตัวว่าตัวเองเป็น encoding อะไร</span>
-      <p>ต้อง<b>จำเอง</b>ว่า register ไหนใช้ binary ธรรมดา / two's complement / fixed point ไม่งั้นตีความ state ผิด ·
-      และระวัง <b>overflow (ล้น)</b> — ผลใหญ่เกินที่ register แทนได้ → ได้ตัวเลขไร้ความหมาย · ทางแก้จริงทางเดียว = <b>เพิ่ม qubit</b></p></div>
-    <p><a href="../lessons/0034-loading-real-data-fixed-point-ram-qram.html">อ่านตัวเต็ม → บท 0034 (fixed point · RAM · QRAM)</a></p>
+    <p class="eq">11.101001 → 2 + 1 + ½ + ⅛ + 1/64 = 3.640625</p>
+    <ul>
+      <li>เพิ่มบิต <b>integer</b> → เพิ่ม <b>range</b> · ค่าสูงสุด (ไม่ติดลบ) = 2<sup>n−m</sup> − ½<sup>m</sup> (Q8.6 → 3.984375 <i>· คิดเอง ไม่อยู่บนสไลด์</i>)</li>
+      <li>เพิ่มบิต <b>fractional</b> → เพิ่ม <b>accuracy</b> · ความละเอียด = ½<sup>m</sup> (Q8.6 → 1/64)</li>
+      <li>ค่าที่ไม่ลงตัวต้องปัด: Q3.2 ก้าวทีละ ¼ → เก็บ <b>1.3</b> ได้ใกล้สุด <b>1.25</b></li>
+    </ul>
+    <div class="box aha"><span class="tag">register ไม่รู้ตัวว่าเป็น encoding อะไร</span>
+      <p>ต้อง<b>จำเอง</b>ว่าใช้ binary / two's complement / fixed point · ระวัง <b>overflow</b> → ทางแก้ทางเดียว = <b>เพิ่ม qubit</b></p></div>
 
     <h3 id="lec09-qram">2. RAM vs QRAM</h3>
-    <p>ทั้งคู่รับ register 2 ตัว: <b>address</b> (บอกตำแหน่ง) กับ <b>output</b> (รอรับค่า) แล้วตั้ง output = ค่าที่เก็บอยู่ ณ address นั้น
-    — ต่างกันที่ <b>QRAM ให้ทั้งสอง register เป็น qubit register</b> จึงใส่ address เป็น <b>superposition</b> ได้</p>
-    <table class="cmp">
-      <thead><tr><th>ประเด็น</th><th>RAM ธรรมดา</th><th>QRAM</th></tr></thead>
-      <tbody>
-        <tr>
-          <td data-label="ประเด็น">ตั้งค่า register ด้วย<b>ค่าเดียว</b></td>
-          <td data-label="RAM ธรรมดา">ได้ดี — <code class="code">write()</code> / <code class="code">read()</code> · CPU เป็นคนเลือก <code class="code">a[index]</code> แล้วส่งค่าให้ QPU (QCEngine ก็ทำแบบนี้เบื้องหลัง)</td>
-          <td data-label="QRAM">ได้</td>
-        </tr>
-        <tr>
-          <td data-label="ประเด็น">ตั้งเป็น <b>superposition ของค่าที่เก็บไว้หลายค่า</b></td>
-          <td data-label="RAM ธรรมดา"><b>ไม่มีทาง</b> — ข้อบกพร่องร้ายแรง</td>
-          <td data-label="QRAM"><b>ได้</b> — address เป็น superposition (เช่น H ที่บิต address) → output เป็น superposition ของค่า ณ address เหล่านั้น
-          โดย amplitude ตามที่ใส่ใน address</td>
-        </tr>
-        <tr>
-          <td data-label="ประเด็น">ฮาร์ดแวร์</td>
-          <td data-label="RAM ธรรมดา">มีอยู่แล้ว</td>
-          <td data-label="QRAM">หนังสือไม่บอกวิธีสร้าง (มีแค่ข้อเสนอเทคโนโลยี) · QPU ที่ทรงพลังอาจมาก่อน QRAM ที่ใช้ได้จริงนานมาก ·
-          โค้ดตัวอย่างรันบน simulator ที่เลียนพฤติกรรม QRAM — สำคัญที่<b>แนวคิด fundamental resource (ทรัพยากรพื้นฐาน)</b></td>
-        </tr>
-      </tbody>
-    </table>
-
-    <p><b>Figure 9-4</b> — address สายบน write 1 · สายล่าง write 0 แล้ว H → address = ∣1⟩ + ∣3⟩ → ตาราง: 01 → 110 (= 6), 11 → 111 (= 7)
-    → output = <b>∣6⟩ + ∣7⟩</b> (50/50)</p>
+    <p>ทั้งคู่รับ <b>address</b> + <b>output</b> แล้วตั้ง output = ค่าที่เก็บ ณ address นั้น · ต่างกันที่ <b>QRAM ให้ address เป็น superposition ได้</b>
+    → output เป็น superposition ของค่าหลายตัวพร้อมกัน (RAM ธรรมดา<b>ไม่มีทาง</b>) · QRAM ยังไม่มีฮาร์ดแวร์จริง สำคัญที่แนวคิด <b>fundamental resource</b></p>
+    <p><b>Figure 9-4</b> — address = ∣1⟩ + ∣3⟩ → ตาราง 01 → 110 (= 6), 11 → 111 (= 7) → output = <b>∣6⟩ + ∣7⟩</b> (50/50)</p>
     <p class="scroll-hint">← เลื่อนดูได้</p>
     <div class="scrollx">
       <div class="circuit" data-wires="5" data-names="out,out,out,addr,addr"
            data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3:1 + WRITE:4; H:4; QRAM:0,4:00>011|01>110|10>100|11>111:4; _; _; _; _"
            data-cap="Figure 9-4 · กล่องเทา QRAM คร่อม output 3 สาย + address 2 สาย มีตาราง Address → Value ข้างใน"></div>
     </div>
-    <p>circle notation หลัง QRAM — แถวบน = address (4 วง) · แถวล่าง = output (8 วง)</p>
     <div class="scrollx">
       <div class="crow" data-n="4" data-r="13" data-mag="0,0.5,0,0.5" data-sub=",50%,,50%"></div>
       <div class="crow" data-n="8" data-r="13" data-mag="0,0,0,0,0,0,0.5,0.5" data-sub=",,,,,,50%,50%" data-hl="6,7"></div>
     </div>
-
-    <p><b>Figure 9-5 / Example 9-2</b> — increment ค่าที่อ่านจาก QRAM: <code class="code">a = [4,3,5,1]</code> ·
-    <code class="code">addr.write(2)</code> + <code class="code">hadamard(0x1)</code> → addr = ∣2⟩ + ∣3⟩ →
-    <code class="code">qram_load</code> ได้ a[2] = 5 / a[3] = 1 → +1 (CCNOT → CNOT → NOT) → qreg = <b>∣6⟩ + ∣2⟩</b>
-    (พันกับ addr) <i>— ผล 6/2 คำนวณเอง สไลด์ไม่ได้แสดง</i> · กล่องแบบนี้แบ่ง <b>D</b> (data) / <b>A</b> (address)</p>
-    <p class="scroll-hint">← เลื่อนดูได้</p>
-    <div class="scrollx">
-      <div class="circuit" data-wires="5" data-names="qreg,,,addr," data-wire-labels="0x1,0x2,0x4,0x1,0x2"
-           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4:1; H:3; QRAMDA:0,4:3; CCNOT:0,1,2; CNOT:0,1; X:0"
-           data-cap="Figure 9-5 · QRAM แบบ D/A (จุดดำครึ่งวงที่ขอบทุกสาย) ตามด้วยวงจร +1"></div>
-    </div>
-
-    <p><b>ข้อจำกัดของ QRAM ตามสไลด์</b></p>
     <ul>
-      <li><b>เขียน superposition กลับลง QRAM ไม่ใช่จุดประสงค์</b> — QRAM มีไว้<b>อ่าน</b>ค่าดิจิทัลที่เขียนแบบธรรมดา ในลักษณะ superposition ·
-        หน่วยความจำที่เก็บ superposition ไว้ได้ไม่จำกัดเวลา = <b>persistent quantum memory</b> เป็นฮาร์ดแวร์อีกชนิด และอาจสร้างยากกว่า QRAM</li>
-      <li>ยังไม่รู้ว่าฮาร์ดแวร์จริงจะหน้าตาแบบไหน — รายละเอียดการ implement อาจเปลี่ยนได้อีก</li>
-      <li>ไม่มี QRAM ก็สร้างวงจร amplitude encoding ได้ <b>แต่ไม่ efficient</b> (QCEngine จำลองแบบช้าแต่ใช้ได้)</li>
+      <li><b>Figure 9-5</b>: <code class="code">a = [4,3,5,1]</code> · addr = ∣2⟩ + ∣3⟩ → โหลดได้ 5 / 1 → +1 → <b>∣6⟩ + ∣2⟩</b> (พันกับ addr · <i>คำนวณเอง</i>) — กล่องแบ่ง <b>D</b> / <b>A</b></li>
+      <li>QRAM มีไว้<b>อ่าน</b>ค่าที่เขียนแบบธรรมดา — เก็บ superposition ไว้นานๆ = <b>persistent quantum memory</b> (ฮาร์ดแวร์อีกชนิด)</li>
     </ul>
     <div class="box warn"><span class="tag">ลำดับบิตบนสไลด์ RAM/QRAM ขัดกันเอง</span>
-      <p><b>Figure 9-2 (RAM ธรรมดา)</b>: address บน→ล่าง 1,0 แต่ output ออกมาบน→ล่าง 0,0,1 — ไม่มี convention เดียวที่อธิบายได้ →
-      <b>ตอบตามรูป: address 10 → ค่า 100</b><br>
-      <b>ข้อความ p15</b> “เก็บ 3 (110) ที่ 0x01 และ 5 (111) ที่ 0x11” — ของจริง 110 = 6, 111 = 7 (อ่านซ้าย = MSB) ซึ่งตรงกับวง ∣6⟩ ∣7⟩ ใน Figure 9-4 ·
-      และ “0x01 / 0x11” จริงๆ คือ binary 01 / 11 · ถ้าถามตรงๆ ตอบตามสไลด์ แต่รู้ของจริงไว้</p></div>
+      <p><b>Figure 9-2</b>: ไม่มี convention เดียวที่อธิบายได้ → <b>ตอบตามรูป: address 10 → ค่า 100</b><br>
+      <b>p15</b> “เก็บ 3 (110) ที่ 0x01 และ 5 (111) ที่ 0x11” — ของจริง 110 = 6, 111 = 7 (ตรงกับ Figure 9-4) และ 0x01/0x11 คือ binary 01/11</p></div>
     <p><a href="../lessons/0034-loading-real-data-fixed-point-ram-qram.html">อ่านตัวเต็ม → บท 0034 (fixed point · RAM · QRAM)</a></p>
 
     <h3 id="lec09-qubits">3. Vector: state encoding vs amplitude encoding</h3>
-    <p>vector ยาว N เช่น v⃗ = [0, 1, 2, 3] (เจอบ่อยใน quantum machine learning) เก็บใน QPU ได้ 2 แบบ:</p>
     <table class="cmp">
       <thead><tr><th>ประเด็น</th><th>state encoding</th><th>amplitude encoding</th></tr></thead>
       <tbody>
         <tr>
           <td data-label="ประเด็น">เก็บยังไง</td>
-          <td data-label="state encoding">component ละ <b>1 register</b> เก็บค่าเป็นเลขฐานสองใน <b>basis state เดียว</b> (วงเต็มวงเดียว ไม่มี superposition)</td>
-          <td data-label="amplitude encoding">ทุก component อยู่ใน <b>amplitude ของ superposition ใน register เดียว</b> — component ที่ i = amplitude ของ ∣i⟩</td>
+          <td data-label="state encoding">component ละ <b>1 register</b> (basis state เดียว)</td>
+          <td data-label="amplitude encoding">component ที่ i = <b>amplitude ของ ∣i⟩</b> ใน register เดียว</td>
         </tr>
         <tr>
-          <td data-label="ประเด็น">ใช้กี่ qubit (vector ยาว N)</td>
-          <td data-label="state encoding"><b>N × (จำนวนบิตต่อ component)</b></td>
-          <td data-label="amplitude encoding"><b>⌈log₂ N⌉</b> — register k qubit มี 2<sup>k</sup> amplitude · N ไม่เป็นกำลังของ 2 ก็เติม 0 ให้ครบ</td>
+          <td data-label="ประเด็น">ใช้กี่ qubit (ยาว N)</td>
+          <td data-label="state encoding"><b>N × (บิตต่อ component)</b></td>
+          <td data-label="amplitude encoding"><b>⌈log₂ N⌉</b> (ไม่ใช่กำลังของ 2 ก็เติม 0)</td>
         </tr>
         <tr>
-          <td data-label="ประเด็น">ต้องมี QRAM ไหม</td>
-          <td data-label="state encoding">ไม่ต้อง — เก็บใน RAM ธรรมดาแล้วเตรียมทีละ register</td>
-          <td data-label="amplitude encoding">ต้องพึ่ง QRAM (ไม่มีก็ทำได้แต่ไม่ efficient)</td>
-        </tr>
-        <tr>
-          <td data-label="ประเด็น">อ่านค่าออกได้ไหม</td>
-          <td data-label="state encoding">ได้ — แต่ละ register เป็น basis state ธรรมดา</td>
-          <td data-label="amplitude encoding"><b>ไม่ได้ทีละ component</b> (Caveat 1) — READ ได้ผลเดียวแบบสุ่มแล้ว state ยุบ · ได้แค่ <b>global properties</b> (คุณสมบัติภาพรวม)</td>
+          <td data-label="ประเด็น">อ่านค่าออก</td>
+          <td data-label="state encoding">ได้ แต่กิน qubit และใช้พลัง QPU ไม่ได้</td>
+          <td data-label="amplitude encoding"><b>ไม่ได้ทีละ component</b> — ได้แค่ <b>global properties</b> · ต้องพึ่ง QRAM</td>
         </tr>
         <tr>
           <td data-label="ประเด็น">เงื่อนไข</td>
-          <td data-label="state encoding">เลือก binary encoding ให้เหมาะ (เช่น fixed point)</td>
-          <td data-label="amplitude encoding"><b>ต้อง normalize</b>: Σ∣aᵢ∣² = 1 (Caveat 2) · ใส่ค่าเชิงซ้อนได้ (ใช้ทั้ง magnitude + phase → จึงชื่อ <i>amplitude</i> ไม่ใช่ <i>magnitude</i> encoding)</td>
-        </tr>
-        <tr>
-          <td data-label="ประเด็น">ข้อเสียหลัก</td>
-          <td data-label="state encoding">กิน qubit เยอะ (ทรัพยากรที่หายากสุด) และ<b>ใช้พลัง QPU ไม่ได้</b> — จัดการ relative phase ยากเมื่อแต่ละ register เป็นแค่ binary ธรรมดา</td>
-          <td data-label="amplitude encoding">output ที่เป็น amplitude-encoded vector อ่านออกมาไม่ได้ (“no free lunch”)</td>
+          <td data-label="state encoding">เลือก binary encoding ให้เหมาะ</td>
+          <td data-label="amplitude encoding"><b>ต้อง normalize</b> Σ∣aᵢ∣² = 1 · ใส่ค่าเชิงซ้อนได้ (จึงชื่อ <i>amplitude</i>)</td>
         </tr>
       </tbody>
     </table>
 
-    <p><b>นับ qubit — Table 9-1</b> (amplitude ใช้ 2 qubit ทุกแถว เพราะ N = 4)</p>
+    <p><b>นับ qubit — Table 9-1</b> (amplitude ใช้ 2 qubit ทุกแถว เพราะ N = 4 · vector ยาว 10⁶ → 20 qubit)</p>
     <table class="cmp">
       <thead><tr><th>vector</th><th>amplitude encoding</th><th>state encoding</th></tr></thead>
       <tbody>
@@ -714,49 +637,32 @@
         <tr><td data-label="vector">[0.52, 0.77, 0.26, 0.26]</td><td data-label="amplitude encoding"><b>2</b></td><td data-label="state encoding">4 × 7 = <b>28</b></td></tr>
       </tbody>
     </table>
-    <p>Example 9-3 (<code class="code">amplitude_encode</code>): vector ยาว 8 → <code class="code">Math.log2(8)</code> = <b>3 qubit</b> ·
-    vector 1 ล้าน component → ⌈log₂ 10⁶⌉ = <b>20 qubit</b> <i>(ตัวอย่างจากบทเรียน)</i></p>
 
     <h4 id="lec09-normalize">normalize + อ่านพื้นที่วง</h4>
-    <p>amplitude [0, 1, 2, 3] ตรงๆ <b>เป็นไปไม่ได้</b> เพราะ 0² + 1² + 2² + 3² = 14 ≠ 1 → หารทุกตัวด้วย <b>√(ผลรวมกำลังสอง)</b></p>
+    <p>[0, 1, 2, 3] ใส่ตรงๆ ไม่ได้ (0² + 1² + 2² + 3² = 14 ≠ 1) → หารด้วย <b>√(ผลรวมกำลังสอง)</b> · พื้นที่วง = amplitude² (Figure 9-8)</p>
     <p class="eq">[0, 1, 2, 3] ÷ √14 (≈ 3.74) ≈ [0.00, 0.27, 0.53, 0.80]</p>
-    <p>ทิศของ vector ไม่เปลี่ยน แค่ย่อความยาว · เก็บค่า 3.74 ไว้ใน register อื่นได้ · ใน circle notation <b>พื้นที่วง = amplitude²</b> (Figure 9-8):</p>
     <div class="scrollx">
       <div class="crow" data-n="4" data-lab="[0, 0.27, 0.53, 0.80]" data-mag="0,0.0714,0.2857,0.6429" data-sub="0,0.07,0.28,0.64"></div>
     </div>
     <div class="box aha"><span class="tag">กับดักยกกำลังสอง</span>
-      <p>อ่านพื้นที่วงแล้วต้อง<b>ถอดรูท</b>กลับเป็น amplitude · กลับกัน amplitude → โอกาส READ ต้อง<b>ยกกำลังสอง</b><br>
-      เช่น [6, 1, 1, 4] → ÷√54 · โอกาส READ ได้ ∣0⟩ = 36/54 ≈ <b>67%</b> (ถ้าตอบ 82% = ลืมยกกำลังสอง — นั่นคือ amplitude 6/√54)</p></div>
-    <p><b>Caveat 1 — ระวัง quantum output:</b> input ไม่ค่อยมีปัญหา (โหลดจาก memory เรารู้ทุกค่าอยู่แล้ว) แต่ app ที่รับ amplitude-encoded vector มักคืน
-    output เป็น amplitude-encoded vector ด้วย → อ่านทีละ component ไม่ได้ · เจอ QML app ที่อ้างว่าเร็วขึ้นมหาศาล ให้เช็คเสมอว่าคืนผลเป็น quantum output หรือเปล่า</p>
-    <div class="box warn"><span class="tag">สไลด์ amplitude encoding มีจุดผิด — ตอบตามสไลด์ แต่รู้ของจริง</span>
-      <p><b>p25</b> เขียน <code class="code">ceil(log(n))</code> ไม่บอกฐาน → ของจริงคือ <b>⌈log₂ n⌉</b><br>
-      <b>p36</b> บอกว่า “หารด้วย summed squares” แต่ตัวเลขที่ใช้คือ 3.74 = <b>√14</b> (ผลรวมกำลังสองคือ 14) → ตัวเลขถูก ถ้อยคำผิด<br>
-      <b>Table 9-1 แถว 3</b>: state encoding เอาค่า ×100 เป็นเลข state (0.52 → ∣52⟩) และเรียกว่า “Q7.7” ทั้งที่ register 7 qubit —
-      ไม่ตรงกับ fixed point จริง · ถ้าถามจำนวน qubit ตอบตามสไลด์ = 4 × 7 = <b>28</b></p></div>
+      <p>พื้นที่วง → amplitude ต้อง<b>ถอดรูท</b> · amplitude → โอกาส READ ต้อง<b>ยกกำลังสอง</b><br>
+      [6, 1, 1, 4] ÷√54 → โอกาส READ ∣0⟩ = 36/54 ≈ <b>67%</b> (ตอบ 82% = ลืมยกกำลังสอง)</p></div>
+    <div class="box warn"><span class="tag">สไลด์ amplitude encoding — ตอบตามสไลด์ แต่รู้ของจริง</span>
+      <p><b>p25</b> <code class="code">ceil(log(n))</code> ไม่บอกฐาน → ของจริง <b>⌈log₂ n⌉</b> ·
+      <b>p36</b> “หารด้วย summed squares” แต่ใช้ 3.74 = <b>√14</b> ·
+      <b>Table 9-1 แถว 3</b> เรียก “Q7.7” ไม่ตรง fixed point จริง → ถ้าถามตอบ <b>28</b></p></div>
     <p><a href="../lessons/0035-vector-state-vs-amplitude-encoding.html">อ่านตัวเต็ม → บท 0035 (state vs amplitude encoding)</a></p>
 
     <h3 id="lec09-matrix">4. Matrix encoding / quantum simulation</h3>
-    <p><b>วิธีตรงๆ</b>: matrix m × n → m register ยาว log₂(n) qubit แล้ว amplitude-encode ทีละ <b>row</b> — ใส่ข้อมูลเข้าได้ แต่ไม่ได้แทน “ในฐานะ matrix”
-    (ไม่ชัดว่าจะ transpose หรือคูณกับ vector ยังไง) → <b>เข้ารหัส matrix เป็น QPU operation</b> ที่กระทำกับ register ที่เก็บ vector แทน</p>
-    <ul>
-      <li><b>แทนได้ถูก</b> = M·v ↔ U∣v⟩ ได้ผลตรงกันทุก v · เกณฑ์ที่ง่ายกว่า: <b>eigen decomposition เดียวกัน</b> —
-        eigenstates ของ U = amplitude encoding ของ eigenvectors ของ M · eigenphases <b>“สัมพันธ์กับ”</b> eigenvalues (สไลด์ไม่ได้บอกว่าเท่ากัน)</li>
-      <li>แค่นั้น “<b>เกือบพอ</b>” — ต้องมี <b>prescription</b> (วิธีสร้างจาก gate พื้นฐาน) และต้อง <b>efficient</b> ด้วย =
-        <i>good matrix representation</i></li>
-    </ul>
-    <p><b>Quantum simulation</b> = คำเรียกรวมของวิธีหา QPU operation ที่ efficient เพื่อแทน <b>Hermitian matrix</b> (H = H† · † = transpose แล้ว complex conjugate)
-    — ทุกเทคนิคอย่างน้อยต้องการ H ที่เป็น Hermitian เพราะ QPU operation ต้องเป็น <b>unitary</b> และ</p>
+    <p>แทน matrix เป็น <b>QPU operation</b> ที่กระทำกับ register ที่เก็บ vector · แทนได้ถูก = <b>eigen decomposition เดียวกัน</b>
+    (eigenphases “สัมพันธ์กับ” eigenvalues) + ต้องมีวิธีสร้างที่ <b>efficient</b></p>
+    <p><b>Quantum simulation</b> = วิธีหา operation แทน <b>Hermitian matrix</b> (H = H†) เพราะ</p>
     <p class="eq">U = exp(−iHt) เป็น unitary เสมอเมื่อ H เป็น Hermitian</p>
-    <p>t = เวลาที่ทำ operation (ถือเป็นรายละเอียด hardware) · ชื่อ “simulation” มาจากฟิสิกส์ — H ที่อธิบายระบบเรียกว่า <b>Hamiltonian</b> ·
-    matrix X ที่<b>ไม่</b> Hermitian → ห่อเป็น block matrix ที่ใหญ่ขึ้น:</p>
+    <p>ชื่อมาจากฟิสิกส์ (H = <b>Hamiltonian</b>) · X ที่<b>ไม่</b> Hermitian → ห่อเป็น block matrix:</p>
     <p class="eq">H = [ 0 &nbsp; X ; X† &nbsp; 0 ]</p>
-    <p>(บนซ้าย 0 · บนขวา X · ล่างซ้าย X† · ล่างขวา 0 → H† = H จึงเป็น Hermitian · overhead ทำครั้งเดียว มักไม่มีนัยสำคัญ)</p>
-    <p><b>3 ขั้น</b> (เกือบทุกวิธี): ① <b>Deconstruct</b> — แตก H = H₁ + … + Hₙ ให้แต่ละชิ้น simulate ง่าย (เช่นมีแต่ diagonal หรือกระทำกับ qubit ไม่กี่ตัว)
-    → ② <b>Simulate components</b> — หาวงจรของ Hᵢ แต่ละตัว → ③ <b>Reconstruction</b> — ประกอบกลับด้วย <b>Lie product formula</b>:
-    ทำ U₁ = exp(−iH₁δt), …, Uₙ = exp(−iHₙδt) ต่อกันทีละช่วงสั้น δt แล้ว<b>วนทั้งชุดซ้ำ m รอบ</b></p>
-    <p class="eq">exp(−iHt) ≈ (U₁ U₂ … Uₙ)<sup>m</sup></p>
-    <p><i>(สูตรบรรทัดนี้เป็นการสรุปเป็นสัญลักษณ์ — สไลด์พูดเป็นคำ ไม่ได้เขียนสูตรตรงๆ)</i></p>
+    <p><b>3 ขั้น</b>: ① <b>Deconstruct</b> H = H₁ + … + Hₙ (ถ้า sparse → มองเป็น graph แล้วแก้ coloring problem) →
+    ② <b>Simulate components</b> → ③ <b>Reconstruction</b> ด้วย <b>Lie product formula</b>: ทำทีละช่วง δt แล้ววนซ้ำ m รอบ</p>
+    <p class="eq">exp(−iHt) ≈ (U₁ U₂ … Uₙ)<sup>m</sup> &nbsp;<i>(สรุปเป็นสัญลักษณ์เอง — สไลด์พูดเป็นคำ)</i></p>
     <p class="scroll-hint">← เลื่อนดูได้</p>
     <div class="scrollx">
       <div class="circuit" data-wires="3"
@@ -764,9 +670,6 @@
            data-ops="WRITE:0 + WRITE:1 + WRITE:2; BOX:0,2:e^−iH₁δt:2; _; ELL:0,1,2; BOX:0,2:e^−iHₙδt:2; _; _; BOX:0,2:e^−iH₁δt:2; _; ELL:0,1,2; BOX:0,2:e^−iHₙδt:2; _; ELL:0,1,2; BOX:0,2:e^−iH₁δt:2; _; ELL:0,1,2; BOX:0,2:e^−iHₙδt:2; _; _"
            data-cap="Figure 9-9 · กล่อง exp คร่อมทุกสาย · กรอบแดงประ = 1 รอบ · ปีกกา m times = วนซ้ำ m รอบ"></div>
     </div>
-    <p><b>ขั้น ① ทำยังไง</b> (ตัวอย่างของ product formula): ถ้า H เป็น <b>sparse</b> → มองเป็น adjacency matrix ของ <b>graph</b> แล้วแก้
-    <b>coloring problem</b> (vertex ที่มี edge ต่อกันห้ามสีเดียวกัน) — สีแต่ละสีจับกลุ่มสมาชิกเป็นชิ้น H₁ … Hₙ
-    (สไลด์ไม่ได้อธิบายกลไกต่อ · หัวสไลด์เขียน “Destructing H” = Deconstructing)</p>
     <table class="cmp">
       <thead><tr><th>เทคนิค (Table 9-2)</th><th>circuit runtime</th></tr></thead>
       <tbody>
@@ -775,12 +678,9 @@
         <tr><td data-label="เทคนิค">Quantum signal processing</td><td data-label="circuit runtime">O(d + log(1/ϵ) / log log(1/ϵ))</td></tr>
       </tbody>
     </table>
-    <p>runtime = <b>ขนาดวงจร</b> · <b>d</b> = sparsity (จำนวนสมาชิกไม่เป็นศูนย์สูงสุดต่อแถว) · <b>ϵ</b> = ความแม่นยำที่ต้องการ ·
-    product formula ปรับดีขึ้นได้นิดหน่อยด้วย Lie product formula อันดับสูงขึ้น</p>
+    <p>runtime = ขนาดวงจร · <b>d</b> = sparsity (สมาชิกไม่เป็นศูนย์สูงสุดต่อแถว) · <b>ϵ</b> = ความแม่นยำ</p>
     <div class="box warn"><span class="tag">ขนาด block matrix บนสไลด์</span>
-      <p>สไลด์: X ขนาด m × n → H ขนาด <b>2m × 2n</b> และ block ศูนย์ขนาด m × n — <b>ตอบตามสไลด์</b><br>
-      ของจริง: X† เป็น n × m → block ศูนย์บนซ้าย m × m · ล่างขวา n × n · H = <b>(m+n) × (m+n)</b> (Hermitian ต้องจัตุรัส) —
-      สองแบบตรงกันเฉพาะ m = n</p></div>
+      <p>สไลด์: X m × n → H <b>2m × 2n</b> — <b>ตอบตามสไลด์</b> · ของจริง H = <b>(m+n) × (m+n)</b> (ตรงกันเฉพาะ m = n)</p></div>
     <p><a href="../lessons/0036-matrix-encoding-quantum-simulation.html">อ่านตัวเต็ม → บท 0036 (matrix · quantum simulation)</a></p>
 
     <h3 id="lec09-symbols">5. สัญลักษณ์วงจรของคาบนี้</h3>
@@ -829,110 +729,93 @@
     <p class="kicker">Lec10 · กระชับ</p>
     <h2>Quantum Search</h2>
     <!-- lec10:content-start — เนื้อหาของ page นี้เขียนระหว่าง start/end เท่านั้น -->
-    <p>คาบนี้คือ "ชิ้นที่ขาด" ของ AA (Lec06): ตอนนั้นเราสมมติว่ามี subroutine <b>flip</b> ที่พลิก phase ของคำตอบมาให้ (เป็นแค่ placeholder ที่พลิกค่าเดียวที่รู้อยู่แล้ว)
-    คาบนี้สร้าง flip จาก <b>logic จริง</b> → <b>Quantum Search (QS) = AA + flip ที่สร้างจาก logic</b> ·
-    ตัวต้นแบบคือ <b>Grover's search</b> ที่ค้นฐานข้อมูลแบบไม่มีโครงสร้าง (unstructured) ด้วย <b>O(√N)</b> query เทียบกับคลาสสิกที่ต้องใช้ O(N)</p>
-
-    <div class="box warn"><span class="tag">สไลด์ p3 พิมพ์ตก</span>
-      <p>สไลด์เขียนว่า "using only <i>O N</i> database queries" (ไม่มี √ และไม่มีวงเล็บ) — ของจริงคือ <b>O(√N)</b> ·
-      ถ้าข้อสอบถามความเร็วของ Grover ให้ตอบ <b>O(√N)</b> (ส่วนคลาสสิกคือ O(N))</p></div>
+    <p>คาบนี้คือ "ชิ้นที่ขาด" ของ AA (Lec06): สร้าง <b>flip</b> จาก <b>logic จริง</b> → <b>Quantum Search = AA + flip ที่สร้างจาก logic</b> ·
+    ต้นแบบคือ <b>Grover's search</b> ค้นแบบไม่มีโครงสร้างด้วย <b>O(√N)</b> query (คลาสสิก O(N))
+    — ⚠️ สไลด์ p3 พิมพ์ตกเป็น “O N” ถ้าถามให้ตอบ <b>O(√N)</b></p>
 
     <h3 id="lec10-symbols">สัญลักษณ์วงจรของคาบนี้</h3>
-    <p>คาบนี้ไม่มี gate ใหม่เลย ทุกอย่างประกอบจากของ Lec02–06 · สิ่งที่ต้องจำคือ "บล็อก" ที่เอาของเดิมมาต่อกัน</p>
+    <p>ไม่มี gate ใหม่ ทุกอย่างประกอบจากของ Lec02–06 · ที่ต้องจำคือ "บล็อก" ที่เอาของเดิมมาต่อกัน</p>
     <table class="cmp lec10-symtab">
       <thead><tr><th>สัญลักษณ์</th><th>ชื่อ</th><th>ทำอะไร</th></tr></thead>
       <tbody>
         <tr>
           <td data-label="สัญลักษณ์"><div class="scrollx"><div class="circuit" data-wires="1" data-ops="P:0:180"></div></div></td>
           <td data-label="ชื่อ"><b>PHASE(180)</b></td>
-          <td data-label="ทำอะไร">phase logic ตัวแรก: พลิก phase ของ ∣1⟩ = "เขียนค่าของ qubit ลงใน phase ของมันเอง"</td>
+          <td data-label="ทำอะไร">พลิก phase ของ ∣1⟩ = "เขียนค่าของ qubit ลงใน phase ของมันเอง"</td>
         </tr>
         <tr>
           <td data-label="สัญลักษณ์"><div class="scrollx"><div class="circuit" data-wires="4" data-ops="CZ:0,1,2,3"></div></div></td>
-          <td data-label="ชื่อ"><b>CZ หลายจุด</b> (pAND / flip phase)</td>
-          <td data-label="ทำอะไร">●—● กี่จุดก็ได้ · พลิก phase เฉพาะค่าที่ทุกสายเป็น 1 = phase AND</td>
+          <td data-label="ชื่อ"><b>CZ หลายจุด</b> (pAND / flip)</td>
+          <td data-label="ทำอะไร">พลิก phase เฉพาะค่าที่ทุกสายเป็น 1</td>
         </tr>
         <tr>
           <td data-label="สัญลักษณ์"><div class="scrollx"><div class="circuit" data-wires="1" data-names="scratch" data-ops="WRITE:0; X:0; H:0"></div></div></td>
           <td data-label="ชื่อ"><b>เตรียม scratch เป็น ∣−⟩</b></td>
-          <td data-label="ทำอะไร">WRITE 0 → X → H ได้ ∣−⟩ · ใช้กับ phase XOR / XNOR (phase kickback)</td>
+          <td data-label="ทำอะไร">WRITE 0 → X → H · ใช้กับ phase XOR / XNOR (phase kickback)</td>
         </tr>
         <tr>
           <td data-label="สัญลักษณ์"><div class="scrollx"><div class="circuit" data-wires="3" data-names="q1,q2,out" data-ops="X:0 + X:1; CCNOT:0,1,2; X:0 + X:1 + X:2"></div></div></td>
           <td data-label="ชื่อ"><b>bit_or</b> (magnitude OR)</td>
-          <td data-label="ทำอะไร">X ที่ input → Toffoli ลง out → X ทั้ง input และ out = OR แบบ De Morgan เขียนผลเป็น 0/1 ลง scratch · inv_bit_or = ลำดับเดียวกันแบบกลับหลัง</td>
+          <td data-label="ทำอะไร">OR แบบ De Morgan เขียนผล 0/1 ลง scratch · inv_bit_or = กลับลำดับ</td>
         </tr>
         <tr>
           <td data-label="สัญลักษณ์"><div class="scrollx"><div class="circuit" data-wires="2" data-ops="H:0 + H:1; X:0 + X:1; CZ:0,1; X:0 + X:1; H:0 + H:1"></div></div></td>
           <td data-label="ชื่อ"><b>mirror</b> (Grover)</td>
-          <td data-label="ทำอะไร">H → X → CZ → X → H บนรีจิสเตอร์ input เท่านั้น · ขยาย magnitude ของค่าที่ phase ต่างจากค่าอื่น (ของเดิมจาก Lec06)</td>
+          <td data-label="ทำอะไร">H → X → CZ → X → H บน register input เท่านั้น (ของเดิมจาก Lec06)</td>
         </tr>
       </tbody>
     </table>
 
     <h3 id="lec10-phase-logic">1. Phase logic: เก็บคำตอบไว้ใน phase</h3>
-    <p>Lec05 คือ <b>magnitude logic</b>: input เป็นค่าในรีจิสเตอร์ แล้ว output เขียนเป็นค่า 0/1 ลงบิต (มักเป็น scratch) ·
-    คาบนี้คือ <b>phase logic</b>: input ยังเป็นค่าในรีจิสเตอร์เหมือนเดิม แต่ output <b>ไปอยู่ใน relative phase</b> ·
-    นิยาม: <b>พลิก phase ของทุกค่าที่ทำให้ operation ได้ 1</b> (ค่าพวกนี้เรียกว่าค่าที่ <b>satisfy</b> operation)</p>
-    <table class="cmp">
-      <thead><tr><th>แบบ</th><th>ทำอะไร</th></tr></thead>
-      <tbody>
-        <tr><td data-label="แบบ">Conventional binary logic</td><td data-label="ทำอะไร">input 1 ค่า → output 1 ค่า</td></tr>
-        <tr><td data-label="แบบ">Quantum magnitude logic (Lec05)</td><td data-label="ทำอะไร">superposition ของ input → superposition ของ output</td></tr>
-        <tr><td data-label="แบบ">Quantum phase logic</td><td data-label="ทำอะไร">พลิก phase ของทุก input ที่ให้ output = 1 · ใช้ได้ทั้งตอนรีจิสเตอร์เป็น superposition และเป็นค่าเดียว</td></tr>
-      </tbody>
-    </table>
-    <ul>
-      <li>ถ้าป้อน<b>ค่าเดียว</b> (ไม่ใช่ superposition) การพลิก phase เป็นแค่ <b>global phase</b> ใช้ประโยชน์ไม่ได้ · ถ้าเป็น <b>superposition</b> จะกลายเป็น relative phase ที่ AA ดึงออกมาได้</li>
-      <li>ผลอยู่ใน phase จึง <b>READ ตรงๆ ไม่ได้</b> · แต่ข้อดีคือ <b>mark คำตอบได้หลายตัวพร้อมกัน</b>ในรีจิสเตอร์เดียว แล้วใช้เป็น flip ของ AA</li>
-    </ul>
+    <p>Lec05 = <b>magnitude logic</b> (output เขียนเป็น 0/1 ลงบิต) · คาบนี้ = <b>phase logic</b>:
+    <b>พลิก phase ของทุกค่าที่ทำให้ operation ได้ 1</b> (ค่าที่ <b>satisfy</b>) · READ ตรงๆ ไม่ได้ แต่ <b>mark คำตอบได้หลายตัวพร้อมกัน</b> แล้วใช้เป็น flip ของ AA ·
+    (ป้อนค่าเดียว = global phase ไร้ประโยชน์ · ต้องเป็น superposition)</p>
 
     <h4 id="lec10-gates">ตารางประตู phase logic (Figure 10-1 + 10-2)</h4>
-    <p>a = สายบน (0x1) · b = สายล่าง (0x2) · ∣n⟩ = a + 2b · φ ทุกตัว = 180° · "พลิก" = วงที่เข็มชี้ลงหลังผ่าน gate (เมื่อป้อน uniform superposition)</p>
+    <p>a = สายบน (0x1) · b = สายล่าง (0x2) · ∣n⟩ = a + 2b · φ ทุกตัว = 180°</p>
     <table class="cmp lec10-symtab">
       <thead><tr><th>วงจร</th><th>ชื่อ</th><th>พลิก phase ของ</th></tr></thead>
       <tbody>
         <tr>
           <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="1" data-names="a" data-ops="X:0; P:0:180; X:0"></div></div></td>
           <td data-label="ชื่อ"><b>phase NOT</b></td>
-          <td data-label="พลิก phase ของ">∣0⟩ · X สลับ ∣0⟩ ไปอยู่ตำแหน่ง ∣1⟩ → PHASE พลิก → X สลับกลับ</td>
+          <td data-label="พลิก phase ของ">∣0⟩ · X → PHASE → X</td>
         </tr>
         <tr>
           <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="2" data-names="a,b" data-ops="CZ:0,1"></div></div></td>
           <td data-label="ชื่อ"><b>phase AND</b></td>
-          <td data-label="พลิก phase ของ">∣3⟩ (a = b = 1) · CZ เฉยๆ</td>
+          <td data-label="พลิก phase ของ">∣3⟩ · CZ เฉยๆ</td>
         </tr>
         <tr>
           <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="2" data-names="a,b" data-ops="P:0:180; CZ:0,1; P:1:180"></div></div></td>
           <td data-label="ชื่อ"><b>phase OR</b></td>
-          <td data-label="พลิก phase ของ">∣1⟩ ∣2⟩ ∣3⟩ · ตัวคูณรวม (−1)<sup>a</sup>(−1)<sup>ab</sup>(−1)<sup>b</sup> → ∣3⟩ โดนพลิก 3 ครั้ง (คี่) จึงได้ −1</td>
+          <td data-label="พลิก phase ของ">∣1⟩ ∣2⟩ ∣3⟩ · ∣3⟩ โดนพลิก 3 ครั้ง (คี่) จึงได้ −1</td>
         </tr>
         <tr>
           <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="2" data-names="a,b" data-ops="X:0 + X:1; CZ:0,1; X:0 + X:1"></div></div></td>
           <td data-label="ชื่อ"><b>phase NOR</b></td>
-          <td data-label="พลิก phase ของ">∣0⟩ (a = b = 0) · = phase AND ที่ครอบด้วย X ทั้งสองสาย</td>
+          <td data-label="พลิก phase ของ">∣0⟩ · = phase AND ครอบ X</td>
         </tr>
         <tr>
           <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="2" data-names="a,b" data-ops="X:0 + X:1; P:0:180; CZ:0,1; P:1:180; X:0 + X:1"></div></div></td>
           <td data-label="ชื่อ"><b>phase NAND</b></td>
-          <td data-label="พลิก phase ของ">∣0⟩ ∣1⟩ ∣2⟩ · = phase OR ที่ครอบด้วย X ทั้งสองสาย</td>
+          <td data-label="พลิก phase ของ">∣0⟩ ∣1⟩ ∣2⟩ · = phase OR ครอบ X</td>
         </tr>
         <tr>
           <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="3" data-names="a,b,scratch" data-groups="3-4:phase XOR" data-ops="WRITE:2; X:2; H:2; CNOT:0,2; CNOT:1,2; H:2; X:2"></div></div></td>
           <td data-label="ชื่อ"><b>phase XOR</b></td>
-          <td data-label="พลิก phase ของ">∣1⟩ ∣2⟩ · scratch ∣−⟩ + CNOT 2 ตัว → <b>phase kickback</b> ให้ −1 ไปเกาะค่าที่ a⊕b = 1 · กล่องเทาครอบแค่ CNOT 2 ตัว ส่วนที่เหลือคือเตรียม/คืน scratch</td>
+          <td data-label="พลิก phase ของ">∣1⟩ ∣2⟩ · scratch ∣−⟩ + CNOT 2 ตัว → <b>phase kickback</b> · กล่องเทาครอบแค่ CNOT</td>
         </tr>
       </tbody>
     </table>
-    <div class="box aha"><span class="tag">2 เรื่องที่ต้องจำให้ขึ้นใจ</span>
-      <p>① ชื่อ "phase logic" หลอกตา: <b>input อยู่ในค่าของรีจิสเตอร์</b> (เช่น ∣2⟩, ∣5⟩) มีแค่ <b>output ที่อยู่ใน phase</b> · มันไม่ได้รับ phase เป็น input</p>
-      <p>② scratch ของ phase XOR <b>ไม่ entangle</b> กับ input (ตัวมันยังเป็น ∣−⟩ เหมือนเดิม ส่วน −1 ไปเกาะที่ค่าของ input แทน) → <b>ไม่ต้อง uncompute</b> ทั้ง gate</p></div>
+    <div class="box aha"><span class="tag">2 เรื่องที่ต้องจำ</span>
+      <p>① <b>input อยู่ในค่าของ register</b> มีแค่ <b>output ที่อยู่ใน phase</b> · ② scratch ∣−⟩ ของ phase XOR <b>ไม่ entangle</b> → <b>ไม่ต้อง uncompute</b></p></div>
     <p><a href="../lessons/0037-phase-logic-answers-in-phase.html">อ่านตัวเต็ม → บท 0037</a></p>
 
     <h3 id="lec10-mag-phase">2. Logic ยาวๆ: magnitude ก่อน phase ทีหลัง</h3>
-    <p>ปัญหา: phase logic <b>ให้ output เป็น phase แต่ต้องการ input เป็นค่าในรีจิสเตอร์ (magnitude)</b> → เอามาต่อกันตรงๆ ไม่ได้ ·
-    ทริก: ทำ <b>ทุก operation ยกเว้นตัวนอกสุด</b>ด้วย magnitude logic แบบ Lec05 (เขียนผลลง scratch) → ใช้ <b>phase logic แค่ตัวสุดท้าย</b> → <b>uncompute</b> คืน scratch เป็น ∣0⟩</p>
-    <p>ตัวอย่าง <b>(a OR NOT b) AND c</b> · a = 0x1, b = 0x2, c = 0x4, scratch = 0x8 (สาย 0x8 <b>ไม่มี H</b>):</p>
+    <p>phase logic ให้ output เป็น phase แต่ต้องการ input เป็นค่า → ต่อกันตรงๆ ไม่ได้ · ทริก: ทำ<b>ทุกตัวยกเว้นตัวนอกสุด</b>ด้วย magnitude logic (ลง scratch)
+    → <b>phase logic แค่ตัวสุดท้าย</b> → <b>uncompute</b> scratch (ไม่งั้น scratch entangle ค้าง phase เอาไปใช้ต่อไม่ได้)</p>
+    <p>ตัวอย่าง <b>(a OR NOT b) AND c</b> · a = 0x1, b = 0x2, c = 0x4, scratch = 0x8 (<b>ไม่มี H</b>):</p>
     <p class="scroll-hint">← เลื่อนดูได้</p>
     <div class="scrollx">
       <div class="circuit" data-wires="4" data-names="a,b,c,scratch" data-wire-labels="0x1,0x2,0x4,0x8"
@@ -940,12 +823,7 @@
            data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2; X:1; X:0 + X:1; CCNOT:0,1,3; X:0 + X:1 + X:3; CZ:2,3; X:0 + X:1 + X:3; CCNOT:0,1,3; X:0 + X:1; X:1"
            data-cap="Figure 10-4 · X บน b = NOT b → bit_or ลง 0x8 → pAND (CZ ระหว่าง c กับ scratch) → ทำย้อนลำดับเพื่อ uncompute"></div>
     </div>
-    <ul>
-      <li><b>pAND</b> = CZ ระหว่าง c กับ scratch → พลิกเฉพาะค่าที่ c = 1 และ (a OR NOT b) = 1 · มันไม่เปลี่ยนค่าในรีจิสเตอร์ จึงไม่รบกวนการ uncompute</li>
-      <li><b>ต้อง uncompute</b> เพราะ scratch เก็บค่า 0/1 ที่ขึ้นกับ input จึง entangle ค้างอยู่ → phase ที่พลิกไว้เอาไปใช้ต่อไม่ได้ ·
-        ต่างจาก scratch ∣−⟩ ของ phase XOR ที่ไม่ต้อง uncompute</li>
-      <li>ผล (Figure 10-5): magnitude เท่าเดิมทุกวง · phase ของ <b>∣4⟩ ∣5⟩ ∣7⟩</b> ถูกพลิก (3 จาก 8 ค่า · ไล่ตารางเต็มได้ที่<a href="#lec10-truth">ตารางความจริงท้ายข้อ 6</a>)</li>
-    </ul>
+    <p>ผล (Figure 10-5): magnitude เท่าเดิม · phase ของ <b>∣4⟩ ∣5⟩ ∣7⟩</b> ถูกพลิก (ไล่ได้ที่<a href="#lec10-truth">ตารางความจริงท้ายข้อ 5</a>)</p>
     <p class="scroll-hint">← เลื่อนดูได้</p>
     <div class="scrollx">
       <div class="crow" data-n="8" data-r="18" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-phase="0,0,0,0,180,180,0,180" data-hl="4,5,7" data-lab="หลัง phase (a OR NOT b) AND c"></div>
@@ -953,11 +831,7 @@
     <p><a href="../lessons/0038-magnitude-first-phase-last.html">อ่านตัวเต็ม → บท 0038</a></p>
 
     <h3 id="lec10-kittens">3. ลูกแมว/เสือ: รันครั้งเดียวต้องถูก</h3>
-    <p><b>โจทย์:</b> กล่อง A กับ B แต่ละใบมีลูกแมวหรือเสือ เปิดได้ใบเดียว ·
-    ป้ายกล่อง A: "อย่างน้อย 1 กล่องมีลูกแมว" · ป้ายกล่อง B: "อีกกล่อง (A) มีเสือ" ·
-    พระราชาเพิ่มว่า <b>"ป้ายทั้งสองใบ จริงทั้งคู่ หรือ เท็จทั้งคู่"</b> และ <b>รันอุปกรณ์ได้ครั้งเดียว</b></p>
-    <p><b>ปริศนา → logic</b> (0 = เสือ, 1 = ลูกแมว): ป้าย A = <b>A OR B</b> · ป้าย B = <b>NOT A</b> · กติกาพระราชา = <b>XNOR</b> →
-    <b>out = (A OR B) XNOR (NOT A)</b></p>
+    <p>ป้าย A: "อย่างน้อย 1 กล่องมีลูกแมว" = <b>A OR B</b> · ป้าย B: "A มีเสือ" = <b>NOT A</b> · "จริงทั้งคู่หรือเท็จทั้งคู่" = <b>XNOR</b> (0 = เสือ, 1 = ลูกแมว)</p>
     <table class="cmp" id="lec10-kittens-truth">
       <thead><tr><th>A</th><th>B</th><th>A OR B</th><th>NOT A</th><th>XNOR</th></tr></thead>
       <tbody>
@@ -967,106 +841,71 @@
         <tr><td data-label="A">1 (แมว)</td><td data-label="B">1 (แมว)</td><td data-label="A OR B">1</td><td data-label="NOT A">0</td><td data-label="XNOR">0</td></tr>
       </tbody>
     </table>
-    <p>คำตอบเดียว: <b>A = เสือ, B = ลูกแมว</b> = ค่า <b>∣2⟩</b> (A = 0x1, B = 0x2) ·
-    ถ้าใช้วงจรคลาสสิกรันได้ครั้งเดียว ต้องเดา input เอง → ถูกแค่ <b>25%</b> (1 ใน 4) · บน QPU รันครั้งเดียวได้ <b>100%</b></p>
-
-    <p><b>วงจร → AA</b> (Figure 10-8): magnitude logic จนถึงตัวรองสุดท้าย → phase XNOR ตัวสุดท้าย → uncompute → mirror 1 รอบ → READ</p>
+    <p>คำตอบ: <b>A = เสือ, B = ลูกแมว</b> = <b>∣2⟩</b> · คลาสสิกรันครั้งเดียวต้องเดา → <b>25%</b> · QPU → <b>100%</b>
+    (N<sub>AA</sub> = ⌊(π/4)·√4⌋ = <b>1 รอบ</b> · 4 ค่า 1 คำตอบ = กรณีพิเศษที่ได้ 100% พอดี)</p>
     <p class="scroll-hint">← เลื่อนดูได้</p>
     <div class="scrollx">
       <div class="circuit" data-wires="4" data-names="boxes,boxes,noteA,scratch" data-wire-labels="0x1,0x2,0x1,0x1"
            data-groups="2-4:noteA = A OR B; 5-5:NOT A; 8-10:XNOR; 13-17:uncompute; 18-22:mirror"
            data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1; X:0 + X:1; CCNOT:0,1,2; X:0 + X:1 + X:2; X:0; X:3; H:3; CNOT:2,3; CNOT:0,3; X:3; H:3; X:3; X:0; _; X:0 + X:1 + X:2; CCNOT:0,1,2; X:0 + X:1; H:0 + H:1; X:0 + X:1; CZ:0,1; X:0 + X:1; H:0 + H:1; READ:0:0 + READ:1:1"
-           data-cap="Figure 10-8 · ผล READ: A = 0 (เสือ) · B = 1 (ลูกแมว) → เปิดกล่อง B · ป้าย 0x1 ที่ noteA/scratch เพราะ QCEngine นับบิตแยกในแต่ละ register"></div>
+           data-cap="Figure 10-8 · bit_or ลง noteA → X เขียน NOT A ทับสาย A → phase XOR + X = XNOR → uncompute → mirror → READ: A = 0, B = 1"></div>
     </div>
-    <ul>
-      <li><b>noteA = A OR B</b>: bit_or ลงสาย noteA (magnitude) · <b>NOT A</b>: X เขียนทับสาย A เลย (ย้อนกลับได้ด้วย X อีกตัว)</li>
-      <li><b>XNOR</b>: scratch ∣−⟩ + CNOT จาก noteA + CNOT จากสาย A (ที่ตอนนี้เก็บ NOT A) = phase XOR · แล้ว X บน scratch อีกตัวทำให้เป็น XNOR</li>
-      <li><b>uncompute</b>: X คืน A → bit_or กลับหลัง (คืน noteA เป็น 0) · <b>mirror</b> = H X CZ X H บน boxes 2 สาย</li>
-      <li>จำนวนรอบ: N<sub>AA</sub> = ⌊(π/4)·√(2²/1)⌋ = ⌊1.57⌋ = <b>1 รอบ</b> · กรณี 4 ค่ามีคำตอบ 1 ตัว เป็นกรณีพิเศษที่ 1 รอบได้ 100% พอดี</li>
-    </ul>
-    <p class="scroll-hint">← เลื่อนดูได้</p>
     <div class="scrollx">
       <div class="crow" data-n="4" data-r="20" data-mag="0.25,0.25,0.25,0.25" data-phase="0,0,180,0" data-hl="2" data-lab="ก่อน mirror"></div>
       <div class="crow" data-n="4" data-r="20" data-mag="0,0,1,0" data-phase="0,0,180,0" data-hl="2" data-sub=",,100%," data-lab="หลัง mirror 1 รอบ"></div>
     </div>
     <div class="box why"><span class="tag">คำตอบที่ถูกมี phase บวกก็ได้</span>
-      <p>สไลด์ p36 บอกว่าในปริศนานี้ <b>คำตอบที่ถูกมี phase บวก ตัวที่ผิดมี phase ลบ</b> แต่ AA ก็ยังทำงาน เพราะ mirror ขยายค่าที่ phase <b>ต่างจากค่าอื่น</b> (relative) ไม่จำเป็นต้องเป็นลบ ·
-      X บน scratch (ที่เป็น ∣−⟩) คูณ −1 ทั้งรีจิสเตอร์ = global phase → phase XOR กับ phase XNOR จึงเป็นสถานะเดียวกันทางฟิสิกส์ (รูปข้างบนวาดแบบรวม X แล้ว จึงเห็น ∣2⟩ เป็นวงที่ชี้ลง)</p></div>
+      <p>สไลด์ p36: ในปริศนานี้คำตอบถูกมี phase <b>บวก</b> ตัวผิดเป็นลบ — AA ยังทำงาน เพราะ mirror ขยายค่าที่ phase <b>ต่างจากค่าอื่น</b> ·
+      X บน scratch ∣−⟩ = global phase → XOR กับ XNOR เป็นสถานะเดียวกันทางฟิสิกส์</p></div>
     <p><a href="../lessons/0039-kittens-and-tigers-one-shot.html">อ่านตัวเต็ม → บท 0039</a></p>
 
     <h3 id="lec10-recipe">4. สูตร 9 ขั้นแก้ SAT ด้วย QPU</h3>
-    <p><b>SAT (boolean satisfiability)</b> = ถามว่า "มี input ไหนทำให้ boolean statement เป็นจริงไหม" · ใช้จริงใน model checking, AI planning, software verification</p>
+    <p><b>SAT</b> = "มี input ไหนทำให้ boolean statement เป็นจริงไหม"</p>
     <ol>
-      <li>แปลง statement ให้เป็น <b>AND ของ clause</b> หลายตัวที่ต้องจริงพร้อมกัน</li>
-      <li>แทนแต่ละ clause ด้วย <b>magnitude logic</b> · ใช้ <b>scratch 1 ตัวต่อ 1 clause</b></li>
-      <li>HAD ทุก qubit ของ input ให้เป็น uniform superposition · scratch ทุกตัวตั้งเป็น ∣0⟩</li>
-      <li>คำนวณ clause ทีละตัวด้วย magnitude logic เก็บผลไว้ใน scratch ของมัน</li>
-      <li>ทำ <b>phase-logic AND</b> (CZ) ระหว่าง scratch ทุกตัว เพื่อรวม clause ทั้งหมด</li>
-      <li><b>uncompute</b> magnitude logic ทั้งหมด คืน scratch กลับเป็นค่าเริ่มต้น</li>
-      <li>รัน <b>mirror</b> บนรีจิสเตอร์ input</li>
-      <li>ทำขั้นก่อนหน้าซ้ำตามจำนวนรอบจากสูตร AA (Equation 6-2)</li>
-      <li><b>READ</b> รีจิสเตอร์ input</li>
+      <li>แปลงเป็น <b>AND ของ clause</b></li>
+      <li>แต่ละ clause ใช้ <b>magnitude logic</b> + <b>scratch 1 ตัว</b></li>
+      <li>HAD input ทุกตัว · scratch = ∣0⟩</li>
+      <li>คำนวณ clause ลง scratch</li>
+      <li><b>phase AND</b> (CZ) ระหว่าง scratch ทุกตัว</li>
+      <li><b>uncompute</b> magnitude logic</li>
+      <li><b>mirror</b> บน register input</li>
+      <li>วนซ้ำตามสูตร AA</li>
+      <li><b>READ</b> input</li>
     </ol>
     <p class="eq" id="lec10-naa">N<sub>AA</sub> = ⌊ (π/4)·√(2<sup>n</sup>/m) ⌋ &nbsp;·&nbsp; n = จำนวน qubit ของ input · m = จำนวนคำตอบ</p>
-    <p>จำง่ายๆ เป็น 3 ช่วง: <b>เตรียม</b> (1–3) · <b>1 รอบ AA</b> = compute → pAND → uncompute → mirror (4–7) · <b>วนแล้วอ่าน</b> (8–9)</p>
-    <p><a href="../lessons/0040-sat-recipe-and-3sat.html">อ่านตัวเต็ม → บท 0040</a></p>
+    <p>จำเป็น 3 ช่วง: <b>เตรียม</b> (1–3) · <b>1 รอบ AA</b> = compute → pAND → uncompute → mirror (4–7) · <b>วนแล้วอ่าน</b> (8–9)</p>
 
-    <h3 id="lec10-3sat">5. 3-SAT: กรณีมีคำตอบ</h3>
+    <h3 id="lec10-3sat">5. 3-SAT: มีคำตอบ vs ไม่มีคำตอบ</h3>
     <p class="eq">(a OR b) AND (NOT a OR c) AND (NOT b OR NOT c) AND (a OR c)</p>
-    <p>เป็น AND ของ 4 clause อยู่แล้ว → ใช้ <b>7 qubit</b> = 3 ตัวเป็น a, b, c (0x1, 0x2, 0x4) + scratch 4 ตัว (0x8, 0x10, 0x20, 0x40) ตัวละ clause ·
-    clause ที่มี NOT ทำโดย X ครอบ input ก่อนและหลัง bit_or · <b>flip phase</b> = CZ 4 จุดบน scratch ทั้ง 4 ตัว</p>
+    <p><b>7 qubit</b> = a, b, c (0x1, 0x2, 0x4) + scratch 4 ตัวตัวละ clause · clause ที่มี NOT ใช้ X ครอบ · <b>flip</b> = CZ 4 จุดบน scratch</p>
     <p class="scroll-hint">← เลื่อนดูได้</p>
     <div class="scrollx">
       <div class="circuit" data-wires="7" data-wire-labels="0x1,0x2,0x4,0x8,0x10,0x20,0x40"
            data-names="a,b,c,cl1,cl2,cl3,cl4"
            data-groups="2-4:clause 1; 5-9:clause 2; 10-14:clause 3; 15-17:clause 4; 18-18:flip; 19-21:inv 4; 22-26:inv 3; 27-31:inv 2; 32-34:inv 1; 35-39:mirror"
            data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6; H:0 + H:1 + H:2; X:0,1; CCNOT:0,1,3; X:0,1,3; X:0; X:0,2; CCNOT:0,2,4; X:0,2,4; X:0; X:1,2; X:1,2; CCNOT:1,2,5; X:1,2,5; X:1,2; X:0,2; CCNOT:0,2,6; X:0,2,6; CZ:3,4,5,6; X:0,2,6; CCNOT:0,2,6; X:0,2; X:1,2; X:1,2,5; CCNOT:1,2,5; X:1,2; X:1,2; X:0; X:0,2,4; CCNOT:0,2,4; X:0,2; X:0; X:0,1,3; CCNOT:0,1,3; X:0,1; H:0 + H:1 + H:2; X:0,1,2; CZ:0,1,2; X:0,1,2; H:0 + H:1 + H:2"
-           data-cap="Figure 10-9 · 3-SAT ที่มีคำตอบ (1 รอบ) · ป้าย &quot;mirror&quot; เติมเอง ในรูปจริงช่วงท้ายไม่มีป้าย · ⊕ สองตัวติดกันบนสายเดียววาดตามหนังสือ (หักล้างกัน)"></div>
+           data-cap="Figure 10-9 · 3-SAT ที่มีคำตอบ (1 รอบ) · ป้าย &quot;mirror&quot; เติมเอง · ⊕ สองตัวติดกันบนสายเดียววาดตามหนังสือ (หักล้างกัน)"></div>
     </div>
-    <p>ผล (Figure 10-10): phase logic พลิกแค่ <b>∣5⟩</b> → หลัง mirror ∣5⟩ ใหญ่สุด → READ ได้ <b>a = 1, b = 0, c = 1</b> · แทนค่าตรวจได้ทันที (ปัญหา NP: หาคำตอบยาก ตรวจคำตอบง่าย)</p>
+    <p>ผล (Figure 10-10): พลิกแค่ <b>∣5⟩</b> → READ ได้ <b>a = 1, b = 0, c = 1</b> · แทนค่าตรวจได้ทันที (NP: หายาก ตรวจง่าย)</p>
     <p class="scroll-hint">← เลื่อนดูได้</p>
     <div class="scrollx">
-      <div class="crow" data-n="8" data-r="18" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-lab="หลัง HAD"></div>
       <div class="crow" data-n="8" data-r="18" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-phase="0,0,0,0,0,180,0,0" data-hl="5" data-lab="หลัง phase logic"></div>
       <div class="crow" data-n="8" data-r="18" data-mag="0.031,0.031,0.031,0.031,0.031,0.781,0.031,0.031" data-phase="180,180,180,180,180,180,180,180" data-hl="5" data-sub=",,,,,78%,," data-lab="หลัง mirror 1 รอบ"></div>
     </div>
     <div class="work" id="lec10-3sat-calc">
-      <div class="step"><span class="lbl">N<sub>AA</sub></span> n = 3, m = 1 → (π/4)·√8 ≈ 2.22 → ⌊2.22⌋ = <b>2 รอบ</b></div>
-      <div class="step"><span class="lbl">1 รอบ</span> ∣5⟩: 1/√8 → 2.5/√8 → ความน่าจะเป็น 6.25/8 ≈ <b>78%</b> · ค่าอื่น 0.5/√8 → ≈ 3.1% ต่อค่า</div>
-      <div class="step"><span class="lbl">2 รอบ</span> ∣5⟩ ≈ <b>94.5%</b></div>
-      <div class="step"><span class="lbl">phase หลัง mirror</span> ทุกวงชี้ลง (180°) = global phase จาก mirror แบบ H-X-CZ-X-H ไม่กระทบผลอ่าน</div>
+      <div class="step"><span class="lbl">N<sub>AA</sub></span> n = 3, m = 1 → (π/4)·√8 ≈ 2.22 → <b>2 รอบ</b></div>
+      <div class="step"><span class="lbl">1 รอบ</span> ∣5⟩: 1/√8 → 2.5/√8 → 6.25/8 ≈ <b>78%</b> · ค่าอื่น ≈ 3.1%</div>
+      <div class="step"><span class="lbl">2 รอบ</span> ∣5⟩ ≈ <b>94.5%</b> · ทุกวงชี้ลงหลัง mirror = global phase</div>
     </div>
+    <p><b>กรณีไม่มีคำตอบ</b> (Figure 10-11): เติม <b>AND b</b> → b = 1 → c = 0 → a = 1 → clause 2 = 0 ✗ ·
+    วงจร<b>เหมือน 10-9 ทุกอย่าง</b> ต่างแค่คอลัมน์ flip เติม ● บนสาย b เป็น <b>CZ 5 จุด</b> ·
+    ผล <b>"Nothing has happened!"</b> ไม่มีค่าไหนพลิก → magnitude เท่ากันหมด → READ ได้ค่าสุ่ม แทนค่าแล้วได้ 0 → <b>น่าจะ unsatisfiable</b> (ไม่ใช่ 100%)</p>
     <div class="box warn"><span class="tag">จุดที่สไลด์ไม่ตรงกับของจริง (3-SAT)</span>
-      <p>① p41 เขียนว่า mirror บน "seven-qubit register" แต่วงจรและโค้ด (<code>reg.Grover()</code>) ทำ mirror แค่ <b>3 สาย</b> (a, b, c) · ถ้าถามตามข้อความให้ตอบตามสไลด์ แต่ของจริงคือ 3 สาย</p>
-      <p>② สูตรได้ N<sub>AA</sub> = 2 แต่สไลด์รันแค่ <b>1 รอบ</b> (ได้ 78% ไม่ใช่ 100%) · 2 รอบได้ 94.5%</p>
-      <p>③ ชื่อ "3-SAT" ตามนิยามเคร่งคือ clause ละ 3 literal แต่โจทย์นี้ clause ละ 2 (จริงๆ คือ 2-SAT) → ตอบตามสไลด์ว่า 3-SAT</p></div>
-    <p><a href="../lessons/0040-sat-recipe-and-3sat.html">อ่านตัวเต็ม → บท 0040</a></p>
-
-    <h3 id="lec10-3sat-unsat">6. 3-SAT: กรณีไม่มีคำตอบ</h3>
-    <p class="eq">(a OR b) AND (NOT a OR c) AND (NOT b OR NOT c) AND (a OR c) AND <b>b</b></p>
-    <p>ไล่ให้เห็นว่าขัดกันเอง: b = 1 (บังคับจากเทอมท้าย) → c = 0 (clause 3) → a = 1 (clause 4) → clause 2 (NOT a OR c) = 0 ✗ ·
-    วงจร (Figure 10-11) <b>เหมือน 10-9 ทุกอย่าง</b> ต่างแค่คอลัมน์ flip ที่เติม ● บนสาย b (0x2) ตรงๆ เป็น <b>CZ 5 จุด</b> (เทอม AND b ไม่ต้องใช้ scratch)</p>
-    <p class="scroll-hint">← เลื่อนดูได้</p>
-    <div class="scrollx">
-      <div class="circuit" data-wires="7" data-wire-labels="0x1,0x2,0x4,0x8,0x10,0x20,0x40" data-names="a,b,c,cl1,cl2,cl3,cl4"
-           data-groups="2-4:clause 1; 5-9:clause 2; 10-14:clause 3; 15-17:clause 4; 18-18:flip; 19-21:inv 4; 22-26:inv 3; 27-31:inv 2; 32-34:inv 1; 35-39:mirror"
-           data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3 + WRITE:4 + WRITE:5 + WRITE:6; H:0 + H:1 + H:2; X:0,1; CCNOT:0,1,3; X:0,1,3; X:0; X:0,2; CCNOT:0,2,4; X:0,2,4; X:0; X:1,2; X:1,2; CCNOT:1,2,5; X:1,2,5; X:1,2; X:0,2; CCNOT:0,2,6; X:0,2,6; CZ:1,3,4,5,6; X:0,2,6; CCNOT:0,2,6; X:0,2; X:1,2; X:1,2,5; CCNOT:1,2,5; X:1,2; X:1,2; X:0; X:0,2,4; CCNOT:0,2,4; X:0,2; X:0; X:0,1,3; CCNOT:0,1,3; X:0,1; H:0 + H:1 + H:2; X:0,1,2; CZ:0,1,2; X:0,1,2; H:0 + H:1 + H:2"
-           data-cap="Figure 10-11 · 3-SAT ที่ไม่มีคำตอบ · ต่างจาก 10-9 แค่คอลัมน์ flip ที่มี ● บน 0x2 เพิ่ม (CZ 5 จุด)"></div>
-    </div>
-    <ul>
-      <li>ผล (Figure 10-12): <b>"Nothing has happened!"</b> ไม่มีค่าไหนถูกพลิก → mirror กระทำกับทุกค่าเท่ากัน → magnitude ยังเท่ากันหมด (1/8 ทุกค่า) · ทุกวงชี้ลงหลัง mirror = global phase อีกเช่นเคย</li>
-      <li>ทำ AA กี่รอบก็ READ ได้ 1 ใน 8 ค่าแบบสุ่ม → <b>เอาค่าที่อ่านได้ไปแทนในสูตร ถ้าได้ 0</b> สรุปได้ว่าสูตร <b>น่าจะ unsatisfiable</b> (ด้วยความน่าจะเป็นสูง ไม่ใช่ 100%)</li>
-    </ul>
-    <p class="scroll-hint">← เลื่อนดูได้</p>
-    <div class="scrollx">
-      <div class="crow" data-n="8" data-r="18" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-lab="หลัง phase logic"></div>
-      <div class="crow" data-n="8" data-r="18" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-phase="180,180,180,180,180,180,180,180" data-lab="หลัง mirror"></div>
-    </div>
-
-    <p><a href="../lessons/0040-sat-recipe-and-3sat.html">อ่านตัวเต็ม → บท 0040</a></p>
+      <p>① p41 ว่า mirror บน "seven-qubit register" แต่วงจรทำแค่ <b>3 สาย</b> · ② สูตรได้ 2 รอบ แต่สไลด์รัน <b>1 รอบ</b> (78%) ·
+      ③ clause ละ 2 literal (จริงๆ คือ 2-SAT) → ตอบตามสไลด์ว่า 3-SAT</p></div>
 
     <h4 id="lec10-truth">ไล่ตารางความจริง: state ไหนโดนพลิก phase</h4>
-    <p>วิธีไล่: ∣n⟩ = a + 2b + 4c (a = 0x1, b = 0x2, c = 0x4) → แทนค่าทีละ clause → state ที่ทุก clause = 1 คือ state ที่ phase logic พลิก · clause 1–4 = (a OR b) · (NOT a OR c) · (NOT b OR NOT c) · (a OR c)</p>
+    <p>∣n⟩ = a + 2b + 4c → แทนค่าทีละ clause → state ที่ทุก clause = 1 คือตัวที่โดนพลิก · clause 1–4 = (a OR b) · (NOT a OR c) · (NOT b OR NOT c) · (a OR c)</p>
     <table class="cmp">
       <thead><tr><th>state</th><th>(a,b,c)</th><th>clause 1 2 3 4</th><th>ทั้ง 4 clause (มีคำตอบ)</th><th>… AND b (ไม่มีคำตอบ)</th><th>(a OR NOT b) AND c</th></tr></thead>
       <tbody>
@@ -1080,16 +919,14 @@
         <tr><td data-label="state">∣7⟩</td><td data-label="(a,b,c)"><span class="lec10-nw">(1,1,1)</span></td><td data-label="clause 1 2 3 4"><span class="lec10-nw">1 1 0 1</span></td><td data-label="ทั้ง 4 clause">0</td><td data-label="… AND b">0</td><td data-label="(a OR NOT b) AND c"><b>1 พลิก</b></td></tr>
       </tbody>
     </table>
-    <p>สรุป: 4 clause → พลิกแค่ <b>∣5⟩</b> · เติม AND b → <b>ไม่มีตัวไหนพลิก</b> · (a OR NOT b) AND c → พลิก <b>∣4⟩ ∣5⟩ ∣7⟩</b></p>
 
-    <h3 id="lec10-speedup">7. AA เร่งอะไรได้บ้าง</h3>
+    <h3 id="lec10-speedup">6. AA เร่งอะไรได้บ้าง</h3>
     <ul>
-      <li>บางกรณีได้ <b>quadratic speedup</b> (เร็วขึ้นแบบกำลังสอง) เทียบกับ<b>อัลกอริทึมคลาสสิกที่ดีที่สุด</b> ไม่ใช่แค่เทียบกับ brute force</li>
-      <li>เร่งได้กับอัลกอริทึมที่มี <b>one-sided error</b> (ผิดได้ด้านเดียว): ถ้าคำตอบจริงคือ "no" จะตอบ "no" <b>เสมอ</b> · ถ้าคำตอบจริงคือ "yes" จะตอบ "yes" ด้วยความน่าจะเป็น p &gt; 0 ·
-        3-SAT ตอบ "yes" ก็ต่อเมื่อเจอ assignment ที่ทำให้เป็นจริงจริงๆ (นี่คือเหตุผลที่กรณีไม่มีคำตอบสรุปได้แค่ "น่าจะ")</li>
-      <li>ตัวอย่างอื่นที่ AA เร่งได้: <b>element distinctness</b> (มี i ≠ j ที่ f(i) = f(j) ไหม · ใช้หาสามเหลี่ยมในกราฟ, ผลคูณเมทริกซ์) · <b>finding global minima</b> (หา i ที่ f(i) ต่ำสุด)</li>
+      <li><b>quadratic speedup</b> เทียบกับ<b>อัลกอริทึมคลาสสิกที่ดีที่สุด</b> (ไม่ใช่แค่ brute force) — ใช้กับอัลกอริทึมที่มี <b>one-sided error</b>:
+        "no" ตอบ no เสมอ · "yes" ตอบ yes ด้วยโอกาส p &gt; 0 (จึงสรุปกรณีไม่มีคำตอบได้แค่ "น่าจะ")</li>
+      <li>ตัวอย่างอื่น: <b>element distinctness</b> (มี i ≠ j ที่ f(i) = f(j) ไหม) · <b>finding global minima</b></li>
     </ul>
-    <p><a href="../lessons/0040-sat-recipe-and-3sat.html">อ่านตัวเต็ม → บท 0040</a></p>
+    <p><a href="../lessons/0040-sat-recipe-and-3sat.html">อ่านตัวเต็ม → บท 0040 (สูตร 9 ขั้น · 3-SAT)</a></p>
     <!-- lec10:content-end -->
     <button type="button" class="next-btn" data-target="lec11">บทถัดไป: Lec11 Quantum Supersampling →</button>
   </section>
