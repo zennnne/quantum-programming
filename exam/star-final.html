@@ -4,10 +4,15 @@
 <link rel="stylesheet" href="../assets/style.css">
 <link rel="stylesheet" href="../assets/lesson-bits.css">
 <link rel="stylesheet" href="exam.css">
+<script defer src="../assets/circuit.js"></script>
+<script defer src="../assets/circles.js"></script>
 <style>
   .fig { margin:1rem 0; text-align:center; }
   .fig img { max-width:100%; height:auto; border:1px solid var(--line, #ddd); border-radius:8px; background:#fff; }
   .fig .cap { font-size:.85rem; color:var(--ink-soft); margin-top:.4rem; }
+  table.plogic { width:100%; }
+  table.plogic td { vertical-align:middle; }
+  table.plogic td:last-child { width:8rem; }
   .slice { margin:.6rem 0 1rem; }
   .slice .row { display:flex; align-items:center; gap:.6rem; margin:.35rem 0; }
   .slice .who { flex:0 0 7.5rem; font-size:.9rem; }
@@ -29,7 +34,7 @@
 
   <p class="kicker">Exam Review · ปลายภาค · หน้าพิเศษ</p>
   <h1>⭐ อ่านหน้าห้องสอบ — ปลายภาค</h1>
-  <p class="lead">2 อย่างที่ต้องมีในหัวตอนเดินเข้าห้อง</p>
+  <p class="lead">5 อย่างที่ต้องมีในหัวตอนเดินเข้าห้อง</p>
 
   <!-- ① สูตร N_AA -->
   <div class="box aha">
@@ -112,6 +117,94 @@
     <p class="src">ระวัง: wave_period คือ <b>bitmask ของสายที่โดน 180°</b> ไม่ใช่ความถี่ตรงๆ — ยิ่งเลขใหญ่
     ยิ่งสลับ +/− ช้า ความถี่หลักจริงคือ <b>8 / wave_period</b> (1 → 8 · 2 → 4 · 4 → 2) ซึ่งก็คือ peak ตัวแรกในตาราง ·
     peak ที่เหลือเป็นฮาร์มอนิกคี่ (3 เท่า, 5 เท่า, …) ที่สะท้อนกระจกกลับมา</p>
+  </div>
+
+  <!-- ③ RAM vs QRAM -->
+  <div class="box aha">
+    <span class="tag">③ RAM vs QRAM: จำ 2 ประโยค</span>
+
+    <p><b>RAM กับ QRAM ต่างกันข้อเดียว</b> คือ address ของ QRAM เป็น superposition ได้ ผลที่ได้ (output) เลยเป็น superposition ตามไปด้วย</p>
+    <p><b>QRAM ใช้อ่านค่าธรรมดาเท่านั้น</b> เขียน superposition กลับลงไปไม่ได้</p>
+
+    <p><b>อธิบายแบบง่ายๆ: ตู้ล็อกเกอร์ 🔐</b></p>
+    <p><b>RAM ธรรมดา</b> เหมือนตู้ล็อกเกอร์ที่ยื่นเลขตู้ได้ทีละ 1 เบอร์ แล้วได้ของคืนมา 1 ชิ้น → ยื่นเบอร์ 2 ก็ได้ของในตู้ 2</p>
+    <p><b>QRAM</b> ก็เป็นตู้ล็อกเกอร์เหมือนกันเป๊ะ ต่างกันแค่<b>ยื่นเลขตู้เป็น superposition ได้</b>
+    → ยื่นเบอร์ “2 และ 3 พร้อมกัน” ก็ได้ของในตู้ 2 และตู้ 3 กลับมา<b>พร้อมกัน</b></p>
+
+    <p>ตัวอย่างในสไลด์ (Example 9-2) ที่มี array <code class="code">a = [4, 3, 5, 1]</code></p>
+    <ol>
+      <li>ตั้ง addr = 2 แล้วใส่ <b>H</b> → addr กลายเป็น ∣2⟩ + ∣3⟩</li>
+      <li><code class="code">qram_load</code> ดึงค่า a[2] = 5 กับ a[3] = 1 → qreg เป็น ∣5⟩ + ∣1⟩</li>
+      <li><code class="code">add(1)</code> บวกทีเดียวได้ทั้งสองค่า → qreg = <b>∣6⟩ + ∣2⟩</b> (อย่างละ 50%)</li>
+    </ol>
+    <p class="src">RAM ธรรมดาทำแบบนี้ไม่ได้ เพราะ CPU เลือก address ได้ทีละอัน</p>
+  </div>
+
+  <!-- ④ phase logic -->
+  <div class="box aha">
+    <span class="tag">④ วงจร phase logic 6 แบบ (Figure 10-2)</span>
+    <table class="cmp plogic">
+      <thead><tr><th>วงจร</th><th>ชื่อ</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="1" data-names="a" data-ops="X:0; P:0:180; X:0"></div></div></td>
+          <td data-label="ชื่อ"><b>phase NOT</b></td>
+        </tr>
+        <tr>
+          <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="2" data-names="a,b" data-ops="CZ:0,1"></div></div></td>
+          <td data-label="ชื่อ"><b>phase AND</b></td>
+        </tr>
+        <tr>
+          <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="2" data-names="a,b" data-ops="P:0:180; CZ:0,1; P:1:180"></div></div></td>
+          <td data-label="ชื่อ"><b>phase OR</b></td>
+        </tr>
+        <tr>
+          <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="2" data-names="a,b" data-ops="X:0 + X:1; CZ:0,1; X:0 + X:1"></div></div></td>
+          <td data-label="ชื่อ"><b>phase NOR</b></td>
+        </tr>
+        <tr>
+          <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="2" data-names="a,b" data-ops="X:0 + X:1; P:0:180; CZ:0,1; P:1:180; X:0 + X:1"></div></div></td>
+          <td data-label="ชื่อ"><b>phase NAND</b></td>
+        </tr>
+        <tr>
+          <td data-label="วงจร"><div class="scrollx"><div class="circuit" data-wires="3" data-names="a,b,scratch" data-groups="3-4:phase XOR" data-ops="WRITE:2; X:2; H:2; CNOT:0,2; CNOT:1,2; H:2; X:2"></div></div></td>
+          <td data-label="ชื่อ"><b>phase XOR</b></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><b>phase XOR ต่างจากตัวอื่น</b> ตรงที่ไม่ได้ใช้ φ / CZ แต่ใช้ <b>phase kickback</b> (เตรียม scratch เป็น ∣−⟩
+    แล้ว CNOT จาก a และ b → −1 เด้งกลับไปที่ input แทน) · scratch ไม่ entangle → <b>ไม่ต้อง uncompute</b></p>
+    <p>⚠️ <b>ระวัง XNOR</b> ก็ใช้ kickback เหมือนกัน · XNOR = NOT XOR = <b>ได้ 1 เมื่อ a กับ b เหมือนกัน</b> (00, 11) ·
+    วงจร = phase XOR แล้ว<b>เติม X บน scratch</b> หลัง CNOT 2 ตัว · XOR พลิก ∣1⟩ ∣2⟩ ส่วน XNOR พลิก ∣0⟩ ∣3⟩</p>
+
+    <p style="margin-top:1.2rem;"><b>ประโยคยาวๆ:</b> คำนวณแบบปกติ (magnitude logic ลง scratch) ก่อน
+    → ใช้ <b>phase logic แค่ตัวสุดท้าย</b> (ตัวนอกสุด) → จากนั้น <b>uncompute</b></p>
+    <p><b>(a OR NOT b) AND c</b> · a = 0x1, b = 0x2, c = 0x4, scratch = 0x8</p>
+    <div class="circuit" data-wires="4" data-names="a,b,c,scratch" data-wire-labels="0x1,0x2,0x4,0x8"
+         data-groups="2-5:(a OR NOT b); 6-6:pAND; 7-10:uncompute"
+         data-ops="WRITE:0 + WRITE:1 + WRITE:2 + WRITE:3; H:0 + H:1 + H:2; X:1; X:0 + X:1; CCNOT:0,1,3; X:0 + X:1 + X:3; CZ:2,3; X:0 + X:1 + X:3; CCNOT:0,1,3; X:0 + X:1; X:1"
+         data-cap="Figure 10-4 · X บน b = NOT b → bit_or ลง 0x8 → pAND (CZ ระหว่าง c กับ scratch) → ทำย้อนลำดับเพื่อ uncompute"></div>
+    <div class="scrollx">
+      <div class="crow" data-n="8" data-r="18" data-mag="0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125" data-phase="0,0,0,0,180,180,0,180" data-hl="4,5,7" data-lab="Figure 10-5 · ∣4⟩ ∣5⟩ ∣7⟩ ถูกพลิก"></div>
+    </div>
+  </div>
+
+  <!-- ⑤ สูตร 9 ขั้นแก้ SAT -->
+  <div class="box aha">
+    <span class="tag">⑤ แก้ SAT ด้วยสูตร 9 ขั้น</span>
+    <p>เขียนโจทย์ให้เป็นก้อนๆ ต่อกันด้วย AND → <b>(clause 1) AND (clause 2) AND (clause 3) …</b>
+    (clause = ก้อนย่อยที่ต้องจริงพร้อมกันทุกก้อน) แล้วทำทีละช่วง</p>
+    <ol>
+      <li><b>เตรียม:</b> HAD ทุกสาย input · ให้ scratch <b>1 ตัวต่อ 1 clause</b> (เริ่มที่ ∣0⟩)</li>
+      <li><b>คำนวณแต่ละ clause แบบปกติ</b> (magnitude logic) เก็บผลลง scratch ของก้อนนั้น</li>
+      <li><b>pAND scratch ทุกตัว</b> = phase logic ตัวสุดท้าย → นี่คือการ flip</li>
+      <li><b>uncompute</b> ทุก clause คืน scratch เป็น ∣0⟩ (ต้องทำก่อน mirror)</li>
+      <li><b>mirror</b> บน input เท่านั้น</li>
+      <li>วนข้อ 2–5 ทั้งหมด N<sub>AA</sub> รอบ แล้ว <b>READ</b> input</li>
+    </ol>
+    <p class="src">ถ้าไม่มีค่าไหนทำให้จริง → pAND ไม่พลิกใครเลย → mirror ไม่มีอะไรให้ขยาย → READ ได้ค่าสุ่ม
+    → เอาไปแทนในสูตรแล้วได้ 0 → สรุปว่าสูตรนี้น่าจะ unsatisfiable (ไม่มีทางเป็นจริง)</p>
   </div>
 
   <p style="margin-top:2rem;">
